@@ -1,0 +1,17 @@
+(process.env as Record<string, string>).NODE_ENV = 'test';
+process.env.NEXT_PUBLIC_SITE_URL ??= 'http://localhost:3000';
+process.env.DATABASE_URL ??= 'postgres://test:test@localhost:5432/test';
+process.env.ANTHROPIC_MODEL_CONCIERGE ??= 'claude-haiku-4-5-20251001';
+process.env.ANTHROPIC_MODEL_DRAFTER ??= 'claude-sonnet-4-6';
+process.env.SMTP_HOST ??= 'smtp.test';
+process.env.SMTP_PORT ??= '587';
+process.env.SMTP_SECURE ??= 'false';
+process.env.SMTP_USER ??= 'test@example.com';
+process.env.SMTP_FROM ??= 'test@example.com';
+process.env.SMTP_FROM_NAME ??= 'Test';
+process.env.IMAP_HOST ??= 'imap.test';
+process.env.IMAP_PORT ??= '993';
+process.env.IMAP_USER ??= 'test@example.com';
+process.env.R2_BUCKET ??= 'test-bucket';
+process.env.R2_PUBLIC_URL ??= 'https://cdn.test';
+process.env.AUTH_SECRET ??= 'a'.repeat(64);

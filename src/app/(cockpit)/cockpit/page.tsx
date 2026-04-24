@@ -1,13 +1,44 @@
-export default function CockpitPage() {
+import { redirect } from 'next/navigation';
+
+import { Dashboard } from '@/components/cockpit/dashboard';
+import { CockpitShell } from '@/components/cockpit/shell';
+import { getSession } from '@/lib/auth/guard';
+import { dealsRepo } from '@/lib/db/repos/deals';
+import { leadsRepo } from '@/lib/db/repos/leads';
+
+export const dynamic = 'force-dynamic';
+
+export default async function CockpitPage() {
+  const session = await getSession();
+  if (!session) redirect('/cockpit/login');
+
+  const [deals, leads] = await Promise.all([
+    dealsRepo.activeForWorkspace(session.user.workspaceId),
+    leadsRepo.pipeline(session.user.workspaceId),
+  ]);
+
+  const byStage = leads.reduce<Record<string, number>>((acc, lead) => {
+    acc[lead.stage] = (acc[lead.stage] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const deal = deals[0]
+    ? {
+        id: deals[0].id,
+        roundSizeUsd: deals[0].targetSizeUsd,
+        stage: deals[0].roundLabel,
+        closeInDays: null as number | null,
+      }
+    : null;
+
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <div className="flex max-w-2xl flex-col items-center gap-4 text-center">
-        <p className="text-sm font-medium tracking-wide text-[#5B21B6] uppercase">Cockpit</p>
-        <h1 className="text-3xl font-medium tracking-tight text-slate-900">Founder Cockpit</h1>
-        <p className="text-base text-slate-600">
-          Authentication gates live in Phase 2. The dashboard ships in Phase 6.
-        </p>
-      </div>
-    </main>
+    <CockpitShell email={session.user.email}>
+      <Dashboard
+        user={{ email: session.user.email, role: session.user.role }}
+        deal={deal}
+        leadCount={leads.length}
+        byStage={byStage}
+      />
+    </CockpitShell>
   );
 }

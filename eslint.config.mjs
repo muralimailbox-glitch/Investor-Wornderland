@@ -29,6 +29,13 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    files: ['scripts/**/*.ts', 'src/lib/db/seed.ts', 'tests/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+      'no-restricted-imports': 'off',
+    },
+  },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'coverage/**', 'drizzle/**', 'next-env.d.ts']),
 ]);
 

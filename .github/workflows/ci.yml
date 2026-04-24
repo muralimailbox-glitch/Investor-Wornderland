@@ -24,3 +24,116 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
+
+  vitest:
+    name: Unit tests (vitest)
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: vitest run --coverage
+        run: pnpm vitest run --coverage --reporter=dot
+      - name: Enforce ≥85% line coverage
+        run: |
+          node -e "const s=require('./coverage/coverage-summary.json');const p=Math.floor(s.total.lines.pct);if(p<85){console.error('line coverage '+p+'% < 85%');process.exit(1)}else{console.log('coverage ok: '+p+'%')}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: coverage/
+
+  playwright:
+    name: E2E tests (playwright)
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: ootaos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://test:test@localhost:5432/ootaos_test
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      AUTH_SECRET: test-secret-thirty-two-characters-long-please-123
+      SESSION_COOKIE_NAME: ootaos_session
+      ANTHROPIC_MODEL_CONCIERGE: claude-haiku-4-5-20251001
+      ANTHROPIC_MODEL_DRAFTER: claude-sonnet-4-6
+      SMTP_HOST: smtp.test
+      SMTP_PORT: '587'
+      SMTP_SECURE: 'false'
+      SMTP_USER: test@example.com
+      SMTP_FROM: test@example.com
+      SMTP_FROM_NAME: Test
+      IMAP_HOST: imap.test
+      IMAP_PORT: '993'
+      IMAP_USER: test@example.com
+      R2_BUCKET: test-bucket
+      R2_PUBLIC_URL: https://cdn.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm db:push
+      - run: pnpm db:seed
+      - run: pnpm build
+      - name: Run playwright E2E specs
+        run: pnpm exec playwright test --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+  audit:
+    name: Security audits
+    runs-on: ubuntu-latest
+    needs: lint-typecheck
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: audit-secrets
+        run: bash scripts/audit-secrets.sh
+      - name: audit-routes
+        run: bash scripts/audit-routes.sh
+      - name: audit-ai
+        run: bash scripts/audit-ai.sh
+      - name: audit-headers
+        run: bash scripts/audit-headers.sh
+      - name: audit-deps
+        run: bash scripts/audit-deps.sh
+      - name: audit-pii
+        run: bash scripts/audit-pii.sh
+      - name: verify-stitch
+        run: bash scripts/verify-stitch.sh

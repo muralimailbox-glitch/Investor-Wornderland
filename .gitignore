@@ -21,6 +21,9 @@
 /test-results
 /playwright/.cache
 
+# ── ML models (downloaded at runtime by Xenova transformers) ─────────
+/models
+
 # ── env files (commit .env.example only) ──────────────────────────────
 .env
 .env.*
