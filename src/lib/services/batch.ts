@@ -6,10 +6,11 @@ import { ApiError, BadRequestError, NotFoundError } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { db } from '@/lib/db/client';
 import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
-import { auditEvents, emailOutbox, investors, leads } from '@/lib/db/schema';
+import { auditEvents, emailOutbox, investors, leads, users } from '@/lib/db/schema';
 import { sendMail } from '@/lib/mail/smtp';
+import { renderByKey, type TemplateKey } from '@/lib/mail/templates';
 
-const MAX_BATCH_SIZE = 5;
+export const MAX_BATCH_SIZE = 50;
 
 export type CreateBatchInput = {
   workspaceId: string;
@@ -18,6 +19,7 @@ export type CreateBatchInput = {
   subject: string;
   bodyText: string;
   bodyHtml?: string;
+  templateKey?: TemplateKey;
 };
 
 export type BatchSummary = {
@@ -31,7 +33,12 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
   if (input.leadIds.length > MAX_BATCH_SIZE) throw new BadRequestError('batch_too_large');
 
   const rows = await db
-    .select({ leadId: leads.id, email: investors.email, firstName: investors.firstName })
+    .select({
+      leadId: leads.id,
+      email: investors.email,
+      firstName: investors.firstName,
+      lastName: investors.lastName,
+    })
     .from(leads)
     .innerJoin(investors, eq(investors.id, leads.investorId))
     .where(and(eq(leads.workspaceId, input.workspaceId), inArray(leads.id, input.leadIds)));
@@ -40,18 +47,62 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     throw new NotFoundError('lead_missing');
   }
 
+  const founderRow = await db
+    .select({
+      displayName: users.displayName,
+      email: users.email,
+      publicEmail: users.publicEmail,
+      whatsappE164: users.whatsappE164,
+      signatureMarkdown: users.signatureMarkdown,
+      companyName: users.companyName,
+      companyWebsite: users.companyWebsite,
+      companyAddress: users.companyAddress,
+    })
+    .from(users)
+    .where(and(eq(users.workspaceId, input.workspaceId), eq(users.role, 'founder')))
+    .limit(1);
+  const founder = founderRow[0] ?? {
+    displayName: null,
+    email: null,
+    publicEmail: null,
+    whatsappE164: null,
+    signatureMarkdown: null,
+    companyName: null,
+    companyWebsite: null,
+    companyAddress: null,
+  };
+
   const batchId = randomUUID();
   const outboxIds: string[] = [];
   for (const r of rows) {
-    const personalizedText = input.bodyText.replace(/\{\{firstName\}\}/g, r.firstName ?? '');
-    const personalizedHtml = input.bodyHtml
+    let subject = input.subject;
+    let personalizedText = input.bodyText.replace(/\{\{firstName\}\}/g, r.firstName ?? '');
+    let personalizedHtml: string | undefined = input.bodyHtml
       ? input.bodyHtml.replace(/\{\{firstName\}\}/g, r.firstName ?? '')
       : undefined;
+
+    if (input.templateKey) {
+      const rendered = renderByKey(input.templateKey, {
+        firstName: r.firstName,
+        lastName: r.lastName,
+        founder,
+        companyName: founder.companyName,
+        physicalAddress: founder.companyAddress,
+        extras: {
+          subject: input.subject,
+          heading: '',
+          body: input.bodyText,
+        },
+      });
+      subject = rendered.subject;
+      personalizedText = rendered.text;
+      personalizedHtml = rendered.html;
+    }
 
     const payload: typeof emailOutbox.$inferInsert = {
       workspaceId: input.workspaceId,
       toEmail: r.email,
-      subject: input.subject,
+      subject,
       bodyText: personalizedText,
       status: 'queued',
     };
@@ -67,7 +118,12 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     action: 'batch.created',
     targetType: 'batch',
     targetId: batchId,
-    payload: { outboxIds, leadIds: input.leadIds, subject: input.subject },
+    payload: {
+      outboxIds,
+      leadIds: input.leadIds,
+      subject: input.subject,
+      templateKey: input.templateKey ?? null,
+    },
   });
 
   return {

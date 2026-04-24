@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowUpRight, DollarSign, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { ArrowUpRight, DollarSign, Eye, Sparkles, TrendingUp, Users } from 'lucide-react';
+
+import { startPreview } from '@/lib/api/preview';
 
 type Props = {
   user: { email: string; role: string };
@@ -28,17 +31,38 @@ export function Dashboard({ user, deal, leadCount, byStage }: Props) {
   const greetName = user.email.split('@')[0];
   const roundLabel = deal ? formatUsd(deal.roundSizeUsd) : 'No active deal';
   const closeIn = deal?.closeInDays ?? null;
+  const [previewing, setPreviewing] = useState(false);
+
+  const onPreview = async () => {
+    setPreviewing(true);
+    try {
+      const { url } = await startPreview({ returnTo: '/' });
+      window.open(url, '_blank', 'noopener');
+    } finally {
+      setPreviewing(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Cockpit</p>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-          Welcome back, {greetName}.
-        </h1>
-        <p className="text-[15px] text-slate-600">
-          Here&apos;s where the round stands and where your attention should go next.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Cockpit</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            Welcome back, {greetName}.
+          </h1>
+          <p className="text-[15px] text-slate-600">
+            Here&apos;s where the round stands and where your attention should go next.
+          </p>
+        </div>
+        <button
+          onClick={() => void onPreview()}
+          disabled={previewing}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-0.5 disabled:opacity-60"
+        >
+          <Eye className="h-4 w-4" />
+          {previewing ? 'Opening…' : 'Preview wonderland'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

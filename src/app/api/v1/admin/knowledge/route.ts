@@ -1,7 +1,8 @@
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { handle } from '@/lib/api/handle';
+import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { db } from '@/lib/db/client';
 import { knowledgeChunks } from '@/lib/db/schema';
@@ -55,5 +56,45 @@ export const POST = handle(async (req) => {
     section: body.section,
     version: body.version,
     chunks: result.inserted,
+  });
+});
+
+const DeleteBody = z.object({
+  section: z.string().min(1).max(120),
+  version: z.string().min(1).max(40),
+});
+
+export const DELETE = handle(async (req) => {
+  await rateLimit(req, { key: 'admin:knowledge:delete', perMinute: 30 });
+  const { user } = await requireAuth({ role: 'founder' });
+  const body = DeleteBody.parse(await req.json());
+
+  const deleted = await db
+    .delete(knowledgeChunks)
+    .where(
+      and(
+        eq(knowledgeChunks.workspaceId, user.workspaceId),
+        eq(knowledgeChunks.section, body.section),
+        eq(knowledgeChunks.version, body.version),
+      ),
+    )
+    .returning({ id: knowledgeChunks.id });
+
+  await audit({
+    workspaceId: user.workspaceId,
+    actorUserId: user.id,
+    action: 'knowledge.delete',
+    targetType: 'knowledge',
+    payload: {
+      section: body.section,
+      version: body.version,
+      chunksDeleted: deleted.length,
+    },
+  });
+
+  return Response.json({
+    section: body.section,
+    version: body.version,
+    chunksDeleted: deleted.length,
   });
 });

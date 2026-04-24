@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, CheckCircle2, Loader2, Save, Sparkles } from 'lucide-react';
+import { BookOpen, CheckCircle2, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
 
 type Section = {
   section: string;
@@ -117,6 +117,35 @@ export function KnowledgeEditor() {
       setErr(e instanceof Error ? e.message : 'save_failed');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteSection(section: string, v: string) {
+    if (
+      !confirm(
+        `Delete the "${section}" v${v} section and its chunks? Priya will stop citing it immediately. This can't be undone.`,
+      )
+    ) {
+      return;
+    }
+    setErr(null);
+    setBanner(null);
+    try {
+      const res = await fetch('/api/v1/admin/knowledge', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ section, version: v }),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { title?: string } | null;
+        throw new Error(data?.title ?? `${res.status}`);
+      }
+      const result = (await res.json()) as { chunksDeleted: number };
+      setBanner(`Deleted ${result.chunksDeleted} chunks from "${section}" v${v}.`);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'delete_failed');
     }
   }
 
@@ -261,12 +290,22 @@ export function KnowledgeEditor() {
                 {sections.map((s) => (
                   <li
                     key={`${s.section}-${s.version}`}
-                    className="flex items-center justify-between text-slate-700"
+                    className="group flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-slate-700 transition hover:bg-rose-50/40"
                   >
                     <span className="capitalize">{s.section}</span>
-                    <span className="text-xs text-slate-400">
-                      v{s.version} · {s.chunkCount}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">
+                        v{s.version} · {s.chunkCount}
+                      </span>
+                      <button
+                        type="button"
+                        title={`Delete ${s.section} v${s.version}`}
+                        onClick={() => void deleteSection(s.section, s.version)}
+                        className="rounded-md p-1 text-slate-400 opacity-0 transition hover:bg-rose-100 hover:text-rose-600 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -40,7 +40,7 @@ done
 
 # 5. No real secrets committed
 echo "[5/8] No secrets in committed files"
-if git ls-files 2>/dev/null | xargs grep -lE 'sk-ant-[A-Za-z0-9]{30,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN ' 2>/dev/null | grep -v '.env.example' | grep -v 'gate-' | grep -v '\.md$'; then
+if git ls-files 2>/dev/null | xargs grep -lE 'sk-ant-[A-Za-z0-9]{30,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN ' 2>/dev/null | grep -v '.env.example' | grep -v 'gate-' | grep -v 'audit-secrets' | grep -v '\.md$'; then
   fail "potential secret material found in tracked files"
 else
   pass "no obvious secret material in tracked files"

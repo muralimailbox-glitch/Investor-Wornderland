@@ -1,4 +1,11 @@
-export type LoungeDocumentKind = 'pitch_deck' | 'financial_model' | 'data_room' | 'other';
+export type LoungeDocumentKind =
+  | 'pitch_deck'
+  | 'memo'
+  | 'financials'
+  | 'cap_table'
+  | 'product_demo'
+  | 'term_sheet'
+  | 'other';
 
 export type LoungeDocument = {
   id: string;
@@ -12,6 +19,8 @@ export type LoungeSlot = { startsAt: string; endsAt: string };
 
 export type LoungeBundle = {
   investorName: string | null;
+  investorTimezone: string;
+  founderTimezone: string;
   documents: LoungeDocument[];
   suggestedSlots: LoungeSlot[];
   signedAt: string;

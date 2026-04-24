@@ -4,6 +4,7 @@ import { aiLogsRepo, type AiLogInsert } from '@/lib/db/repos/ai-logs';
 import { env, requireEnv } from '@/lib/env';
 
 export type AiAgent = AiLogInsert['agent'];
+export type AiMessageParam = Anthropic.MessageParam;
 
 let cached: Anthropic | null = null;
 

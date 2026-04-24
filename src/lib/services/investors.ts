@@ -154,10 +154,25 @@ export type InvestorUpdateInput = {
   title?: string | undefined;
   decisionAuthority?: string | undefined;
   email?: string | undefined;
-  mobileE164?: string | undefined;
+  mobileE164?: string | null | undefined;
+  linkedinUrl?: string | null | undefined;
+  twitterHandle?: string | null | undefined;
   timezone?: string | undefined;
-  introPath?: string | undefined;
-  personalThesisNotes?: string | undefined;
+  introPath?: string | null | undefined;
+  personalThesisNotes?: string | null | undefined;
+  photoUrl?: string | null | undefined;
+  city?: string | null | undefined;
+  country?: string | null | undefined;
+  crunchbaseUrl?: string | null | undefined;
+  tracxnUrl?: string | null | undefined;
+  angellistUrl?: string | null | undefined;
+  websiteUrl?: string | null | undefined;
+  checkSizeMinUsd?: number | null | undefined;
+  checkSizeMaxUsd?: number | null | undefined;
+  sectorInterests?: string[] | null | undefined;
+  stageInterests?: string[] | null | undefined;
+  bioSummary?: string | null | undefined;
+  warmthScore?: number | null | undefined;
 };
 
 export async function updateInvestor(
@@ -178,9 +193,24 @@ export async function updateInvestor(
     'decisionAuthority',
     'email',
     'mobileE164',
+    'linkedinUrl',
+    'twitterHandle',
     'timezone',
     'introPath',
     'personalThesisNotes',
+    'photoUrl',
+    'city',
+    'country',
+    'crunchbaseUrl',
+    'tracxnUrl',
+    'angellistUrl',
+    'websiteUrl',
+    'checkSizeMinUsd',
+    'checkSizeMaxUsd',
+    'sectorInterests',
+    'stageInterests',
+    'bioSummary',
+    'warmthScore',
   ] as const) {
     const next = patch[key];
     if (next !== undefined && next !== (existing as Record<string, unknown>)[key]) {

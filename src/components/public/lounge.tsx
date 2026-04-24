@@ -9,6 +9,8 @@ type Slot = { startsAt: string; endsAt: string };
 
 type Bundle = {
   investorName: string | null;
+  investorTimezone: string;
+  founderTimezone: string;
   documents: Document[];
   suggestedSlots: Slot[];
   signedAt: string;
@@ -20,9 +22,21 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatSlot(iso: string): string {
+function formatSlotIn(iso: string, tz: string): string {
   const d = new Date(iso);
-  return d.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: tz,
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(d);
+}
+
+function shortTz(tz: string): string {
+  const parts = tz.split('/');
+  return parts[parts.length - 1]?.replace(/_/g, ' ') ?? tz;
 }
 
 export function Lounge() {
@@ -142,10 +156,19 @@ export function Lounge() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">Book a 30-min founder call</h2>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">
+            Book a 30-min founder call
+          </h2>
+          <p className="text-xs text-slate-500">
+            Your time ({shortTz(bundle.investorTimezone)}) · Priya&apos;s time ({shortTz(bundle.founderTimezone)})
+          </p>
+        </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {bundle.suggestedSlots.length === 0 ? (
-            <p className="text-sm text-slate-500 sm:col-span-3">No open slots this week. Email info@ootaos.com and we will make room.</p>
+            <p className="text-sm text-slate-500 sm:col-span-3">
+              No open slots this week. Email info@ootaos.com and we will make room.
+            </p>
           ) : (
             bundle.suggestedSlots.map((slot) => {
               const booked = bookedSlot === slot.startsAt;
@@ -165,8 +188,12 @@ export function Lounge() {
                     {booked ? <CalendarCheck className="h-3.5 w-3.5" /> : null}
                     {booked ? 'Booked' : busy ? 'Booking…' : 'Available'}
                   </span>
-                  <span className="text-sm font-medium">{formatSlot(slot.startsAt)}</span>
-                  <span className="text-xs text-slate-500">30 minutes with the founders</span>
+                  <span className="text-sm font-medium">
+                    {formatSlotIn(slot.startsAt, bundle.investorTimezone)}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {formatSlotIn(slot.startsAt, bundle.founderTimezone)} (Priya)
+                  </span>
                 </button>
               );
             })

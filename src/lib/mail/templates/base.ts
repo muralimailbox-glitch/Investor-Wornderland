@@ -1,0 +1,133 @@
+import { env } from '@/lib/env';
+import { buildSignature, escapeHtml, type FounderSignatureInput } from '@/lib/mail/signature';
+
+export type TemplateVars = {
+  firstName?: string | null;
+  lastName?: string | null;
+  founder: FounderSignatureInput;
+  companyName?: string | null;
+  unsubscribeUrl?: string | null;
+  physicalAddress?: string | null;
+  preheader?: string | null;
+};
+
+export type TemplateBody = {
+  subject: string;
+  heading?: string;
+  /** HTML fragment — will be wrapped by renderBaseLayout. */
+  bodyHtml: string;
+  /** Plain-text equivalent. */
+  bodyText: string;
+  /** Optional CTA rendered as a prominent button. */
+  cta?: { label: string; href: string };
+};
+
+export type RenderedEmail = { subject: string; html: string; text: string };
+
+const BRAND = {
+  primary: '#7c3aed',
+  accent: '#d946ef',
+  ink: '#0f172a',
+  muted: '#475569',
+  surface: '#ffffff',
+  page: '#f5f3ff',
+  border: '#ece9f7',
+} as const;
+
+function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
+  const signature = buildSignature(vars.founder);
+  const company = vars.companyName ?? vars.founder.companyName ?? 'OotaOS';
+  const physical =
+    vars.physicalAddress ?? vars.founder.companyName ?? 'OotaOS, Perth WA, Australia';
+  const unsubscribe = vars.unsubscribeUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/unsubscribe`;
+  const preheader = vars.preheader ?? '';
+
+  const ctaHtml = body.cta
+    ? `<p style="margin:28px 0 8px 0;">
+         <a href="${body.cta.href}" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;box-shadow:0 10px 26px -14px rgba(124,58,237,0.6);">${escapeHtml(body.cta.label)}</a>
+       </p>`
+    : '';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>${escapeHtml(body.subject)}</title>
+  </head>
+  <body style="margin:0;padding:0;background:${BRAND.page};font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Helvetica,Arial,sans-serif;color:${BRAND.ink};">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">${escapeHtml(preheader)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.page};">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:${BRAND.surface};border-radius:20px;overflow:hidden;box-shadow:0 20px 60px -30px rgba(91,33,182,0.35);">
+            <tr>
+              <td style="padding:28px 36px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});color:#fff;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:20px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(company)}</td>
+                    <td align="right" style="font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.2em;opacity:0.85;">Investor Wonderland</td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:32px 36px 16px 36px;">
+                ${body.heading ? `<h1 style="margin:0 0 16px 0;font-size:22px;font-weight:700;color:${BRAND.ink};">${escapeHtml(body.heading)}</h1>` : ''}
+                <div style="font-size:15px;line-height:1.65;color:${BRAND.ink};">
+                  ${body.bodyHtml}
+                </div>
+                ${ctaHtml}
+                ${signature.html}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 36px;background:${BRAND.page};border-top:1px solid ${BRAND.border};font-size:12px;color:${BRAND.muted};">
+                <p style="margin:0 0 6px 0;">${escapeHtml(physical)}</p>
+                <p style="margin:0;">
+                  <a href="${unsubscribe}" style="color:${BRAND.primary};text-decoration:none;">Unsubscribe</a>
+                  &nbsp;·&nbsp;
+                  Sent with care from ${escapeHtml(company)}.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+function renderTextLayout(body: TemplateBody, vars: TemplateVars): string {
+  const signature = buildSignature(vars.founder);
+  const ctaLine = body.cta ? `\n${body.cta.label}: ${body.cta.href}\n` : '';
+  const unsubscribe = vars.unsubscribeUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/unsubscribe`;
+  return [
+    body.heading ?? '',
+    '',
+    body.bodyText,
+    ctaLine,
+    signature.text,
+    '',
+    `Unsubscribe: ${unsubscribe}`,
+  ]
+    .filter((s) => s !== undefined)
+    .join('\n');
+}
+
+export function renderTemplate(body: TemplateBody, vars: TemplateVars): RenderedEmail {
+  return {
+    subject: body.subject,
+    html: renderBaseLayout(body, vars),
+    text: renderTextLayout(body, vars),
+  };
+}
+
+export function personalize(template: string, vars: TemplateVars): string {
+  return template
+    .replace(/\{\{firstName\}\}/g, vars.firstName ?? '')
+    .replace(/\{\{lastName\}\}/g, vars.lastName ?? '')
+    .replace(/\{\{companyName\}\}/g, vars.companyName ?? vars.founder.companyName ?? 'OotaOS')
+    .replace(/\{\{founderName\}\}/g, vars.founder.displayName ?? 'The OotaOS founding team');
+}

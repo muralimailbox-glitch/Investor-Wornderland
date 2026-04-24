@@ -61,7 +61,9 @@ function parseFrontmatter(raw: string): { fm: Frontmatter; body: string } {
   };
 }
 
-export function loadPrompt(name: 'concierge' | 'drafter' | 'strategist'): LoadedPrompt {
+export function loadPrompt(
+  name: 'concierge' | 'drafter' | 'strategist' | 'tracxn-parse',
+): LoadedPrompt {
   const cached = cache.get(name);
   if (cached) return cached;
   const raw = readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf8');

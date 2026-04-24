@@ -26,6 +26,8 @@ PUBLIC_OK=(
   "src/app/api/v1/admin/auth/login/route.ts"
   "src/app/api/v1/admin/auth/signup/route.ts"
   "src/app/api/v1/admin/auth/logout/route.ts"
+  "src/app/api/v1/preview/exit/route.ts"
+  "src/app/api/v1/preview/status/route.ts"
 )
 
 # Routes gated behind the NDA session cookie rather than admin auth.

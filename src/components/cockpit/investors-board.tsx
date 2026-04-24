@@ -2,7 +2,24 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Building2, Filter, Loader2, Mail, Plus, Search, Upload, UserCircle2 } from 'lucide-react';
+import {
+  Building2,
+  Eye,
+  Filter,
+  Loader2,
+  Mail,
+  Pencil,
+  Plus,
+  Search,
+  Sparkles,
+  Upload,
+  UserCircle2,
+} from 'lucide-react';
+
+import { FirmEditModal } from '@/components/cockpit/firm-edit-modal';
+import { InvestorEditModal } from '@/components/cockpit/investor-edit-modal';
+import { TracxnImportModal } from '@/components/cockpit/tracxn-import';
+import { startPreview } from '@/lib/api/preview';
 
 type Firm = {
   id: string;
@@ -55,6 +72,9 @@ export function InvestorsBoard() {
   const [search, setSearch] = useState('');
   const [firmType, setFirmType] = useState<string>('');
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -115,6 +135,13 @@ export function InvestorsBoard() {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setImportOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-medium text-violet-700 shadow-sm transition hover:-translate-y-px hover:bg-violet-50"
+          >
+            <Sparkles className="h-4 w-4" /> Import from Tracxn
+          </button>
+          <button
+            type="button"
             onClick={() => setCreateOpen(true)}
             className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-px"
           >
@@ -157,11 +184,12 @@ export function InvestorsBoard() {
       ) : null}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-[1.6fr_1.4fr_1.1fr_1fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+        <div className="grid grid-cols-[1.4fr_1.2fr_1fr_0.9fr_0.6fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
           <span>Investor</span>
           <span>Firm</span>
           <span>Role</span>
           <span>Stage</span>
+          <span className="text-right">Actions</span>
         </div>
         {loading ? (
           <div className="flex h-40 items-center justify-center text-sm text-slate-500">
@@ -177,7 +205,7 @@ export function InvestorsBoard() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(0.02 * idx, 0.3) }}
-                className="grid grid-cols-[1.6fr_1.4fr_1.1fr_1fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
+                className="grid grid-cols-[1.4fr_1.2fr_1fr_0.9fr_0.6fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-violet-100 text-violet-700">
@@ -192,7 +220,12 @@ export function InvestorsBoard() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setEditingFirmId(row.firm.id)}
+                  className="flex items-center gap-2 min-w-0 rounded-lg px-1 py-1 text-left transition hover:bg-violet-50"
+                  title="Edit firm"
+                >
                   <Building2 className="h-4 w-4 flex-none text-slate-400" />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-slate-900">{row.firm.name}</p>
@@ -201,7 +234,7 @@ export function InvestorsBoard() {
                       {row.firm.hqCity ? ` · ${row.firm.hqCity}` : ''}
                     </p>
                   </div>
-                </div>
+                </button>
                 <div className="min-w-0">
                   <p className="truncate text-sm text-slate-700">{row.investor.title}</p>
                   <p className="truncate text-xs text-slate-500">
@@ -220,6 +253,36 @@ export function InvestorsBoard() {
                   ) : (
                     <span className="text-xs text-slate-400">no lead yet</span>
                   )}
+                </div>
+                <div className="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    title="Edit investor"
+                    onClick={() => setEditingId(row.investor.id)}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    title="Preview wonderland as this investor"
+                    onClick={async () => {
+                      try {
+                        const { url } = await startPreview({
+                          investorId: row.investor.id,
+                          returnTo: '/lounge',
+                        });
+                        window.open(url, '_blank', 'noopener');
+                      } catch {
+                        // silent
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View as
+                  </button>
                 </div>
               </motion.div>
             ))}
@@ -246,6 +309,36 @@ export function InvestorsBoard() {
           />
         ) : null}
       </AnimatePresence>
+
+      <TracxnImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          void refresh();
+        }}
+      />
+
+      {editingId ? (
+        <InvestorEditModal
+          investorId={editingId}
+          onClose={() => setEditingId(null)}
+          onSaved={() => {
+            setEditingId(null);
+            void refresh();
+          }}
+        />
+      ) : null}
+
+      {editingFirmId ? (
+        <FirmEditModal
+          firmId={editingFirmId}
+          onClose={() => setEditingFirmId(null)}
+          onSaved={() => {
+            setEditingFirmId(null);
+            void refresh();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

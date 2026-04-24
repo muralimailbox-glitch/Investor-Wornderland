@@ -1,14 +1,15 @@
 import { cookies } from 'next/headers';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { ApiError } from '@/lib/api/handle';
 import { readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { meetingsRepo } from '@/lib/db/repos/meetings';
-import { leads } from '@/lib/db/schema';
+import { investors, leads, users } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { sendMail } from '@/lib/mail/smtp';
+import { DEFAULT_FOUNDER_TZ, formatInTz } from '@/lib/time/tz';
 
 export type BookMeetingInput = {
   startsAt: string;
@@ -21,6 +22,10 @@ export type BookMeetingResult = {
   startsAt: string;
   endsAt: string;
   meetLink: string | null;
+  investorTimezone: string;
+  founderTimezone: string;
+  investorLocalStart: string;
+  founderLocalStart: string;
 };
 
 export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingResult> {
@@ -44,9 +49,25 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     throw new ApiError(400, 'too_far_out');
   }
 
-  const leadRow = await db.select().from(leads).where(eq(leads.id, session.leadId)).limit(1);
-  const lead = leadRow[0];
+  const leadRow = await db
+    .select({
+      lead: leads,
+      investorTimezone: investors.timezone,
+    })
+    .from(leads)
+    .leftJoin(investors, eq(investors.id, leads.investorId))
+    .where(eq(leads.id, session.leadId))
+    .limit(1);
+  const lead = leadRow[0]?.lead;
   if (!lead) throw new ApiError(404, 'lead_not_found');
+  const investorTimezone: string = leadRow[0]?.investorTimezone ?? DEFAULT_FOUNDER_TZ;
+
+  const founderRow = await db
+    .select({ tz: users.defaultTimezone })
+    .from(users)
+    .where(and(eq(users.workspaceId, lead.workspaceId), eq(users.role, 'founder')))
+    .limit(1);
+  const founderTimezone: string = founderRow[0]?.tz ?? DEFAULT_FOUNDER_TZ;
 
   const conflict = await db.execute<{ count: number }>(sql`
     SELECT COUNT(*)::int AS count FROM meetings
@@ -77,6 +98,15 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     payload: { meetingId: meeting.id, newStage: 'meeting_scheduled' },
   });
 
+  const investorLocalStart = formatInTz(startsAt, investorTimezone, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+  const founderLocalStart = formatInTz(startsAt, founderTimezone, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
   try {
     await sendMail({
       to: session.email,
@@ -84,8 +114,8 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
       text: [
         'Your meeting with OotaOS is confirmed.',
         '',
-        `Starts: ${startsAt.toISOString()}`,
-        `Ends: ${endsAt.toISOString()}`,
+        `Your time (${investorTimezone}): ${investorLocalStart}`,
+        `Priya's time (${founderTimezone}): ${founderLocalStart}`,
         input.agenda ? `Agenda: ${input.agenda}` : '',
         '',
         'We will send a calendar invite shortly.',
@@ -97,13 +127,13 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     });
     await sendMail({
       to: env.SMTP_FROM,
-      subject: `Meeting booked — ${session.email} — ${startsAt.toISOString()}`,
+      subject: `Meeting booked — ${session.email} — ${founderLocalStart}`,
       text: [
         'A new investor meeting has been booked.',
         ``,
         `Email: ${session.email}`,
-        `Start: ${startsAt.toISOString()}`,
-        `End: ${endsAt.toISOString()}`,
+        `Investor time (${investorTimezone}): ${investorLocalStart}`,
+        `Your time (${founderTimezone}): ${founderLocalStart}`,
         input.agenda ? `Agenda: ${input.agenda}` : '(no agenda provided)',
       ].join('\n'),
     });
@@ -116,5 +146,9 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     startsAt: meeting.startsAt.toISOString(),
     endsAt: meeting.endsAt.toISOString(),
     meetLink: meeting.meetLink ?? null,
+    investorTimezone,
+    founderTimezone,
+    investorLocalStart,
+    founderLocalStart,
   };
 }

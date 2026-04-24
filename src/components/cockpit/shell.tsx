@@ -4,14 +4,29 @@ import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { BookOpen, LayoutDashboard, LogOut, Mail, Menu, Users, Waypoints, X } from 'lucide-react';
+import {
+  BookOpen,
+  Briefcase,
+  FileText,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Menu,
+  Settings,
+  Users,
+  Waypoints,
+  X,
+} from 'lucide-react';
 
 const NAV = [
   { href: '/cockpit', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/cockpit/investors', label: 'Investors', icon: Users },
   { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints },
   { href: '/cockpit/inbox', label: 'Inbox', icon: Mail },
+  { href: '/cockpit/documents', label: 'Documents', icon: FileText },
+  { href: '/cockpit/deal', label: 'Deal', icon: Briefcase },
   { href: '/cockpit/knowledge', label: 'Knowledge', icon: BookOpen },
+  { href: '/cockpit/settings', label: 'Settings', icon: Settings },
 ];
 
 export function CockpitShell({ email, children }: { email: string | null; children: ReactNode }) {
