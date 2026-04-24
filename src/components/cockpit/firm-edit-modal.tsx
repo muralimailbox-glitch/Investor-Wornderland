@@ -4,7 +4,14 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 
-import { getFirm, patchFirm, type Firm, type FirmPatch } from '@/lib/api/firms';
+import {
+  getFirm,
+  patchFirm,
+  type Firm,
+  type FirmPatch,
+  type KeyPerson,
+  type RecentDeal,
+} from '@/lib/api/firms';
 
 type Props = {
   firmId: string;
@@ -44,6 +51,22 @@ type Form = {
   topLocationsInPortfolio: string;
   topEntryRounds: string;
   dealsLast12Months: string;
+  // v1.1 deeper Tracxn signals
+  tracxnScore: string;
+  medianPortfolioTracxnScore: string;
+  portfolioIpos: string;
+  portfolioAcquisitions: string;
+  portfolioUnicorns: string;
+  portfolioSoonicorns: string;
+  teamSizeTotal: string;
+  fundClassification: string;
+  operatingLocation: string;
+  specialFlags: string;
+  stageDistribution: string;
+  sectorDistribution: string;
+  locationDistribution: string;
+  recentDeals: string;
+  keyPeople: string;
 };
 
 const EMPTY: Form = {
@@ -76,10 +99,34 @@ const EMPTY: Form = {
   topLocationsInPortfolio: '',
   topEntryRounds: '',
   dealsLast12Months: '',
+  tracxnScore: '',
+  medianPortfolioTracxnScore: '',
+  portfolioIpos: '',
+  portfolioAcquisitions: '',
+  portfolioUnicorns: '',
+  portfolioSoonicorns: '',
+  teamSizeTotal: '',
+  fundClassification: '',
+  operatingLocation: '',
+  specialFlags: '',
+  stageDistribution: '',
+  sectorDistribution: '',
+  locationDistribution: '',
+  recentDeals: '',
+  keyPeople: '',
 };
 
 function arr(v: string[] | null | undefined): string {
   return (v ?? []).join(', ');
+}
+
+function jsonText(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  try {
+    return JSON.stringify(v, null, 2);
+  } catch {
+    return '';
+  }
 }
 
 function fromFirm(f: Firm): Form {
@@ -113,7 +160,42 @@ function fromFirm(f: Firm): Form {
     topLocationsInPortfolio: arr(f.topLocationsInPortfolio),
     topEntryRounds: arr(f.topEntryRounds),
     dealsLast12Months: f.dealsLast12Months == null ? '' : String(f.dealsLast12Months),
+    tracxnScore: f.tracxnScore == null ? '' : String(f.tracxnScore),
+    medianPortfolioTracxnScore:
+      f.medianPortfolioTracxnScore == null ? '' : String(f.medianPortfolioTracxnScore),
+    portfolioIpos: f.portfolioIpos == null ? '' : String(f.portfolioIpos),
+    portfolioAcquisitions: f.portfolioAcquisitions == null ? '' : String(f.portfolioAcquisitions),
+    portfolioUnicorns: f.portfolioUnicorns == null ? '' : String(f.portfolioUnicorns),
+    portfolioSoonicorns: f.portfolioSoonicorns == null ? '' : String(f.portfolioSoonicorns),
+    teamSizeTotal: f.teamSizeTotal == null ? '' : String(f.teamSizeTotal),
+    fundClassification: arr(f.fundClassification),
+    operatingLocation: f.operatingLocation ?? '',
+    specialFlags: arr(f.specialFlags),
+    stageDistribution: jsonText(f.stageDistribution),
+    sectorDistribution: jsonText(f.sectorDistribution),
+    locationDistribution: jsonText(f.locationDistribution),
+    recentDeals: jsonText(f.recentDeals),
+    keyPeople: jsonText(f.keyPeople),
   };
+}
+
+class JsonFieldError extends Error {
+  constructor(
+    readonly field: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function parseJsonOrNull<T>(v: string, field: string): T | null {
+  const trimmed = v.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    throw new JsonFieldError(field, `${field}: not valid JSON`);
+  }
 }
 
 function toPatch(f: Form): FirmPatch {
@@ -155,6 +237,30 @@ function toPatch(f: Form): FirmPatch {
     topLocationsInPortfolio: a(f.topLocationsInPortfolio),
     topEntryRounds: a(f.topEntryRounds),
     dealsLast12Months: n(f.dealsLast12Months),
+    tracxnScore: n(f.tracxnScore),
+    medianPortfolioTracxnScore: n(f.medianPortfolioTracxnScore),
+    portfolioIpos: n(f.portfolioIpos),
+    portfolioAcquisitions: n(f.portfolioAcquisitions),
+    portfolioUnicorns: n(f.portfolioUnicorns),
+    portfolioSoonicorns: n(f.portfolioSoonicorns),
+    teamSizeTotal: n(f.teamSizeTotal),
+    fundClassification: a(f.fundClassification),
+    operatingLocation: s(f.operatingLocation),
+    specialFlags: a(f.specialFlags),
+    stageDistribution: parseJsonOrNull<Record<string, number>>(
+      f.stageDistribution,
+      'stageDistribution',
+    ),
+    sectorDistribution: parseJsonOrNull<Record<string, number>>(
+      f.sectorDistribution,
+      'sectorDistribution',
+    ),
+    locationDistribution: parseJsonOrNull<Record<string, number>>(
+      f.locationDistribution,
+      'locationDistribution',
+    ),
+    recentDeals: parseJsonOrNull<RecentDeal[]>(f.recentDeals, 'recentDeals'),
+    keyPeople: parseJsonOrNull<KeyPerson[]>(f.keyPeople, 'keyPeople'),
   };
 }
 
@@ -182,7 +288,17 @@ export function FirmEditModal({ firmId, onClose, onSaved }: Props) {
     setSaving(true);
     setErr(null);
     try {
-      const updated = await patchFirm(firmId, toPatch(form));
+      let patch: FirmPatch;
+      try {
+        patch = toPatch(form);
+      } catch (jsonErr) {
+        if (jsonErr instanceof JsonFieldError) {
+          setErr(jsonErr.message);
+          return;
+        }
+        throw jsonErr;
+      }
+      const updated = await patchFirm(firmId, patch);
       onSaved(updated);
     } catch (e2) {
       setErr((e2 as Error).message);
@@ -398,6 +514,98 @@ export function FirmEditModal({ firmId, onClose, onSaved }: Props) {
                 />
               </Group>
 
+              <Group title="Tracxn deep signals">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <F
+                    label="Tracxn Investment Score (0–100)"
+                    type="number"
+                    value={form.tracxnScore}
+                    onChange={(v) => setForm((s) => ({ ...s, tracxnScore: v }))}
+                  />
+                  <F
+                    label="Median portfolio Tracxn score"
+                    type="number"
+                    value={form.medianPortfolioTracxnScore}
+                    onChange={(v) => setForm((s) => ({ ...s, medianPortfolioTracxnScore: v }))}
+                  />
+                  <F
+                    label="Portfolio IPOs"
+                    type="number"
+                    value={form.portfolioIpos}
+                    onChange={(v) => setForm((s) => ({ ...s, portfolioIpos: v }))}
+                  />
+                  <F
+                    label="Portfolio acquisitions"
+                    type="number"
+                    value={form.portfolioAcquisitions}
+                    onChange={(v) => setForm((s) => ({ ...s, portfolioAcquisitions: v }))}
+                  />
+                  <F
+                    label="Portfolio unicorns"
+                    type="number"
+                    value={form.portfolioUnicorns}
+                    onChange={(v) => setForm((s) => ({ ...s, portfolioUnicorns: v }))}
+                  />
+                  <F
+                    label="Portfolio soonicorns"
+                    type="number"
+                    value={form.portfolioSoonicorns}
+                    onChange={(v) => setForm((s) => ({ ...s, portfolioSoonicorns: v }))}
+                  />
+                  <F
+                    label="Team size (total)"
+                    type="number"
+                    value={form.teamSizeTotal}
+                    onChange={(v) => setForm((s) => ({ ...s, teamSizeTotal: v }))}
+                  />
+                  <F
+                    label="Operating location"
+                    value={form.operatingLocation}
+                    onChange={(v) => setForm((s) => ({ ...s, operatingLocation: v }))}
+                  />
+                </div>
+                <F
+                  label="Fund classification (comma-separated)"
+                  value={form.fundClassification}
+                  onChange={(v) => setForm((s) => ({ ...s, fundClassification: v }))}
+                />
+                <F
+                  label="Special flags (comma-separated)"
+                  value={form.specialFlags}
+                  onChange={(v) => setForm((s) => ({ ...s, specialFlags: v }))}
+                />
+                <TA
+                  label='Stage distribution JSON — e.g. { "seed": 40, "series_a": 30 }'
+                  value={form.stageDistribution}
+                  onChange={(v) => setForm((s) => ({ ...s, stageDistribution: v }))}
+                  rows={3}
+                />
+                <TA
+                  label='Sector distribution JSON — e.g. { "fintech": 35, "saas": 25 }'
+                  value={form.sectorDistribution}
+                  onChange={(v) => setForm((s) => ({ ...s, sectorDistribution: v }))}
+                  rows={3}
+                />
+                <TA
+                  label='Location distribution JSON — e.g. { "india": 60, "us": 25 }'
+                  value={form.locationDistribution}
+                  onChange={(v) => setForm((s) => ({ ...s, locationDistribution: v }))}
+                  rows={3}
+                />
+                <TA
+                  label='Recent deals JSON — [{ "companyName": "...", "stage": "series_a", "amountUsd": 5000000, "date": "2025-06-12", "sector": "fintech" }]'
+                  value={form.recentDeals}
+                  onChange={(v) => setForm((s) => ({ ...s, recentDeals: v }))}
+                  rows={5}
+                />
+                <TA
+                  label='Key people JSON — [{ "name": "Jane Doe", "title": "Managing Partner", "linkedinUrl": "https://..." }]'
+                  value={form.keyPeople}
+                  onChange={(v) => setForm((s) => ({ ...s, keyPeople: v }))}
+                  rows={4}
+                />
+              </Group>
+
               <Group title="Social">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <F
@@ -473,6 +681,31 @@ function F({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+      />
+    </label>
+  );
+}
+
+function TA({
+  label,
+  value,
+  onChange,
+  rows = 3,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-700">{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        spellCheck={false}
+        className="rounded-xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs leading-relaxed outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
       />
     </label>
   );

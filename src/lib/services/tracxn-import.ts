@@ -8,6 +8,22 @@ import { investorsRepo } from '@/lib/db/repos/investors';
 
 const FIRM_TYPES = ['vc', 'cvc', 'angel', 'family_office', 'accelerator', 'syndicate'] as const;
 
+const RecentDealSchema = z.object({
+  companyName: z.string().min(1).max(200),
+  stage: z.string().max(60).nullable().optional(),
+  amountUsd: z.number().int().nonnegative().nullable().optional(),
+  date: z.string().max(40).nullable().optional(),
+  sector: z.string().max(60).nullable().optional(),
+});
+
+const KeyPersonSchema = z.object({
+  name: z.string().min(1).max(160),
+  title: z.string().max(160).nullable().optional(),
+  linkedinUrl: z.string().max(500).nullable().optional(),
+});
+
+const PercentMapSchema = z.record(z.string(), z.number().int().min(0).max(100));
+
 export const FirmDraftSchema = z.object({
   name: z.string().min(1).max(200),
   firmType: z.enum(FIRM_TYPES).nullable().optional(),
@@ -23,6 +39,22 @@ export const FirmDraftSchema = z.object({
   topLocationsInPortfolio: z.array(z.string()).nullable().optional(),
   topEntryRounds: z.array(z.string()).nullable().optional(),
   dealsLast12Months: z.number().int().nullable().optional(),
+  // v1.1 — deeper Tracxn signals
+  tracxnScore: z.number().int().min(0).max(100).nullable().optional(),
+  medianPortfolioTracxnScore: z.number().int().min(0).max(100).nullable().optional(),
+  portfolioIpos: z.number().int().nonnegative().nullable().optional(),
+  portfolioAcquisitions: z.number().int().nonnegative().nullable().optional(),
+  portfolioUnicorns: z.number().int().nonnegative().nullable().optional(),
+  portfolioSoonicorns: z.number().int().nonnegative().nullable().optional(),
+  teamSizeTotal: z.number().int().nonnegative().nullable().optional(),
+  fundClassification: z.array(z.string().max(60)).nullable().optional(),
+  operatingLocation: z.string().max(200).nullable().optional(),
+  stageDistribution: PercentMapSchema.nullable().optional(),
+  sectorDistribution: PercentMapSchema.nullable().optional(),
+  locationDistribution: PercentMapSchema.nullable().optional(),
+  specialFlags: z.array(z.string().max(60)).nullable().optional(),
+  recentDeals: z.array(RecentDealSchema).max(30).nullable().optional(),
+  keyPeople: z.array(KeyPersonSchema).max(30).nullable().optional(),
 });
 
 export const InvestorDraftSchema = z.object({
@@ -187,6 +219,39 @@ export async function bulkImport(
       ...(firm.dealsLast12Months !== undefined
         ? { dealsLast12Months: firm.dealsLast12Months }
         : {}),
+      ...(firm.tracxnScore !== undefined ? { tracxnScore: firm.tracxnScore } : {}),
+      ...(firm.medianPortfolioTracxnScore !== undefined
+        ? { medianPortfolioTracxnScore: firm.medianPortfolioTracxnScore }
+        : {}),
+      ...(firm.portfolioIpos !== undefined ? { portfolioIpos: firm.portfolioIpos } : {}),
+      ...(firm.portfolioAcquisitions !== undefined
+        ? { portfolioAcquisitions: firm.portfolioAcquisitions }
+        : {}),
+      ...(firm.portfolioUnicorns !== undefined
+        ? { portfolioUnicorns: firm.portfolioUnicorns }
+        : {}),
+      ...(firm.portfolioSoonicorns !== undefined
+        ? { portfolioSoonicorns: firm.portfolioSoonicorns }
+        : {}),
+      ...(firm.teamSizeTotal !== undefined ? { teamSizeTotal: firm.teamSizeTotal } : {}),
+      ...(firm.fundClassification !== undefined
+        ? { fundClassification: firm.fundClassification }
+        : {}),
+      ...(firm.operatingLocation !== undefined
+        ? { operatingLocation: firm.operatingLocation }
+        : {}),
+      ...(firm.stageDistribution !== undefined
+        ? { stageDistribution: firm.stageDistribution }
+        : {}),
+      ...(firm.sectorDistribution !== undefined
+        ? { sectorDistribution: firm.sectorDistribution }
+        : {}),
+      ...(firm.locationDistribution !== undefined
+        ? { locationDistribution: firm.locationDistribution }
+        : {}),
+      ...(firm.specialFlags !== undefined ? { specialFlags: firm.specialFlags } : {}),
+      ...(firm.recentDeals !== undefined ? { recentDeals: firm.recentDeals } : {}),
+      ...(firm.keyPeople !== undefined ? { keyPeople: firm.keyPeople } : {}),
     };
 
     if (existing) {

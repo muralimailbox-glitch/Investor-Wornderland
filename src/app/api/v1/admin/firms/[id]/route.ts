@@ -11,6 +11,22 @@ export const dynamic = 'force-dynamic';
 
 const IdSchema = z.string().uuid();
 
+const RecentDealPatch = z.object({
+  companyName: z.string().min(1).max(200),
+  stage: z.string().max(60).nullable().optional(),
+  amountUsd: z.number().int().nonnegative().nullable().optional(),
+  date: z.string().max(40).nullable().optional(),
+  sector: z.string().max(60).nullable().optional(),
+});
+
+const KeyPersonPatch = z.object({
+  name: z.string().min(1).max(160),
+  title: z.string().max(160).nullable().optional(),
+  linkedinUrl: z.string().max(500).nullable().optional(),
+});
+
+const PercentMapPatch = z.record(z.string().max(60), z.number().int().min(0).max(100));
+
 const PatchBody = z.object({
   name: z.string().min(1).max(200).optional(),
   firmType: z.enum(['vc', 'cvc', 'angel', 'family_office', 'accelerator', 'syndicate']).optional(),
@@ -41,6 +57,22 @@ const PatchBody = z.object({
   topLocationsInPortfolio: z.array(z.string().max(60)).max(20).nullable().optional(),
   topEntryRounds: z.array(z.string().max(40)).max(20).nullable().optional(),
   dealsLast12Months: z.number().int().nonnegative().nullable().optional(),
+  // v1.1 Tracxn signals
+  tracxnScore: z.number().int().min(0).max(100).nullable().optional(),
+  medianPortfolioTracxnScore: z.number().int().min(0).max(100).nullable().optional(),
+  portfolioIpos: z.number().int().nonnegative().nullable().optional(),
+  portfolioAcquisitions: z.number().int().nonnegative().nullable().optional(),
+  portfolioUnicorns: z.number().int().nonnegative().nullable().optional(),
+  portfolioSoonicorns: z.number().int().nonnegative().nullable().optional(),
+  teamSizeTotal: z.number().int().nonnegative().nullable().optional(),
+  fundClassification: z.array(z.string().max(60)).max(20).nullable().optional(),
+  operatingLocation: z.string().max(200).nullable().optional(),
+  stageDistribution: PercentMapPatch.nullable().optional(),
+  sectorDistribution: PercentMapPatch.nullable().optional(),
+  locationDistribution: PercentMapPatch.nullable().optional(),
+  specialFlags: z.array(z.string().max(60)).max(20).nullable().optional(),
+  recentDeals: z.array(RecentDealPatch).max(30).nullable().optional(),
+  keyPeople: z.array(KeyPersonPatch).max(30).nullable().optional(),
 });
 
 function idFromUrl(url: string): string {

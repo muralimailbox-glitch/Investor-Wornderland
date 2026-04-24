@@ -1,3 +1,19 @@
+export type RecentDeal = {
+  companyName: string;
+  stage?: string | null;
+  amountUsd?: number | null;
+  date?: string | null;
+  sector?: string | null;
+};
+
+export type KeyPerson = {
+  name: string;
+  title?: string | null;
+  linkedinUrl?: string | null;
+};
+
+export type PercentMap = Record<string, number>;
+
 export type Firm = {
   id: string;
   name: string;
@@ -29,6 +45,21 @@ export type Firm = {
   topLocationsInPortfolio: string[] | null;
   topEntryRounds: string[] | null;
   dealsLast12Months: number | null;
+  tracxnScore: number | null;
+  medianPortfolioTracxnScore: number | null;
+  portfolioIpos: number | null;
+  portfolioAcquisitions: number | null;
+  portfolioUnicorns: number | null;
+  portfolioSoonicorns: number | null;
+  teamSizeTotal: number | null;
+  fundClassification: string[] | null;
+  operatingLocation: string | null;
+  stageDistribution: PercentMap | null;
+  sectorDistribution: PercentMap | null;
+  locationDistribution: PercentMap | null;
+  specialFlags: string[] | null;
+  recentDeals: RecentDeal[] | null;
+  keyPeople: KeyPerson[] | null;
   createdAt: string;
   updatedAt: string;
 };
