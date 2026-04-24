@@ -71,6 +71,47 @@ const EnvSchema = z.object({
 
 export type Env = z.infer<typeof EnvSchema>;
 
+/**
+ * Build-phase fallbacks. Returned only when Next.js is collecting page data
+ * and the real env has not been injected yet. All are placeholder values that
+ * will never reach a live request — by the time a request is served, runtime
+ * env validation has run against the deployed container and real values exist.
+ */
+const BUILD_PHASE_FALLBACKS: Env = {
+  NODE_ENV: 'production',
+  NEXT_PUBLIC_SITE_URL: 'https://build.placeholder.invalid',
+  DATABASE_URL: 'postgres://build:build@localhost:5432/build',
+  ANTHROPIC_API_KEY: undefined,
+  ANTHROPIC_MODEL_CONCIERGE: 'claude-sonnet-4-6',
+  ANTHROPIC_MODEL_DRAFTER: 'claude-sonnet-4-6',
+  AI_MONTHLY_CAP_USD: 50,
+  EMBEDDING_CACHE_DIR: undefined,
+  SMTP_HOST: 'localhost',
+  SMTP_PORT: 587,
+  SMTP_SECURE: false,
+  SMTP_USER: 'build@placeholder.invalid',
+  SMTP_PASS: undefined,
+  SMTP_FROM: 'build@placeholder.invalid',
+  SMTP_FROM_NAME: 'Build',
+  IMAP_HOST: 'localhost',
+  IMAP_PORT: 993,
+  IMAP_USER: 'build@placeholder.invalid',
+  IMAP_PASS: undefined,
+  R2_ENDPOINT: undefined,
+  R2_ACCOUNT_ID: undefined,
+  R2_ACCESS_KEY_ID: undefined,
+  R2_SECRET_ACCESS_KEY: undefined,
+  R2_BUCKET: 'build',
+  R2_PUBLIC_URL: 'https://build.placeholder.invalid',
+  R2_FORCE_PATH_STYLE: false,
+  AUTH_SECRET: 'a'.repeat(64),
+  SESSION_COOKIE_NAME: 'ootaos_session',
+  GOOGLE_CLIENT_ID: undefined,
+  GOOGLE_CLIENT_SECRET: undefined,
+  GOOGLE_REDIRECT_URI: undefined,
+  SENTRY_DSN: undefined,
+};
+
 function parseEnv(): Env {
   const parsed = EnvSchema.safeParse(process.env);
   if (parsed.success) return parsed.data;
@@ -79,7 +120,11 @@ function parseEnv(): Env {
   const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
   const message = `Invalid environment configuration:\n  ${missing}`;
 
-  if (isBuildPhase || process.env.NODE_ENV === 'test') {
+  if (isBuildPhase) {
+    console.warn(`[env] Build phase with missing env — using placeholder values.\n  ${missing}`);
+    return BUILD_PHASE_FALLBACKS;
+  }
+  if (process.env.NODE_ENV === 'test') {
     console.warn(`[env] ${message}`);
     return new Proxy({} as Env, {
       get(_t, key: string) {

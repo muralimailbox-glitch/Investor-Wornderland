@@ -118,9 +118,16 @@ export async function runMessage(args: RunArgs): Promise<RunResult> {
   }
 }
 
-export const MODELS = {
-  concierge: env.ANTHROPIC_MODEL_CONCIERGE,
-  drafter: env.ANTHROPIC_MODEL_DRAFTER,
-  strategist: env.ANTHROPIC_MODEL_CONCIERGE,
-  curator: env.ANTHROPIC_MODEL_CONCIERGE,
-} as const;
+export type ModelRole = 'concierge' | 'drafter' | 'strategist' | 'curator';
+
+export function getModel(role: ModelRole): string {
+  switch (role) {
+    case 'drafter':
+      return env.ANTHROPIC_MODEL_DRAFTER;
+    case 'concierge':
+    case 'strategist':
+    case 'curator':
+    default:
+      return env.ANTHROPIC_MODEL_CONCIERGE;
+  }
+}
