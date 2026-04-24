@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# ── dependencies ──────────────────────────────────────────────────────
 /node_modules
 /.pnp
 .pnp.*
@@ -10,32 +8,45 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# ── next.js ───────────────────────────────────────────────────────────
 /.next/
 /out/
 
-# production
+# ── production ────────────────────────────────────────────────────────
 /build
 
-# misc
+# ── testing ───────────────────────────────────────────────────────────
+/coverage
+/playwright-report
+/test-results
+/playwright/.cache
+
+# ── env files (commit .env.example only) ──────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── misc ──────────────────────────────────────────────────────────────
 .DS_Store
 *.pem
-
-# debug
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
+# ── vercel (not deploying to vercel, but keep ignored) ────────────────
 .vercel
 
-# typescript
+# ── typescript ────────────────────────────────────────────────────────
 *.tsbuildinfo
 next-env.d.ts
+
+# ── editor ────────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+
+# ── drizzle migrations metadata (regenerable) ─────────────────────────
+# keep generated SQL, ignore journal artifacts only if the tool regenerates them
