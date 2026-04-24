@@ -23,15 +23,26 @@ function nl2br(text: string): string {
   return escapeHtml(text).replace(/\n/g, '<br />');
 }
 
+function siteBase(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com';
+}
+
+function investorCtaHref(vars: TemplateVars & { extras?: Record<string, string> }): string {
+  return vars.extras?.investorLink ?? `${siteBase()}/`;
+}
+
 const outreach: Builder = (vars) => {
   const name = vars.firstName ?? 'there';
+  const firmLine = vars.extras?.firmName
+    ? ` given your work at ${vars.extras.firmName}`
+    : ' based on your past work with hospitality and early-stage SaaS';
   const heading = `Hi ${name} — should we talk about OotaOS?`;
   const bodyText = personalize(
     `Hi {{firstName}},
 
-I am building OotaOS — an AI-native operating system for the restaurant and hospitality industry. Based on your past work with hospitality and early-stage SaaS, I thought this might be interesting to you.
+I am building OotaOS — an AI-native operating system for the restaurant and hospitality industry.${firmLine}, I thought this might be interesting to you.
 
-We are raising our seed round and I would love to show you the 30-second demo and the data room. It takes less than 15 minutes to skim.
+We are raising our seed round and I would love to show you the 30-second demo and the data room. Your personalized walkthrough is at the link below — it takes less than 15 minutes to skim and no login is required.
 
 Would you have time in the next two weeks for a short call?`,
     vars,
@@ -43,8 +54,8 @@ Would you have time in the next two weeks for a short call?`,
     bodyHtml,
     bodyText,
     cta: {
-      label: 'See the Wonderland',
-      href: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com'}/`,
+      label: 'See your Wonderland',
+      href: investorCtaHref(vars),
     },
   };
 };
@@ -54,7 +65,7 @@ const followUp: Builder = (vars) => {
   const bodyText = personalize(
     `Hi {{firstName}},
 
-Circling back on my previous note — I know intro emails can slip. If it helps, the 2-minute pitch and updated metrics are both live at the link below.
+Circling back on my previous note — I know intro emails can slip. If it helps, the 2-minute pitch and updated metrics are both live at your personalized link below.
 
 Happy to answer anything async, and WhatsApp is sometimes easier than email.`,
     vars,
@@ -66,7 +77,7 @@ Happy to answer anything async, and WhatsApp is sometimes easier than email.`,
     bodyText,
     cta: {
       label: 'Open the 2-minute pitch',
-      href: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com'}/ask`,
+      href: investorCtaHref(vars),
     },
   };
 };
@@ -94,8 +105,7 @@ I will send a calendar invite shortly. If you prefer a different slot, just repl
 };
 
 const loungeInvite: Builder = (vars) => {
-  const loungeUrl =
-    vars.extras?.loungeUrl ?? `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com'}/lounge`;
+  const loungeUrl = vars.extras?.investorLink ?? vars.extras?.loungeUrl ?? `${siteBase()}/lounge`;
   const bodyText = personalize(
     `Hi {{firstName}},
 
@@ -129,7 +139,7 @@ If anything looks broken, reply to this email and I will fix it the same day.`,
     bodyText,
     cta: {
       label: 'Open the data room',
-      href: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com'}/lounge`,
+      href: investorCtaHref(vars),
     },
   };
 };
@@ -154,7 +164,7 @@ Full update with metrics, product shots, and the ask is in the data room.`,
     bodyText,
     cta: {
       label: 'Read the full update',
-      href: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com'}/lounge`,
+      href: investorCtaHref(vars),
     },
   };
 };

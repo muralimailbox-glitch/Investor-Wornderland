@@ -1,11 +1,21 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Quote, Sparkles } from 'lucide-react';
+import { ArrowUp, Lock, Quote, Sparkles } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { InvestorGateModal } from '@/components/public/investor-gate-modal';
+
 type Citation = { section: string; version: string; similarity: number };
-type Turn = { id: string; role: 'user' | 'assistant'; text: string; citations?: Citation[]; pending?: boolean };
+type Gate = { needsEmailVerify: boolean; needsNda: boolean; topics: string[] };
+type Turn = {
+  id: string;
+  role: 'user' | 'assistant';
+  text: string;
+  citations?: Citation[];
+  pending?: boolean;
+  gate?: Gate;
+};
 
 const SUGGESTED = [
   'What does OotaOS actually do?',
@@ -19,6 +29,8 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [value, setValue] = useState('');
   const [streaming, setStreaming] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gateMode, setGateMode] = useState<'email' | 'nda'>('email');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const fieldId = useId();
@@ -83,8 +95,13 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
             const payload = JSON.parse(data) as Record<string, unknown>;
             if (event === 'meta' && Array.isArray(payload.citations)) {
               const citations = payload.citations as Citation[];
+              const gate = (payload.gate as Gate | undefined) ?? undefined;
               setTurns((prev) =>
-                prev.map((t) => (t.id === assistantId ? { ...t, citations, pending: false } : t)),
+                prev.map((t) =>
+                  t.id === assistantId
+                    ? { ...t, citations, pending: false, ...(gate ? { gate } : {}) }
+                    : t,
+                ),
               );
             } else if (event === 'delta' && typeof payload.text === 'string') {
               const text = payload.text;
@@ -173,6 +190,21 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
                         ))}
                       </div>
                     ) : null}
+                    {turn.gate && (turn.gate.needsEmailVerify || turn.gate.needsNda) ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGateMode(turn.gate?.needsEmailVerify ? 'email' : 'nda');
+                          setGateOpen(true);
+                        }}
+                        className="mt-1 inline-flex items-center gap-2 self-start rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-[12px] font-medium text-violet-800 transition hover:-translate-y-px hover:border-violet-400 hover:bg-violet-100"
+                      >
+                        <Lock className="h-3.5 w-3.5" />
+                        {turn.gate.needsEmailVerify
+                          ? 'Verify email to unlock the numbers'
+                          : 'Sign the NDA to see the deeper detail'}
+                      </button>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="whitespace-pre-wrap">{turn.text}</p>
@@ -218,6 +250,10 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
           <ArrowUp className="h-5 w-5" />
         </button>
       </form>
+
+      {gateOpen ? (
+        <InvestorGateModal mode={gateMode} onClose={() => setGateOpen(false)} />
+      ) : null}
     </div>
   );
 }

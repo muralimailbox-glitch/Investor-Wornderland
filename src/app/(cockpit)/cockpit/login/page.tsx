@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2, Lock } from 'lucide-react';
@@ -9,19 +9,39 @@ export default function CockpitLogin() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totpCode, setTotpCode] = useState('');
+  const [hp, setHp] = useState('');
+  const [challenge, setChallenge] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    async function fetchChallenge() {
+      try {
+        const res = await fetch('/api/v1/admin/auth/login-challenge', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { challenge?: string };
+        if (alive && data.challenge) setChallenge(data.challenge);
+      } catch {
+        /* ignore — form will error clearly on submit */
+      }
+    }
+    void fetchChallenge();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
+      if (!challenge) throw new Error('loading');
       const res = await fetch('/api/v1/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, totpCode }),
+        body: JSON.stringify({ email, password, challenge, hp }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { title?: string } | null;
@@ -76,23 +96,40 @@ export default function CockpitLogin() {
               autoComplete="current-password"
               required
             />
-            <Field
-              label="6-digit authenticator code"
-              value={totpCode}
-              onChange={(v) => setTotpCode(v.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              autoComplete="one-time-code"
-              required
-            />
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                left: '-10000px',
+                top: 'auto',
+                width: '1px',
+                height: '1px',
+                overflow: 'hidden',
+              }}
+            >
+              <label>
+                Company website
+                <input
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={hp}
+                  onChange={(e) => setHp(e.target.value)}
+                />
+              </label>
+            </div>
             {error ? (
               <p className="text-sm text-rose-300">
-                {error === 'invalid_credentials' ? 'Email, password, or code is off.' : error}
+                {error === 'invalid_credentials'
+                  ? 'Email or password is off.'
+                  : error === 'loading'
+                    ? 'One moment — preparing secure session.'
+                    : error}
               </p>
             ) : null}
             <button
               type="submit"
-              disabled={busy || !email || !password || totpCode.length < 6}
+              disabled={busy || !email || !password || !challenge}
               className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 px-5 py-3 font-medium text-white shadow-lg shadow-violet-500/40 transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}

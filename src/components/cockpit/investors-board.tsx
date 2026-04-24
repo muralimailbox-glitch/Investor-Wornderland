@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
+  Activity,
   Building2,
   Eye,
   Filter,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { FirmEditModal } from '@/components/cockpit/firm-edit-modal';
+import { InvestorActivityDrawer } from '@/components/cockpit/investor-activity-drawer';
 import { InvestorEditModal } from '@/components/cockpit/investor-edit-modal';
 import { TracxnImportModal } from '@/components/cockpit/tracxn-import';
 import { startPreview } from '@/lib/api/preview';
@@ -75,6 +77,7 @@ export function InvestorsBoard() {
   const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
+  const [activityId, setActivityId] = useState<string | null>(null);
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -257,6 +260,15 @@ export function InvestorsBoard() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
+                    title="View activity & interests"
+                    onClick={() => setActivityId(row.investor.id)}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <Activity className="h-3.5 w-3.5" />
+                    Activity
+                  </button>
+                  <button
+                    type="button"
                     title="Edit investor"
                     onClick={() => setEditingId(row.investor.id)}
                     className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
@@ -338,6 +350,10 @@ export function InvestorsBoard() {
             void refresh();
           }}
         />
+      ) : null}
+
+      {activityId ? (
+        <InvestorActivityDrawer investorId={activityId} onClose={() => setActivityId(null)} />
       ) : null}
     </div>
   );

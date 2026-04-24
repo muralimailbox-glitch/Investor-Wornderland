@@ -1,10 +1,19 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
 import { Concierge } from '@/components/public/concierge';
+import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const jar = await cookies();
+  const token = jar.get(INVESTOR_COOKIE)?.value;
+  const session = verifyInvestorLink(token);
+  const greeting = session
+    ? `Hi ${session.firstName}${session.firmName ? ` — welcome from ${session.firmName}` : ''}.`
+    : null;
+
   return (
     <main className="relative flex-1 overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#F5F0FF] via-white to-[#FFF8EE]" />
@@ -43,14 +52,16 @@ export default function LandingPage() {
           <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/70 px-3.5 py-1 text-xs font-medium uppercase tracking-[0.18em] text-violet-800 backdrop-blur">
             <Sparkles className="h-3.5 w-3.5" /> Investor Wonderland
           </span>
+          {greeting ? <p className="text-sm font-medium text-violet-700">{greeting}</p> : null}
           <h1 className="animate-hero-shimmer bg-gradient-to-b from-slate-900 to-slate-700 bg-clip-text text-4xl font-semibold leading-[1.05] tracking-tight text-transparent sm:text-[56px]">
             Investors don&apos;t read pitches.
             <br />
             They have conversations.
           </h1>
           <p className="max-w-xl text-balance text-[17px] leading-relaxed text-slate-600">
-            Priya is our AI concierge. She answers from what the founders have written — with
-            citations, no hype, no hallucinations. Ask anything.
+            {session
+              ? 'Priya is our AI concierge — warm, grounded in our writing, and ready to answer anything you want to know about OotaOS.'
+              : 'Priya is our AI concierge. She answers from what the founders have written — with citations, no hype, no hallucinations. Ask anything.'}
           </p>
         </div>
 

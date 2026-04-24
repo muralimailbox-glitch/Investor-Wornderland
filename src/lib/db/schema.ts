@@ -52,6 +52,7 @@ export const interactionKindEnum = pgEnum('interaction_kind', [
   'meeting_held',
   'note',
   'stage_change',
+  'email_verified',
 ]);
 
 export const documentKindEnum = pgEnum('document_kind', [
@@ -213,6 +214,8 @@ export const investors = pgTable(
     warmthScore: integer('warmth_score'),
     lastContactAt: timestamp('last_contact_at', { withTimezone: true }),
     nextReminderAt: timestamp('next_reminder_at', { withTimezone: true }),
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    interests: jsonb('interests'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -280,15 +283,15 @@ export const interactions = pgTable(
     workspaceId: uuid('workspace_id')
       .notNull()
       .references(() => workspaces.id, { onDelete: 'cascade' }),
-    leadId: uuid('lead_id')
-      .notNull()
-      .references(() => leads.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'cascade' }),
+    investorId: uuid('investor_id').references(() => investors.id, { onDelete: 'cascade' }),
     kind: interactionKindEnum('kind').notNull(),
     payload: jsonb('payload').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     timelineIdx: index('interactions_timeline_idx').on(t.leadId, t.createdAt),
+    investorTimelineIdx: index('interactions_investor_timeline_idx').on(t.investorId, t.createdAt),
   }),
 );
 

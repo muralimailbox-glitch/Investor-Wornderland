@@ -5,7 +5,6 @@ import { ApiError, handle, NotFoundError } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
-import { verifyTotpCode } from '@/lib/auth/totp';
 import { db } from '@/lib/db/client';
 import { users } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -15,7 +14,6 @@ export const dynamic = 'force-dynamic';
 
 const Body = z.object({
   currentPassword: z.string().min(1).max(128),
-  currentTotp: z.string().regex(/^\d{6}$/),
   newPassword: z
     .string()
     .min(12, 'password must be at least 12 characters')
@@ -35,8 +33,6 @@ export const POST = handle(async (req: Request) => {
 
   const ok = await verifyPassword(row.passwordHash, body.currentPassword);
   if (!ok) throw new ApiError(401, 'invalid_credentials');
-  const totpOk = verifyTotpCode(row.totpSecret, body.currentTotp);
-  if (!totpOk) throw new ApiError(401, 'invalid_credentials');
 
   if (body.currentPassword === body.newPassword) {
     throw new ApiError(400, 'password_unchanged');

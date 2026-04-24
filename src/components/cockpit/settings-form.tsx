@@ -3,13 +3,7 @@
 import { useEffect, useState } from 'react';
 import { CheckCircle2, Globe, Key, Loader2, Save, ShieldCheck, UserCog } from 'lucide-react';
 
-import {
-  changePassword,
-  getProfile,
-  resetTotp,
-  updateProfile,
-  type FounderProfile,
-} from '@/lib/api/profile';
+import { changePassword, getProfile, updateProfile, type FounderProfile } from '@/lib/api/profile';
 
 type Form = {
   displayName: string;
@@ -234,46 +228,25 @@ export function SettingsForm() {
 
 function SecuritySection() {
   const [currentPassword, setCurrentPassword] = useState('');
-  const [currentTotp, setCurrentTotp] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [busy, setBusy] = useState<'password' | 'totp' | null>(null);
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [newUri, setNewUri] = useState<string | null>(null);
 
   async function onChangePassword(e: React.FormEvent) {
     e.preventDefault();
-    setBusy('password');
+    setBusy(true);
     setErr(null);
     setMsg(null);
     try {
-      await changePassword({ currentPassword, currentTotp, newPassword });
+      await changePassword({ currentPassword, newPassword });
       setCurrentPassword('');
-      setCurrentTotp('');
       setNewPassword('');
       setMsg('Password updated.');
     } catch (e2) {
       setErr((e2 as Error).message);
     } finally {
-      setBusy(null);
-    }
-  }
-
-  async function onResetTotp(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy('totp');
-    setErr(null);
-    setMsg(null);
-    try {
-      const result = await resetTotp({ currentPassword, currentTotp });
-      setNewUri(result.otpauthUri);
-      setCurrentPassword('');
-      setCurrentTotp('');
-      setMsg('TOTP rotated — scan the new secret in your authenticator.');
-    } catch (e2) {
-      setErr((e2 as Error).message);
-    } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -302,12 +275,6 @@ function SecuritySection() {
           onChange={setCurrentPassword}
         />
         <TextField
-          label="Current TOTP code"
-          value={currentTotp}
-          onChange={setCurrentTotp}
-          placeholder="123456"
-        />
-        <TextField
           type="password"
           label="New password"
           value={newPassword}
@@ -317,53 +284,13 @@ function SecuritySection() {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={busy === 'password' || !currentPassword || !currentTotp || !newPassword}
+            disabled={busy || !currentPassword || !newPassword}
             className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:opacity-60"
           >
-            {busy === 'password' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Update password
           </button>
         </div>
-      </form>
-
-      <form onSubmit={onResetTotp} className="flex flex-col gap-3 border-t border-slate-100 pt-4">
-        <p className="text-sm font-semibold text-slate-900">Rotate TOTP</p>
-        <p className="text-xs text-slate-500">
-          Generates a new 2FA secret. Enter your current password and current code, then re-scan the
-          shown URI in your authenticator.
-        </p>
-        <TextField
-          type="password"
-          label="Current password"
-          value={currentPassword}
-          onChange={setCurrentPassword}
-        />
-        <TextField
-          label="Current TOTP code"
-          value={currentTotp}
-          onChange={setCurrentTotp}
-          placeholder="123456"
-        />
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={busy === 'totp' || !currentPassword || !currentTotp}
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-50 disabled:opacity-60"
-          >
-            {busy === 'totp' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Rotate TOTP
-          </button>
-        </div>
-        {newUri ? (
-          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
-              New otpauth URI
-            </p>
-            <code className="mt-1 block break-all rounded-lg bg-white px-3 py-2 font-mono text-[12px] text-slate-800">
-              {newUri}
-            </code>
-          </div>
-        ) : null}
       </form>
     </Section>
   );

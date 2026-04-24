@@ -35,7 +35,6 @@ export async function updateProfile(
 
 export async function changePassword(input: {
   currentPassword: string;
-  currentTotp: string;
   newPassword: string;
 }): Promise<void> {
   const res = await fetch('/api/v1/admin/auth/password', {
@@ -45,18 +44,4 @@ export async function changePassword(input: {
     body: JSON.stringify(input),
   });
   if (!res.ok) throw new Error(`password_change_failed_${res.status}`);
-}
-
-export async function resetTotp(input: {
-  currentPassword: string;
-  currentTotp: string;
-}): Promise<{ otpauthUri: string }> {
-  const res = await fetch('/api/v1/admin/auth/totp/reset', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) throw new Error(`totp_reset_failed_${res.status}`);
-  return (await res.json()) as { otpauthUri: string };
 }

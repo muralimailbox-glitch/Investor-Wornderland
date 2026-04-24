@@ -4,9 +4,9 @@ import { z } from 'zod';
 
 import { ApiError, BadRequestError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
+import { verifyChallenge } from '@/lib/auth/challenge';
 import { lucia } from '@/lib/auth/lucia';
 import { verifyPassword } from '@/lib/auth/password';
-import { verifyTotpCode } from '@/lib/auth/totp';
 import { db } from '@/lib/db/client';
 import { users } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -17,7 +17,8 @@ export const dynamic = 'force-dynamic';
 const Body = z.object({
   email: z.string().email().max(254),
   password: z.string().min(1).max(128),
-  totpCode: z.string().regex(/^\d{6}$/),
+  challenge: z.string().min(16).max(400),
+  hp: z.string().max(200).optional(),
 });
 
 export const POST = handle(async (req: Request) => {
@@ -25,16 +26,22 @@ export const POST = handle(async (req: Request) => {
 
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) throw new BadRequestError('invalid_body');
-  const { email, password, totpCode } = parsed.data;
+  const { email, password, challenge, hp } = parsed.data;
+
+  if (hp && hp.trim().length > 0) {
+    throw new ApiError(401, 'invalid_credentials');
+  }
+
+  const challengeResult = verifyChallenge(challenge, 'login');
+  if (!challengeResult.ok) {
+    throw new ApiError(401, 'invalid_credentials');
+  }
 
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   if (!user) throw new ApiError(401, 'invalid_credentials');
 
   const passwordOk = await verifyPassword(user.passwordHash, password);
   if (!passwordOk) throw new ApiError(401, 'invalid_credentials');
-
-  const totpOk = verifyTotpCode(user.totpSecret, totpCode);
-  if (!totpOk) throw new ApiError(401, 'invalid_credentials');
 
   const session = await lucia.createSession(user.id, {});
   const cookie = lucia.createSessionCookie(session.id);

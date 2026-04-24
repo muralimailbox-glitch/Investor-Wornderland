@@ -4,9 +4,11 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 
 import { ApiError, BadRequestError, NotFoundError } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
+import { signInvestorLink } from '@/lib/auth/investor-link';
 import { db } from '@/lib/db/client';
 import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
-import { auditEvents, emailOutbox, investors, leads, users } from '@/lib/db/schema';
+import { auditEvents, emailOutbox, firms, investors, leads, users } from '@/lib/db/schema';
+import { env } from '@/lib/env';
 import { sendMail } from '@/lib/mail/smtp';
 import { renderByKey, type TemplateKey } from '@/lib/mail/templates';
 
@@ -35,12 +37,16 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
   const rows = await db
     .select({
       leadId: leads.id,
+      investorId: investors.id,
       email: investors.email,
       firstName: investors.firstName,
       lastName: investors.lastName,
+      firmId: firms.id,
+      firmName: firms.name,
     })
     .from(leads)
     .innerJoin(investors, eq(investors.id, leads.investorId))
+    .leftJoin(firms, eq(firms.id, investors.firmId))
     .where(and(eq(leads.workspaceId, input.workspaceId), inArray(leads.id, input.leadIds)));
 
   if (rows.length !== input.leadIds.length) {
@@ -72,13 +78,30 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     companyAddress: null,
   };
 
+  const siteBase = env.NEXT_PUBLIC_SITE_URL || 'https://ootaos.com';
   const batchId = randomUUID();
   const outboxIds: string[] = [];
   for (const r of rows) {
+    const link = signInvestorLink({
+      investorId: r.investorId,
+      workspaceId: input.workspaceId,
+      firmId: r.firmId ?? null,
+      firstName: r.firstName ?? '',
+      lastName: r.lastName ?? null,
+      firmName: r.firmName ?? null,
+    });
+    const investorLink = `${siteBase}/i/${link.token}`;
+
     let subject = input.subject;
-    let personalizedText = input.bodyText.replace(/\{\{firstName\}\}/g, r.firstName ?? '');
+    let personalizedText = input.bodyText
+      .replace(/\{\{firstName\}\}/g, r.firstName ?? '')
+      .replace(/\{\{investorLink\}\}/g, investorLink)
+      .replace(/\{\{firmName\}\}/g, r.firmName ?? '');
     let personalizedHtml: string | undefined = input.bodyHtml
-      ? input.bodyHtml.replace(/\{\{firstName\}\}/g, r.firstName ?? '')
+      ? input.bodyHtml
+          .replace(/\{\{firstName\}\}/g, r.firstName ?? '')
+          .replace(/\{\{investorLink\}\}/g, investorLink)
+          .replace(/\{\{firmName\}\}/g, r.firmName ?? '')
       : undefined;
 
     if (input.templateKey) {
@@ -92,6 +115,8 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
           subject: input.subject,
           heading: '',
           body: input.bodyText,
+          investorLink,
+          firmName: r.firmName ?? '',
         },
       });
       subject = rendered.subject;
