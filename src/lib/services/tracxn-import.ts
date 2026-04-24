@@ -80,6 +80,7 @@ export const InvestorDraftSchema = z.object({
   sectorInterests: z.array(z.string()).nullable().optional(),
   stageInterests: z.array(z.string()).nullable().optional(),
   bioSummary: z.string().nullable().optional(),
+  warmthScore: z.number().int().min(0).max(100).nullable().optional(),
 });
 
 export const ParseResultSchema = z.object({
@@ -332,6 +333,7 @@ export async function bulkImport(
       ...(inv.sectorInterests !== undefined ? { sectorInterests: inv.sectorInterests } : {}),
       ...(inv.stageInterests !== undefined ? { stageInterests: inv.stageInterests } : {}),
       ...(inv.bioSummary !== undefined ? { bioSummary: inv.bioSummary } : {}),
+      ...(inv.warmthScore !== undefined ? { warmthScore: inv.warmthScore } : {}),
     };
 
     if (existingInv) {
