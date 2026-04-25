@@ -4,19 +4,13 @@
 -- separate, manually-triggered migration after the operator confirms the
 -- pg_dump backup round-trips. Until then, the old investors columns stay.
 
--- Enum additions (Postgres 12+ allows ADD VALUE in a transaction)
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'draft' AND enumtypid = 'email_outbox_status'::regtype) THEN
-    ALTER TYPE "public"."email_outbox_status" ADD VALUE 'draft' BEFORE 'queued';
-  END IF;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'approved' AND enumtypid = 'email_outbox_status'::regtype) THEN
-    ALTER TYPE "public"."email_outbox_status" ADD VALUE 'approved' BEFORE 'queued';
-  END IF;
-END $$;
---> statement-breakpoint
+-- Enum additions. Postgres does NOT allow ALTER TYPE ... ADD VALUE inside
+-- a PL/pgSQL DO block (the PG manual is explicit about this; the older
+-- guard pattern hangs forever inside drizzle-kit migrate). Postgres 12+
+-- supports the IF NOT EXISTS clause directly on ADD VALUE which is
+-- idempotent and safe to re-run.
+ALTER TYPE "public"."email_outbox_status" ADD VALUE IF NOT EXISTS 'draft' BEFORE 'queued';--> statement-breakpoint
+ALTER TYPE "public"."email_outbox_status" ADD VALUE IF NOT EXISTS 'approved' BEFORE 'queued';--> statement-breakpoint
 
 -- New invite_links table
 CREATE TABLE IF NOT EXISTS "invite_links" (
