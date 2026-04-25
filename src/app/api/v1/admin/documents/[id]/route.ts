@@ -5,7 +5,7 @@ import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { documentsRepo } from '@/lib/db/repos/documents';
 import { rateLimit } from '@/lib/security/rate-limit';
-import { deleteObject } from '@/lib/storage/r2';
+import { getStorage } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -82,9 +82,9 @@ export const DELETE = handle(async (req) => {
 
   await documentsRepo.softDelete(user.workspaceId, id);
   try {
-    await deleteObject(existing.r2Key);
+    await getStorage().delete(existing.r2Key);
   } catch (err) {
-    console.warn('[documents] r2 delete failed — row already soft-deleted', err);
+    console.warn('[documents] storage delete failed — row already soft-deleted', err);
   }
 
   await audit({

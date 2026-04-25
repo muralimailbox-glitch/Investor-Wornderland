@@ -5,6 +5,7 @@
 import {
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -17,6 +18,12 @@ import {
   varchar,
   vector,
 } from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  },
+});
 
 // ── Enums ────────────────────────────────────────────────────────────────
 export const userRoleEnum = pgEnum('user_role', ['founder', 'team', 'advisor']);
@@ -508,5 +515,15 @@ export const emailInbox = pgTable('email_inbox', {
   receivedAt: timestamp('received_at', { withTimezone: true }).notNull(),
   matchedLeadId: uuid('matched_lead_id').references(() => leads.id),
   processedAt: timestamp('processed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Stored Files (Postgres file storage backend) ──────────────────────────
+export const storedFiles = pgTable('stored_files', {
+  storageKey: text('storage_key').primaryKey(),
+  contentType: text('content_type').notNull(),
+  sizeBytesOriginal: integer('size_bytes_original').notNull(),
+  sizeBytesCompressed: integer('size_bytes_compressed').notNull(),
+  content: bytea('content').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

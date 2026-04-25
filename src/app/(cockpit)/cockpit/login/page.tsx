@@ -96,27 +96,16 @@ export default function CockpitLogin() {
               autoComplete="current-password"
               required
             />
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'absolute',
-                left: '-10000px',
-                top: 'auto',
-                width: '1px',
-                height: '1px',
-                overflow: 'hidden',
-              }}
-            >
-              <label>
-                Company website
-                <input
-                  type="text"
-                  tabIndex={-1}
-                  autoComplete="off"
-                  value={hp}
-                  onChange={(e) => setHp(e.target.value)}
-                />
-              </label>
+            {/* honeypot — hidden from humans and password managers */}
+            <div aria-hidden="true" style={{ display: 'none' }}>
+              <input
+                type="text"
+                name="url"
+                tabIndex={-1}
+                autoComplete="new-password"
+                value={hp}
+                onChange={(e) => setHp(e.target.value)}
+              />
             </div>
             {error ? (
               <p className="text-sm text-rose-300">

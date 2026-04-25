@@ -28,7 +28,9 @@ export function AnimatedBackdrop() {
       height = canvas.clientHeight;
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
-      ctx.scale(dpr, dpr);
+      // setTransform replaces the matrix; scale() multiplies it, which
+      // would compound across every resize and eventually destroy perf.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     resize();
     window.addEventListener('resize', resize);

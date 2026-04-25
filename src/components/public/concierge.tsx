@@ -19,9 +19,15 @@ type Turn = {
 
 const SUGGESTED = [
   'What does OotaOS actually do?',
+  'Why now — what changed in the last 18 months?',
+  'How is this different from a chatbot?',
   'Who are the founders?',
-  'How much are you raising?',
+  'How much are you raising and on what terms?',
+  'What does the data room contain?',
+  'How do you make money?',
   'What traction do you have?',
+  'Who do you compete with?',
+  'How do you handle data security?',
 ];
 
 export function Concierge({ autofocus = false }: { autofocus?: boolean }) {

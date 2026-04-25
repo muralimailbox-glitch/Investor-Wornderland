@@ -98,10 +98,13 @@ export const POST = handle(async (req) => {
           gate: result.gate,
         });
 
-        const words = result.answer.split(/(\s+)/);
-        for (const word of words) {
-          send('delta', { text: word });
-          await new Promise((r) => setTimeout(r, 12));
+        // Chunk the answer into ~24-char fragments so the UI still feels
+        // alive without inflating end-to-end latency. Previous per-word
+        // setTimeout(12) added ~2-3 s of artificial delay per response.
+        const text = result.answer;
+        const chunkSize = 24;
+        for (let i = 0; i < text.length; i += chunkSize) {
+          send('delta', { text: text.slice(i, i + chunkSize) });
         }
         send('done', { ok: true });
 

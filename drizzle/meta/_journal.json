@@ -29,6 +29,13 @@
       "when": 1777057271791,
       "tag": "0003_smart_domino",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1745577600000,
+      "tag": "0004_postgres_file_storage",
+      "breakpoints": true
     }
   ]
 }

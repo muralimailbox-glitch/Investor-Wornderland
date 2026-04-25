@@ -12,7 +12,7 @@ import { deals, firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { sendMail } from '@/lib/mail/smtp';
 import { sealNda } from '@/lib/pdf/seal-nda';
-import { putObject, signedDownloadUrl } from '@/lib/storage/r2';
+import { getStorage } from '@/lib/storage';
 
 const NDA_TEMPLATE_VERSION = '2026-04-v1';
 
@@ -205,7 +205,8 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
 
   const sha256 = createHash('sha256').update(pdfBytes).digest('hex');
   const r2Key = `ndas/${workspaceId}/${decoded.leadId}/${signedAt.getTime()}.pdf`;
-  await putObject(r2Key, Buffer.from(pdfBytes), 'application/pdf');
+  const storage = getStorage();
+  await storage.put(r2Key, Buffer.from(pdfBytes), 'application/pdf');
 
   const nda = await ndasRepo.create({
     workspaceId,
@@ -228,7 +229,7 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
     .set({ stage: 'nda_signed', stageEnteredAt: signedAt, updatedAt: signedAt })
     .where(eq(leads.id, decoded.leadId));
 
-  const downloadUrl = await signedDownloadUrl(r2Key, 900);
+  const downloadUrl = await storage.url(r2Key, 900);
 
   const session = issueNdaSession({ leadId: decoded.leadId, ndaId: nda.id, email: decoded.email });
 

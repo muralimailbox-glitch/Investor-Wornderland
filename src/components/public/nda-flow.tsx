@@ -11,6 +11,7 @@ export function NdaFlow() {
   const router = useRouter();
   const [step, setStep] = useState<Step>('intro');
   const [fullName, setFullName] = useState('');
+  const [title, setTitle] = useState('');
   const [firm, setFirm] = useState('');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -46,14 +47,14 @@ export function NdaFlow() {
       const res = await fetch('/api/v1/nda/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: otp }),
+        body: JSON.stringify({ email, otp }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { title?: string } | null;
         throw new Error(data?.title ?? 'Invalid code');
       }
-      const data = (await res.json()) as { signingToken: string };
-      setSigningToken(data.signingToken);
+      const data = (await res.json()) as { token: string };
+      setSigningToken(data.token);
       setStep('sign');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Invalid code');
@@ -70,7 +71,12 @@ export function NdaFlow() {
       const res = await fetch('/api/v1/nda/sign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signingToken, fullName, firm, email }),
+        body: JSON.stringify({
+          token: signingToken,
+          name: fullName,
+          title: title || 'Investor',
+          firm,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { title?: string } | null;
@@ -118,6 +124,13 @@ export function NdaFlow() {
               room opens.
             </p>
             <Field label="Full name" value={fullName} onChange={setFullName} required autoComplete="name" />
+            <Field
+              label="Title"
+              value={title}
+              onChange={setTitle}
+              autoComplete="organization-title"
+              placeholder="Partner, Principal, Angel…"
+            />
             <Field label="Firm" value={firm} onChange={setFirm} required autoComplete="organization" />
             <Field
               label="Work email"

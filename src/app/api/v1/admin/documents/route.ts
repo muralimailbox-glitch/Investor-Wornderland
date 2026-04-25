@@ -7,7 +7,7 @@ import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { documentsRepo } from '@/lib/db/repos/documents';
 import { rateLimit } from '@/lib/security/rate-limit';
-import { putObject } from '@/lib/storage/r2';
+import { getStorage } from '@/lib/storage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -86,7 +86,7 @@ export const POST = handle(async (req) => {
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const r2Key = `workspaces/${user.workspaceId}/documents/${randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120)}`;
 
-  await putObject(r2Key, Buffer.from(bytes), file.type || 'application/octet-stream');
+  await getStorage().put(r2Key, Buffer.from(bytes), file.type || 'application/octet-stream');
 
   const row = await documentsRepo.create({
     workspaceId: user.workspaceId,

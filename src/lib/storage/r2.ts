@@ -9,6 +9,15 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import { env, requireEnv } from '@/lib/env';
 
+export function r2Enabled(): boolean {
+  return !!(
+    env.R2_ACCESS_KEY_ID &&
+    env.R2_SECRET_ACCESS_KEY &&
+    env.R2_BUCKET &&
+    !env.R2_BUCKET.startsWith('<')
+  );
+}
+
 function buildEndpoint(): string {
   if (env.R2_ENDPOINT) return env.R2_ENDPOINT;
   const accountId = requireEnv('R2_ACCOUNT_ID');

@@ -6,7 +6,7 @@ import { readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
 import { documentsRepo, type DocumentRow } from '@/lib/db/repos/documents';
 import { investors, leads, meetings, users } from '@/lib/db/schema';
-import { signedDownloadUrl } from '@/lib/storage/r2';
+import { getStorage } from '@/lib/storage';
 import { DEFAULT_FOUNDER_TZ, slotsInTz } from '@/lib/time/tz';
 
 export type LoungeBundle = {
@@ -107,10 +107,9 @@ export async function getDocumentForSession(documentId: string): Promise<{
   const doc = await documentsRepo.byId(workspaceId as string, documentId);
   if (!doc) throw new ApiError(404, 'document_not_found');
 
-  const { getObjectBytes } = await import('@/lib/storage/r2');
   const { watermarkPdf } = await import('@/lib/pdf/watermark');
 
-  const raw = await getObjectBytes(doc.r2Key);
+  const raw = await getStorage().get(doc.r2Key);
   const isPdf =
     doc.mimeType === 'application/pdf' || doc.originalFilename.toLowerCase().endsWith('.pdf');
   const bytes = isPdf
@@ -147,5 +146,5 @@ export async function signedUrlForDocument(documentId: string): Promise<string> 
   const doc = await documentsRepo.byId(workspaceId as string, documentId);
   if (!doc) throw new ApiError(404, 'document_not_found');
 
-  return signedDownloadUrl(doc.r2Key, 900);
+  return getStorage().url(doc.r2Key, 900);
 }
