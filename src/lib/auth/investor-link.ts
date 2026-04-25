@@ -8,6 +8,15 @@ export const INVESTOR_LINK_TTL_DAYS = 14;
 export type InvestorLinkSession = {
   investorId: string;
   workspaceId: string;
+  /**
+   * Deal binding for public-route scope (rules #8, #9). Optional during the
+   * fundraising-OS migration so cookies issued before this field rolled out
+   * keep working. After Phase 7 cutover, all new tokens carry it; the
+   * fallback in getInvestorContext() resolves single-deal workspaces.
+   */
+  dealId?: string;
+  /** Lead binding so per-stage document permissioning (rule #10) works. */
+  leadId?: string;
   firmId: string | null;
   firstName: string;
   lastName: string | null;
@@ -28,6 +37,8 @@ function b64urlDecode(s: string): Buffer {
 export function signInvestorLink(input: {
   investorId: string;
   workspaceId: string;
+  dealId?: string;
+  leadId?: string;
   firmId: string | null;
   firstName: string;
   lastName: string | null;
@@ -38,6 +49,8 @@ export function signInvestorLink(input: {
   const session: InvestorLinkSession = {
     investorId: input.investorId,
     workspaceId: input.workspaceId,
+    ...(input.dealId ? { dealId: input.dealId } : {}),
+    ...(input.leadId ? { leadId: input.leadId } : {}),
     firmId: input.firmId,
     firstName: input.firstName,
     lastName: input.lastName,

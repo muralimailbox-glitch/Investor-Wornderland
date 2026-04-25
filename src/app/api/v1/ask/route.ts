@@ -5,10 +5,9 @@ import { z } from 'zod';
 import { runConcierge, type InvestorContext } from '@/lib/ai/agents/concierge';
 import { CapExceededError } from '@/lib/ai/cap';
 import { handle } from '@/lib/api/handle';
-import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
+import { getInvestorContext } from '@/lib/auth/investor-context';
 import { NDA_SESSION_COOKIE, readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
-import { workspacesRepo } from '@/lib/db/repos/workspaces';
 import { interactions, investors } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 
@@ -37,14 +36,16 @@ export const POST = handle(async (req) => {
   const raw = await req.json().catch(() => ({}));
   const body = Body.parse(raw);
 
-  const workspace = await workspacesRepo.default();
-  const workspaceId = workspace?.id;
+  // Deal-scoped resolution (rule #8): magic-link cookie required.
+  // Anonymous fallback to the default workspace was removed — the route now
+  // returns a static "ask the founders" message if there is no cookie.
+  const ctx = await getInvestorContext();
   const cookieStore = await cookies();
   const ndaSession = readNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
   const signedNda = Boolean(ndaSession);
 
-  const investorToken = cookieStore.get(INVESTOR_COOKIE)?.value;
-  const linkSession = verifyInvestorLink(investorToken);
+  const workspaceId = ctx?.workspaceId;
+  const linkSession = ctx?.session ?? null;
   let investor: InvestorContext | null = null;
   if (linkSession && workspaceId) {
     const rows = await db

@@ -1,11 +1,23 @@
+import { cookies } from 'next/headers';
+import Image from 'next/image';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
 import { Concierge } from '@/components/public/concierge';
+import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 
 export const metadata = { title: 'Ask Priya — OotaOS' };
 
-export default function AskPage() {
+/**
+ * Cookie-gated AI concierge. Anonymous visitors are bounced to the marketing
+ * splash (rule #8). Cookie-validated investors get the deal-scoped Priya chat.
+ */
+export default async function AskPage() {
+  const jar = await cookies();
+  const session = verifyInvestorLink(jar.get(INVESTOR_COOKIE)?.value);
+  if (!session) redirect('/?link=expired');
+
   return (
     <main className="relative flex-1 overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#F5F0FF] via-white to-[#FFF8EE]" />
@@ -13,17 +25,15 @@ export default function AskPage() {
         <AnimatedBackdrop />
       </div>
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight text-slate-900"
-        >
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-md shadow-violet-500/30"
-          >
-            O
-          </span>
-          OotaOS
+        <Link href="/lounge" aria-label="OotaOS home" className="flex items-center">
+          <Image
+            src="/brand/oota-rect-tagline.png"
+            alt="OotaOS"
+            width={320}
+            height={82}
+            priority
+            className="h-14 w-auto"
+          />
         </Link>
         <Link
           href="/nda"
@@ -33,7 +43,13 @@ export default function AskPage() {
         </Link>
       </header>
       <section className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
-        <h1 className="mb-6 text-3xl font-semibold tracking-tight text-slate-900">Ask Priya</h1>
+        <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900">
+          Hi {session.firstName} — ask Priya anything.
+        </h1>
+        <p className="mb-6 text-sm text-slate-600">
+          Grounded in the OotaOS knowledge base. Sign the NDA to unlock the data room and founder
+          calendar.
+        </p>
         <div className="rounded-3xl border border-violet-100 bg-white/85 p-4 shadow-[0_40px_80px_-40px_rgba(91,33,182,0.30)] backdrop-blur sm:p-6">
           <Concierge autofocus />
         </div>

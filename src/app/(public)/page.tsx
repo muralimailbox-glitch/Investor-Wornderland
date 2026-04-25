@@ -1,19 +1,24 @@
 import { cookies } from 'next/headers';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Lock, Sparkles } from 'lucide-react';
+import { redirect } from 'next/navigation';
+import { ArrowRight, Sparkles } from 'lucide-react';
 
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
-import { Concierge } from '@/components/public/concierge';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 
+/**
+ * Marketing splash. Per rule #8, the public root is invite-bound — anonymous
+ * visitors get a marketing page, never default-workspace data. Cookie-validated
+ * investors are forwarded to the deal-scoped lounge.
+ */
 export default async function LandingPage() {
   const jar = await cookies();
   const token = jar.get(INVESTOR_COOKIE)?.value;
   const session = verifyInvestorLink(token);
-  const greeting = session
-    ? `Hi ${session.firstName}${session.firmName ? ` — welcome from ${session.firmName}` : ''}.`
-    : null;
+  if (session) {
+    redirect('/lounge');
+  }
 
   return (
     <main className="relative flex-1 overflow-hidden">
@@ -34,56 +39,62 @@ export default async function LandingPage() {
           />
         </Link>
         <nav className="flex items-center gap-4 text-sm text-slate-700">
-          <Link href="/ask" className="hidden transition hover:text-violet-700 sm:inline">
-            Ask Priya
-          </Link>
-          <Link
-            href="/nda"
+          <a
+            href="mailto:info@ootaos.com?subject=Investor%20interest%20in%20OotaOS"
             className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white/70 px-3.5 py-1.5 font-medium text-violet-800 backdrop-blur transition hover:-translate-y-px hover:border-violet-400 hover:bg-white"
           >
-            <Lock className="h-3.5 w-3.5" /> Sign NDA
-          </Link>
+            Request access
+          </a>
         </nav>
       </header>
 
       <section className="mx-auto flex w-full max-w-3xl flex-col items-stretch px-6 pb-16 pt-16 sm:pt-24">
         <div className="flex flex-col items-center gap-5 pb-10 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white/70 px-3.5 py-1 text-xs font-medium uppercase tracking-[0.18em] text-violet-800 backdrop-blur">
-            <Sparkles className="h-3.5 w-3.5" /> Investor Wonderland
+            <Sparkles className="h-3.5 w-3.5" /> OotaOS — Investor Relations
           </span>
-          {greeting ? <p className="text-sm font-medium text-violet-700">{greeting}</p> : null}
           <h1 className="animate-hero-shimmer bg-gradient-to-b from-slate-900 to-slate-700 bg-clip-text text-4xl font-semibold leading-[1.05] tracking-tight text-transparent sm:text-[56px]">
             Investors don&apos;t read pitches.
             <br />
             They have conversations.
           </h1>
           <p className="max-w-xl text-balance text-[17px] leading-relaxed text-slate-600">
-            {session
-              ? 'Priya is our AI concierge — warm, grounded in our writing, and ready to answer anything you want to know about OotaOS.'
-              : 'Priya is our AI concierge. She answers from what the founders have written — with citations, no hype, no hallucinations. Ask anything.'}
+            OotaOS is a restaurant operating system — POS, QR ordering, KDS, reservations,
+            inventory, marketing, and reporting in one stack. We&apos;re raising USD 800K for 10% at
+            USD 8M post.
+          </p>
+          <p className="max-w-xl text-balance text-sm text-slate-500">
+            Investor access is invite-only. If we&apos;ve been in touch, your magic link will land
+            you straight in the deal-scoped lounge with the AI concierge and the data room.
           </p>
         </div>
 
-        <div className="rounded-[32px] border border-violet-100 bg-white/80 p-4 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_40px_80px_-40px_rgba(91,33,182,0.30)] backdrop-blur-md sm:p-6">
-          <Concierge autofocus />
+        <div className="rounded-[32px] border border-violet-100 bg-white/80 p-8 text-center shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_40px_80px_-40px_rgba(91,33,182,0.30)] backdrop-blur-md">
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">
+            Want a private link?
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">
+            Email us with the firm you represent and we&apos;ll send a personalized link with your
+            name, your firm, and the deal context already wired in.
+          </p>
+          <a
+            href="mailto:info@ootaos.com?subject=Investor%20access%20request"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-px"
+          >
+            info@ootaos.com <ArrowRight className="h-4 w-4" />
+          </a>
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> Grounded in
-            the founders&apos; own writing
+            the founders&apos; own writing — every answer carries citations
           </span>
-          <Link
-            href="/nda"
-            className="inline-flex items-center gap-1 font-medium text-violet-700 transition hover:text-violet-900"
-          >
-            Unlock the data room <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
         </div>
       </section>
 
       <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 border-t border-violet-100/60 px-6 py-8 text-xs text-slate-500">
-        <span>© OotaOS 2026</span>
+        <span>© OotaOS 2026 · Bengaluru, India</span>
         <div className="flex items-center gap-4">
           <Link href="/privacy" className="transition hover:text-violet-700">
             Privacy

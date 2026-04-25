@@ -35,6 +35,7 @@
     "backup:check": "tsx scripts/backup-prod.ts --check",
     "row-counts": "tsx scripts/backup-prod.ts --row-counts",
     "inventory:investors": "psql $DATABASE_URL -f scripts/inventory-investor-fields.sql",
+    "refactor:drop-legacy": "psql $DATABASE_URL -f drizzle/manual/drop-legacy-investor-cols.sql",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "ingest:all": "tsx scripts/seed-knowledge.ts && tsx scripts/ingest-investor-pack.ts",
     "test": "vitest run",

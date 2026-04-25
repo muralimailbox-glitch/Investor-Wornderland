@@ -37,6 +37,7 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
   const rows = await db
     .select({
       leadId: leads.id,
+      dealId: leads.dealId,
       investorId: investors.id,
       email: investors.email,
       firstName: investors.firstName,
@@ -85,6 +86,8 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     const link = signInvestorLink({
       investorId: r.investorId,
       workspaceId: input.workspaceId,
+      dealId: r.dealId,
+      leadId: r.leadId,
       firmId: r.firmId ?? null,
       firstName: r.firstName ?? '',
       lastName: r.lastName ?? null,

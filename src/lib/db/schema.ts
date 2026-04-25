@@ -80,6 +80,8 @@ export const aiAgentEnum = pgEnum('ai_agent', ['concierge', 'drafter', 'strategi
 export const aiOutcomeEnum = pgEnum('ai_outcome', ['ok', 'refused', 'error', 'injected']);
 
 export const emailOutboxStatusEnum = pgEnum('email_outbox_status', [
+  'draft',
+  'approved',
   'queued',
   'sent',
   'bounced',
@@ -262,6 +264,7 @@ export const deals = pgTable('deals', {
   companyType: text('company_type').notNull(),
   incorporationCountry: text('incorporation_country').notNull(),
   pitchJurisdiction: text('pitch_jurisdiction').notNull(),
+  closeDate: timestamp('close_date', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -290,6 +293,14 @@ export const leads = pgTable(
     internalNotes: text('internal_notes'),
     askUsd: bigint('ask_usd', { mode: 'number' }),
     offerTerms: jsonb('offer_terms'),
+    // ── Relationship-state fields (moved from investors in the fundraising-OS refactor) ──
+    warmthScore: integer('warmth_score'),
+    introPath: text('intro_path'),
+    lastContactAt: timestamp('last_contact_at', { withTimezone: true }),
+    closedLostReason: text('closed_lost_reason'),
+    fundedAmountUsd: bigint('funded_amount_usd', { mode: 'number' }),
+    fundedAt: timestamp('funded_at', { withTimezone: true }),
+    committedUsd: bigint('committed_usd', { mode: 'number' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -324,6 +335,8 @@ export const documents = pgTable('documents', {
   workspaceId: uuid('workspace_id')
     .notNull()
     .references(() => workspaces.id, { onDelete: 'cascade' }),
+  // Deal-scoping (rule #9). Nullable during transition; new uploads must set it.
+  dealId: uuid('deal_id').references(() => deals.id),
   kind: documentKindEnum('kind').notNull(),
   title: text('title'),
   r2Key: text('r2_key').notNull(),
@@ -332,6 +345,8 @@ export const documents = pgTable('documents', {
   sizeBytes: integer('size_bytes').notNull(),
   sha256: text('sha256').notNull(),
   watermarkPolicy: watermarkPolicyEnum('watermark_policy').notNull().default('per_investor'),
+  // Per-stage permissioning (rule #10). NULL = visible to any cookie-validated investor.
+  minLeadStage: stageEnum('min_lead_stage'),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
   uploadedBy: uuid('uploaded_by')
     .notNull()
@@ -430,6 +445,35 @@ export const knowledgeChunks = pgTable('knowledge_chunks', {
 // next ingest detect a changed source file and replace its chunks atomically
 // without leaving stale content behind. `source = '__bootstrap__'` is the
 // first-boot sentinel.
+// ── Invite Links ─────────────────────────────────────────────────────────
+// Public-route deal-scoping (rules #8, #9). Replaces the workspaces.default
+// fallback. The HMAC-signed cookie payload includes dealId so every public
+// API can resolve (workspace, deal, lead, investor) without a DB lookup.
+export const inviteLinks = pgTable(
+  'invite_links',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    dealId: uuid('deal_id')
+      .notNull()
+      .references(() => deals.id, { onDelete: 'cascade' }),
+    investorId: uuid('investor_id')
+      .notNull()
+      .references(() => investors.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    token: text('token').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    tokenUnique: uniqueIndex('invite_links_token_idx').on(t.token),
+    investorActiveIdx: index('invite_links_investor_idx').on(t.workspaceId, t.investorId),
+  }),
+);
+
 export const kbIngestLog = pgTable(
   'kb_ingest_log',
   {
@@ -513,10 +557,15 @@ export const emailOutbox = pgTable(
     subject: text('subject').notNull(),
     bodyText: text('body_text').notNull(),
     bodyHtml: text('body_html'),
-    status: emailOutboxStatusEnum('status').notNull().default('queued'),
+    status: emailOutboxStatusEnum('status').notNull().default('draft'),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
     sentAt: timestamp('sent_at', { withTimezone: true }),
+    // Human-approval gate (rule #11). send route rejects unless status='approved'.
+    approvedBy: uuid('approved_by').references(() => users.id),
+    approvedAt: timestamp('approved_at', { withTimezone: true }),
+    // Optional FK to a lead so we can enforce rule #3 (no outreach without a lead).
+    leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

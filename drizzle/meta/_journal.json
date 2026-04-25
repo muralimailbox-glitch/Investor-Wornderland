@@ -50,6 +50,13 @@
       "when": 1777130156081,
       "tag": "0006_wealthy_master_chief",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1777141111505,
+      "tag": "0007_lush_lady_ursula",
+      "breakpoints": true
     }
   ]
 }

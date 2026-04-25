@@ -103,16 +103,31 @@ export async function getDocumentForSession(documentId: string): Promise<{
   const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
-  const leadWorkspace = await db.execute<{ workspace_id: string }>(
+  const leadRow = await db.execute<{ workspace_id: string; deal_id: string; stage: string }>(
     await import('drizzle-orm').then(
-      (m) => m.sql`SELECT workspace_id FROM leads WHERE id = ${session.leadId} LIMIT 1`,
+      (m) =>
+        m.sql`SELECT workspace_id, deal_id, stage::text FROM leads WHERE id = ${session.leadId} LIMIT 1`,
     ),
   );
-  const workspaceId = leadWorkspace[0]?.workspace_id;
-  if (!workspaceId) throw new ApiError(404, 'lead_not_found');
+  const workspaceId = leadRow[0]?.workspace_id;
+  const dealId = leadRow[0]?.deal_id;
+  const leadStage = leadRow[0]?.stage;
+  if (!workspaceId || !dealId) throw new ApiError(404, 'lead_not_found');
 
   const doc = await documentsRepo.byId(workspaceId as string, documentId);
   if (!doc) throw new ApiError(404, 'document_not_found');
+
+  // Rule #9: deal-scoped data room — investor on deal A cannot fetch deal B's docs.
+  if (doc.dealId && doc.dealId !== dealId) throw new ApiError(404, 'document_not_found');
+
+  // Rule #10: per-stage permissioning. minLeadStage NULL = visible after NDA.
+  if (doc.minLeadStage) {
+    const { stageMeetsMinimum } = await import('@/lib/auth/investor-context');
+    type StageKey = Parameters<typeof stageMeetsMinimum>[0];
+    if (!stageMeetsMinimum(leadStage as StageKey, doc.minLeadStage as StageKey)) {
+      throw new ApiError(403, 'stage_too_early_for_document');
+    }
+  }
 
   const { watermarkPdf } = await import('@/lib/pdf/watermark');
 
