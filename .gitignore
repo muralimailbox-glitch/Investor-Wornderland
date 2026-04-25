@@ -29,6 +29,9 @@
 .env.*
 !.env.example
 
+# ── prod database backups (never commit) ─────────────────────────────
+backups/
+
 # ── misc ──────────────────────────────────────────────────────────────
 .DS_Store
 *.pem

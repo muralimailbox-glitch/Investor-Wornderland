@@ -26,7 +26,7 @@ const ListQuery = z.object({
     .optional(),
   firmType: z.enum(['vc', 'cvc', 'angel', 'family_office', 'accelerator', 'syndicate']).optional(),
   page: z.coerce.number().int().positive().max(10_000).optional(),
-  pageSize: z.coerce.number().int().positive().max(100).optional(),
+  pageSize: z.coerce.number().int().positive().max(200).optional(),
 });
 
 const CreateBody = z.object({

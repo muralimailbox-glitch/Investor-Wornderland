@@ -48,7 +48,7 @@ type Lead = {
   updatedAt: string;
 } | null;
 
-type Row = { investor: Investor; firm: Firm; lead: Lead };
+type Row = { investor: Investor | null; firm: Firm; lead: Lead; partnerPending: boolean };
 
 type ListResponse = { rows: Row[]; page: number; pageSize: number; total: number };
 
@@ -83,7 +83,7 @@ export function InvestorsBoard() {
     const p = new URLSearchParams();
     if (search.trim()) p.set('search', search.trim());
     if (firmType) p.set('firmType', firmType);
-    p.set('pageSize', '50');
+    p.set('pageSize', '200');
     return p.toString();
   }, [search, firmType]);
 
@@ -204,23 +204,36 @@ export function InvestorsBoard() {
           <div>
             {data?.rows.map((row, idx) => (
               <motion.div
-                key={row.investor.id}
+                key={row.investor?.id ?? `pending-${row.firm.id}`}
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(0.02 * idx, 0.3) }}
                 className="grid grid-cols-[1.4fr_1.2fr_1fr_0.9fr_0.6fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-violet-100 text-violet-700">
+                  <div
+                    className={`flex h-9 w-9 flex-none items-center justify-center rounded-full ${row.partnerPending ? 'bg-slate-100 text-slate-400' : 'bg-violet-100 text-violet-700'}`}
+                  >
                     <UserCircle2 className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {row.investor.firstName} {row.investor.lastName}
-                    </p>
-                    <p className="flex items-center gap-1 truncate text-xs text-slate-500">
-                      <Mail className="h-3 w-3" /> {row.investor.email}
-                    </p>
+                    {row.investor ? (
+                      <>
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {row.investor.firstName} {row.investor.lastName}
+                        </p>
+                        <p className="flex items-center gap-1 truncate text-xs text-slate-500">
+                          <Mail className="h-3 w-3" /> {row.investor.email}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="truncate text-sm font-medium text-slate-400 italic">
+                          Partner pending
+                        </p>
+                        <p className="truncate text-xs text-slate-300">No contact added yet</p>
+                      </>
+                    )}
                   </div>
                 </div>
                 <button
@@ -239,10 +252,16 @@ export function InvestorsBoard() {
                   </div>
                 </button>
                 <div className="min-w-0">
-                  <p className="truncate text-sm text-slate-700">{row.investor.title}</p>
-                  <p className="truncate text-xs text-slate-500">
-                    {row.investor.decisionAuthority.replace(/_/g, ' ')}
-                  </p>
+                  {row.investor ? (
+                    <>
+                      <p className="truncate text-sm text-slate-700">{row.investor.title}</p>
+                      <p className="truncate text-xs text-slate-500">
+                        {row.investor.decisionAuthority.replace(/_/g, ' ')}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="truncate text-xs text-slate-300 italic">—</p>
+                  )}
                 </div>
                 <div>
                   {row.lead ? (
@@ -258,43 +277,57 @@ export function InvestorsBoard() {
                   )}
                 </div>
                 <div className="flex items-center justify-end gap-1">
-                  <button
-                    type="button"
-                    title="View activity & interests"
-                    onClick={() => setActivityId(row.investor.id)}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    <Activity className="h-3.5 w-3.5" />
-                    Activity
-                  </button>
-                  <button
-                    type="button"
-                    title="Edit investor"
-                    onClick={() => setEditingId(row.investor.id)}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    title="Preview wonderland as this investor"
-                    onClick={async () => {
-                      try {
-                        const { url } = await startPreview({
-                          investorId: row.investor.id,
-                          returnTo: '/lounge',
-                        });
-                        window.open(url, '_blank', 'noopener');
-                      } catch {
-                        // silent
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View as
-                  </button>
+                  {row.partnerPending ? (
+                    <button
+                      type="button"
+                      onClick={() => setCreateOpen(true)}
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-600 transition hover:bg-violet-50"
+                      title="Add a contact for this firm"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add contact
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        title="View activity & interests"
+                        onClick={() => setActivityId(row.investor!.id)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        <Activity className="h-3.5 w-3.5" />
+                        Activity
+                      </button>
+                      <button
+                        type="button"
+                        title="Edit investor"
+                        onClick={() => setEditingId(row.investor!.id)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        title="Preview wonderland as this investor"
+                        onClick={async () => {
+                          try {
+                            const { url } = await startPreview({
+                              investorId: row.investor!.id,
+                              returnTo: '/lounge',
+                            });
+                            window.open(url, '_blank', 'noopener');
+                          } catch {
+                            // silent
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View as
+                      </button>
+                    </>
+                  )}
                 </div>
               </motion.div>
             ))}

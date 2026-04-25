@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 
 import { ApiError, NotFoundError } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
@@ -26,20 +26,23 @@ export type InvestorListQuery = {
 };
 
 export type InvestorRow = {
-  investor: typeof investors.$inferSelect;
+  investor: typeof investors.$inferSelect | null;
   firm: typeof firms.$inferSelect;
   lead: typeof leads.$inferSelect | null;
+  partnerPending: boolean;
 };
 
 export async function listInvestors(workspaceId: string, query: InvestorListQuery) {
   const page = Math.max(1, query.page ?? 1);
-  const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+  // Allow up to 200 per page so the cockpit can show all firms in one fetch
+  const pageSize = Math.min(200, Math.max(1, query.pageSize ?? 25));
   const offset = (page - 1) * pageSize;
 
-  const conditions = [eq(investors.workspaceId, workspaceId)];
+  // ── Named investors ────────────────────────────────────────────────────
+  const invConditions = [eq(investors.workspaceId, workspaceId)];
   if (query.search && query.search.trim().length > 0) {
     const like = `%${query.search.trim()}%`;
-    conditions.push(
+    invConditions.push(
       or(
         ilike(investors.firstName, like),
         ilike(investors.lastName, like),
@@ -48,36 +51,55 @@ export async function listInvestors(workspaceId: string, query: InvestorListQuer
       )!,
     );
   }
-  if (query.firmType) conditions.push(eq(firms.firmType, query.firmType));
-  if (query.stage) conditions.push(eq(leads.stage, query.stage));
+  if (query.firmType) invConditions.push(eq(firms.firmType, query.firmType));
+  if (query.stage) invConditions.push(eq(leads.stage, query.stage));
 
-  const rows = await db
-    .select({
-      investor: investors,
-      firm: firms,
-      lead: leads,
-    })
+  const invRows = await db
+    .select({ investor: investors, firm: firms, lead: leads })
     .from(investors)
     .innerJoin(firms, eq(firms.id, investors.firmId))
     .leftJoin(leads, eq(leads.investorId, investors.id))
-    .where(and(...conditions))
-    .orderBy(desc(investors.updatedAt))
-    .limit(pageSize)
-    .offset(offset);
+    .where(and(...invConditions))
+    .orderBy(desc(investors.warmthScore), desc(investors.updatedAt));
 
-  const total = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(investors)
-    .innerJoin(firms, eq(firms.id, investors.firmId))
-    .leftJoin(leads, eq(leads.investorId, investors.id))
-    .where(and(...conditions));
+  // ── Firms with no investor yet ("partner pending") ─────────────────────
+  // Skip this bucket when filtering by stage (no lead exists for these firms)
+  const pendingRows = !query.stage
+    ? await db
+        .select({ firm: firms })
+        .from(firms)
+        .leftJoin(
+          investors,
+          and(eq(investors.firmId, firms.id), eq(investors.workspaceId, workspaceId)),
+        )
+        .where(
+          and(
+            eq(firms.workspaceId, workspaceId),
+            isNull(investors.id),
+            query.firmType ? eq(firms.firmType, query.firmType) : undefined,
+            query.search && query.search.trim().length > 0
+              ? ilike(firms.name, `%${query.search.trim()}%`)
+              : undefined,
+          ),
+        )
+        .orderBy(desc(firms.tracxnScore), firms.name)
+    : [];
 
-  return {
-    rows,
-    page,
-    pageSize,
-    total: Number(total[0]?.count ?? 0),
-  };
+  // ── Merge: named investors first (sorted by warmth), then pending firms ─
+  const allRows: InvestorRow[] = [
+    ...invRows.map((r) => ({ ...r, partnerPending: false as const })),
+    ...pendingRows.map((r) => ({
+      investor: null,
+      firm: r.firm,
+      lead: null,
+      partnerPending: true as const,
+    })),
+  ];
+
+  const total = allRows.length;
+  const rows = allRows.slice(offset, offset + pageSize);
+
+  return { rows, page, pageSize, total };
 }
 
 export type InvestorCreateInput = {
