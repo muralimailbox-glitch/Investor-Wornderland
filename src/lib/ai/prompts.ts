@@ -62,7 +62,7 @@ function parseFrontmatter(raw: string): { fm: Frontmatter; body: string } {
 }
 
 export function loadPrompt(
-  name: 'concierge' | 'drafter' | 'strategist' | 'tracxn-parse',
+  name: 'concierge' | 'drafter' | 'strategist' | 'tracxn-parse' | 'faq-synth',
 ): LoadedPrompt {
   const cached = cache.get(name);
   if (cached) return cached;

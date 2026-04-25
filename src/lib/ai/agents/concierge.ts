@@ -89,7 +89,16 @@ export async function runConcierge(input: ConciergeInput): Promise<ConciergeResu
     };
   }
 
-  const chunks: RetrievedChunk[] = await retrieve(input.workspaceId, input.question, { topK: 5 });
+  let chunks: RetrievedChunk[] = await retrieve(input.workspaceId, input.question, {
+    topK: 8,
+    minSimilarity: 0.45,
+  });
+  if (chunks.length === 0) {
+    chunks = await retrieve(input.workspaceId, input.question, {
+      topK: 12,
+      minSimilarity: 0.3,
+    });
+  }
 
   if (chunks.length === 0) {
     return {

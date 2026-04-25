@@ -13,11 +13,17 @@ export const metadata: Metadata = {
   title: 'OotaOS — Investor Wonderland',
   description:
     'Where investors don\u2019t read pitches. They have conversations. An AI-native investor experience platform.',
-  metadataBase: new URL('https://www.ootaos.com'),
+  metadataBase: new URL('https://investors.ootaos.com'),
+  icons: {
+    icon: '/brand/oota-light.png',
+    shortcut: '/brand/oota-light.png',
+    apple: '/brand/oota-light.png',
+  },
   openGraph: {
     title: 'OotaOS — Investor Wonderland',
     description: 'An AI-native investor experience platform.',
     type: 'website',
+    images: ['/brand/oota-rect-tagline.png'],
   },
   robots: { index: true, follow: true },
 };

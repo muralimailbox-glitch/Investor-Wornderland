@@ -425,6 +425,28 @@ export const knowledgeChunks = pgTable('knowledge_chunks', {
 //   CREATE INDEX knowledge_chunks_embedding_idx ON knowledge_chunks
 //     USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
+// ── KB Ingest Log ────────────────────────────────────────────────────────
+// Tracks what we have ingested so the bootstrap script knows whether to
+// re-run the corpus + crawl + Q&A synthesis. Also used as the sentinel
+// row (`source = '__bootstrap__'`) for first-boot detection.
+export const kbIngestLog = pgTable(
+  'kb_ingest_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    contentSha256: text('content_sha256').notNull(),
+    source: text('source').notNull(),
+    section: text('section').notNull(),
+    chunkCount: integer('chunk_count').notNull().default(0),
+    ingestedAt: timestamp('ingested_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    contentUnique: uniqueIndex('kb_ingest_log_content_idx').on(t.workspaceId, t.contentSha256),
+  }),
+);
+
 // ── AI Logs ──────────────────────────────────────────────────────────────
 export const aiLogs = pgTable(
   'ai_logs',

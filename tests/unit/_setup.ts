@@ -15,3 +15,6 @@ process.env.IMAP_USER ??= 'test@example.com';
 process.env.R2_BUCKET ??= 'test-bucket';
 process.env.R2_PUBLIC_URL ??= 'https://cdn.test';
 process.env.AUTH_SECRET ??= 'a'.repeat(64);
+process.env.FOUNDER_EMAIL ??= 'test-founder@example.com';
+process.env.FOUNDER_PASSWORD ??= 'test-password-1234';
+process.env.FOUNDER_FIRST_NAME ??= 'Tester';

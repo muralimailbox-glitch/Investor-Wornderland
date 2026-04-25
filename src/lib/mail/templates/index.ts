@@ -1,3 +1,4 @@
+import { env } from '@/lib/env';
 import { escapeHtml } from '@/lib/mail/signature';
 import {
   personalize,
@@ -24,7 +25,7 @@ function nl2br(text: string): string {
 }
 
 function siteBase(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? 'https://ootaos.com';
+  return env.NEXT_PUBLIC_SITE_URL;
 }
 
 function investorCtaHref(vars: TemplateVars & { extras?: Record<string, string> }): string {

@@ -30,7 +30,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ['scripts/**/*.ts', 'src/lib/db/seed.ts', 'tests/**/*.ts'],
+    files: ['scripts/**/*.{ts,mjs,js}', 'src/lib/db/seed.ts', 'tests/**/*.ts'],
     rules: {
       'no-console': 'off',
       'no-restricted-imports': 'off',

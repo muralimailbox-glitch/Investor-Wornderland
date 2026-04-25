@@ -15,7 +15,7 @@ export async function register() {
   try {
     const { embed } = await import('@/lib/ai/embed');
     await embed('warmup', 'query');
-    console.log(`[instrumentation] embedder warm in ${Date.now() - t0}ms`);
+    console.warn(`[instrumentation] embedder warm in ${Date.now() - t0}ms`);
   } catch (err) {
     console.warn('[instrumentation] embedder prewarm failed', err);
   }

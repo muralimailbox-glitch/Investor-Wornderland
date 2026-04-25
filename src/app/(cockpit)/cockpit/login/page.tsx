@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2, Lock } from 'lucide-react';
@@ -67,6 +68,14 @@ export default function CockpitLogin() {
         <div className="absolute -top-20 -right-20 h-52 w-52 rounded-full bg-violet-500/30 blur-3xl" />
         <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-fuchsia-500/20 blur-3xl" />
         <div className="relative flex flex-col gap-6">
+          <Image
+            src="/brand/oota-rect-tagline.png"
+            alt="OotaOS"
+            width={220}
+            height={56}
+            priority
+            className="mx-auto h-12 w-auto"
+          />
           <div className="flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
               <Lock className="h-5 w-5 text-white" />

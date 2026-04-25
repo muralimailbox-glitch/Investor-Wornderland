@@ -16,15 +16,23 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: '.env.local' });
 loadEnv({ path: '.env' });
 
-const FOUNDER_EMAIL = process.env.FOUNDER_EMAIL ?? 'founder@ootaos.com';
-const FOUNDER_PASSWORD = process.env.FOUNDER_PASSWORD ?? 'ChangeMe!DevOnly';
+const FOUNDER_EMAIL = process.env.FOUNDER_EMAIL;
+const FOUNDER_PASSWORD = process.env.FOUNDER_PASSWORD;
+const FOUNDER_FIRST_NAME = process.env.FOUNDER_FIRST_NAME ?? 'Murali';
+
+if (!FOUNDER_EMAIL || !FOUNDER_PASSWORD) {
+  console.error(
+    'FOUNDER_EMAIL and FOUNDER_PASSWORD are required. Example:\n' +
+      "  FOUNDER_EMAIL=me@x.com FOUNDER_PASSWORD='S3cret!' pnpm tsx scripts/provision-founder.ts",
+  );
+  process.exit(1);
+}
 
 async function main() {
-  const { eq } = await import('drizzle-orm');
   const { db } = await import('@/lib/db/client');
-  const { users, workspaces } = await import('@/lib/db/schema');
-  const { hashPassword } = await import('@/lib/auth/password');
-  const { newTotpSecret, totpUri } = await import('@/lib/auth/totp');
+  const { workspaces } = await import('@/lib/db/schema');
+  const { totpUri } = await import('@/lib/auth/totp');
+  const { provisionFounder } = await import('@/lib/auth/founder-provision');
   const { decodeBase32 } = await import('@oslojs/encoding');
   const { generateTOTP } = await import('@oslojs/otp');
 
@@ -34,42 +42,26 @@ async function main() {
     process.exit(1);
   }
 
-  const secret = newTotpSecret();
-  const passwordHash = await hashPassword(FOUNDER_PASSWORD);
+  const result = await provisionFounder(db, {
+    workspaceId: workspace.id,
+    email: FOUNDER_EMAIL!,
+    password: FOUNDER_PASSWORD!,
+    firstName: FOUNDER_FIRST_NAME,
+  });
 
-  const [existing] = await db.select().from(users).where(eq(users.email, FOUNDER_EMAIL)).limit(1);
+  console.log(`${result.rotated ? 'rotated existing' : 'created'} founder user ${result.userId}`);
 
-  if (existing) {
-    await db
-      .update(users)
-      .set({ passwordHash, totpSecret: secret })
-      .where(eq(users.id, existing.id));
-    console.log(`rotated founder user ${existing.id}`);
-  } else {
-    const [created] = await db
-      .insert(users)
-      .values({
-        workspaceId: workspace.id,
-        email: FOUNDER_EMAIL,
-        passwordHash,
-        totpSecret: secret,
-        role: 'founder',
-      })
-      .returning();
-    console.log(`created founder user ${created?.id}`);
-  }
-
-  const uri = totpUri(secret, FOUNDER_EMAIL);
+  const uri = totpUri(result.totpSecret, FOUNDER_EMAIL!);
   const now = Math.floor(Date.now() / 1000);
   const counter = Math.floor(now / 30);
-  const codeBytes = decodeBase32(secret.toUpperCase());
+  const codeBytes = decodeBase32(result.totpSecret.toUpperCase());
   const currentCode = generateTOTP(codeBytes, 30, 6);
 
   console.log('');
   console.log('──────────────────────────────────────────────────');
   console.log(`email:       ${FOUNDER_EMAIL}`);
   console.log(`password:    ${FOUNDER_PASSWORD}`);
-  console.log(`totp secret: ${secret.toUpperCase()}`);
+  console.log(`totp secret: ${result.totpSecret.toUpperCase()}`);
   console.log(`otpauth:     ${uri}`);
   console.log(`CURRENT 6-DIGIT CODE: ${currentCode}   (counter ${counter})`);
   console.log('──────────────────────────────────────────────────');

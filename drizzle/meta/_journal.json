@@ -36,6 +36,13 @@
       "when": 1745577600000,
       "tag": "0004_postgres_file_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777117411153,
+      "tag": "0005_organic_ghost_rider",
+      "breakpoints": true
     }
   ]
 }

@@ -51,7 +51,9 @@ function parseCsv(raw: string): { firms: unknown[]; investors: unknown[] } {
   const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   if (lines.length < 2) throw new Error('CSV has no data rows');
 
-  const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+  const headerLine = lines[0];
+  if (!headerLine) throw new Error('CSV header missing');
+  const headers = headerLine.split(',').map((h) => h.trim().toLowerCase());
 
   function col(row: string[], name: string): string {
     const idx = headers.indexOf(name);
@@ -77,7 +79,7 @@ function parseCsv(raw: string): { firms: unknown[]; investors: unknown[] } {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    if (!line.trim()) continue;
+    if (!line || !line.trim()) continue;
 
     // Simple CSV split (no quoted-field support — use JSON for complex data)
     const row = line.split(',').map((v) => v.trim());

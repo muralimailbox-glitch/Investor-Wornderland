@@ -2,8 +2,12 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "node_modules/.bin/drizzle-kit migrate && node_modules/.bin/next start"
+# bootstrap.ts is sentinel-gated: first boot runs founder seed + KB ingest
+# (corpus, crawl, 1000+ Q&A); subsequent boots exit in <2s. Failures are
+# swallowed so the app still starts even if a KB phase fails.
+startCommand = "node_modules/.bin/drizzle-kit migrate && node_modules/.bin/tsx scripts/bootstrap.ts && node_modules/.bin/next start"
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+# First-deploy KB build can run minutes; bump healthcheck. Use `railway run pnpm tsx scripts/bootstrap.ts --force` for cold KB to bypass healthcheck pressure.
+healthcheckTimeout = 600
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

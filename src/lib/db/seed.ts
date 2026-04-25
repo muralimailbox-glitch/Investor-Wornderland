@@ -3,15 +3,17 @@
  * Creates: one workspace, one founder user, one active seed round, three firms
  * with one investor each, and one lead per investor in stage `prospect`.
  *
- * This script bypasses @/lib/env so it can run without the full env contract
- * (e.g. R2 / Anthropic keys) being present.
+ * Reads founder credentials from FOUNDER_EMAIL / FOUNDER_PASSWORD env vars
+ * (with optional FOUNDER_FIRST_NAME). The script bypasses @/lib/env so it can
+ * run without the full env contract (e.g. R2 / Anthropic keys) being present,
+ * but founder credentials are required.
  */
-import { randomBytes, scryptSync } from 'node:crypto';
-
 import { config as loadEnv } from 'dotenv';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+
+import { provisionFounder } from '@/lib/auth/founder-provision';
 
 import * as schema from './schema';
 
@@ -23,14 +25,18 @@ if (!databaseUrl) {
   throw new Error('DATABASE_URL is required to run the seed script');
 }
 
+if (!process.env.FOUNDER_EMAIL || !process.env.FOUNDER_PASSWORD) {
+  throw new Error(
+    'FOUNDER_EMAIL and FOUNDER_PASSWORD are required to seed the founder user. ' +
+      'Set them in .env.local for local dev or in Railway env for production.',
+  );
+}
+const founderEmail: string = process.env.FOUNDER_EMAIL;
+const founderPassword: string = process.env.FOUNDER_PASSWORD;
+const founderFirstName: string = process.env.FOUNDER_FIRST_NAME ?? 'Murali';
+
 const sql = postgres(databaseUrl, { max: 2, prepare: false });
 const db = drizzle(sql, { schema });
-
-function hashPassword(plain: string): string {
-  const salt = randomBytes(16).toString('hex');
-  const derived = scryptSync(plain, salt, 64).toString('hex');
-  return `scrypt$${salt}$${derived}`;
-}
 
 async function main() {
   console.log('→ seeding workspace');
@@ -48,27 +54,15 @@ async function main() {
   console.log(`  workspace=${workspace.id}`);
 
   console.log('→ seeding founder user');
-  const existingUser = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.email, 'founder@ootaos.com'))
-    .limit(1);
-  const founder =
-    existingUser[0] ??
-    (
-      await db
-        .insert(schema.users)
-        .values({
-          workspaceId: workspace.id,
-          email: 'founder@ootaos.com',
-          passwordHash: hashPassword('ChangeMe!DevOnly'),
-          totpSecret: 'DEV-SEED-SECRET-REPLACE-ON-FIRST-LOGIN',
-          role: 'founder',
-        })
-        .returning()
-    )[0];
-  if (!founder) throw new Error('founder seed failed');
-  console.log(`  founder=${founder.id}`);
+  const provision = await provisionFounder(db, {
+    workspaceId: workspace.id,
+    email: founderEmail,
+    password: founderPassword,
+    firstName: founderFirstName,
+  });
+  console.log(
+    `  founder=${provision.userId} ${provision.rotated ? '(rotated existing)' : '(created)'}`,
+  );
 
   console.log('→ seeding active deal');
   const existingDeals = await db

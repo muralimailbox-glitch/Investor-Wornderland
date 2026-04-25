@@ -17,7 +17,7 @@ async function main() {
     sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
   );
   console.log('Tables in public schema:');
-  (tables as { tablename: string }[]).forEach((t) => console.log(' •', t.tablename));
+  (tables as unknown as { tablename: string }[]).forEach((t) => console.log(' •', t.tablename));
 
   // Workspace
   const [ws] = await db.select().from(workspaces).limit(1);
@@ -28,16 +28,16 @@ async function main() {
   console.log(`\nWorkspace: ${ws.name} (${ws.id})`);
 
   // Counts
-  const [{ firmCount }] = await db
+  const firmRow = await db
     .select({ firmCount: sql<number>`count(*)::int` })
     .from(firms)
     .where(sql`workspace_id = ${ws.id}`);
-  const [{ invCount }] = await db
+  const invRow = await db
     .select({ invCount: sql<number>`count(*)::int` })
     .from(investors)
     .where(sql`workspace_id = ${ws.id}`);
 
-  console.log(`Firms: ${firmCount}   Investors: ${invCount}`);
+  console.log(`Firms: ${firmRow[0]?.firmCount ?? 0}   Investors: ${invRow[0]?.invCount ?? 0}`);
   console.log('\n✓ DB healthy');
   process.exit(0);
 }

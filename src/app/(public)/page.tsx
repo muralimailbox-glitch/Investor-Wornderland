@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight, Lock, Sparkles } from 'lucide-react';
 
@@ -22,17 +23,15 @@ export default async function LandingPage() {
       </div>
 
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 pt-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight text-slate-900"
-        >
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-md shadow-violet-500/30"
-          >
-            O
-          </span>
-          OotaOS
+        <Link href="/" aria-label="OotaOS home" className="flex items-center">
+          <Image
+            src="/brand/oota-rect-tagline.png"
+            alt="OotaOS"
+            width={220}
+            height={56}
+            priority
+            className="h-10 w-auto"
+          />
         </Link>
         <nav className="flex items-center gap-4 text-sm text-slate-700">
           <Link href="/ask" className="hidden transition hover:text-violet-700 sm:inline">

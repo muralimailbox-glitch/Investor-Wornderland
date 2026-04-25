@@ -78,7 +78,7 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     companyAddress: null,
   };
 
-  const siteBase = env.NEXT_PUBLIC_SITE_URL || 'https://ootaos.com';
+  const siteBase = env.NEXT_PUBLIC_SITE_URL;
   const batchId = randomUUID();
   const outboxIds: string[] = [];
   for (const r of rows) {

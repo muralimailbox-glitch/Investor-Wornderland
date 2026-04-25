@@ -40,7 +40,7 @@ export class PostgresFileStorage implements FileStorage {
       throw err;
     }
 
-    console.log(
+    console.warn(
       `[storage:pg] put ${key}: original=${sizeOriginal}B compressed=${sizeCompressed}B ratio=${((sizeCompressed / sizeOriginal) * 100).toFixed(1)}%`,
     );
 
