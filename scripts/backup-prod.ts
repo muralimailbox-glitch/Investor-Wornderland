@@ -144,14 +144,73 @@ function dump() {
  * backups/<ISO>/<table>.json. Same dataset as pg_dump, restorable via
  * scripts/restore-from-json.ts. No external binary required.
  */
+/**
+ * Pick a DATABASE_URL that's reachable from outside Railway's container
+ * network. Railway's `DATABASE_URL` resolves to `*.railway.internal` which
+ * only works inside the container; `railway run` injects it as-is to your
+ * local shell, where it doesn't resolve.
+ *
+ * Order: any explicit *_PUBLIC_URL env, then DATABASE_URL but only if the
+ * hostname isn't *.railway.internal. Otherwise fail with clear next steps.
+ */
+function resolvePublicDatabaseUrl(): string {
+  const candidates = [
+    process.env.DATABASE_PUBLIC_URL,
+    process.env.DATABASE_URL_EXTERNAL,
+    process.env.DATABASE_URL_PUBLIC,
+    process.env.POSTGRES_PUBLIC_URL,
+    process.env.PG_PUBLIC_URL,
+    process.env.DATABASE_URL,
+  ].filter((v): v is string => Boolean(v));
+
+  for (const url of candidates) {
+    try {
+      const host = new URL(url).hostname;
+      if (!host.endsWith('.railway.internal') && !host.endsWith('.railway.app:internal')) {
+        return url;
+      }
+    } catch {
+      /* skip malformed */
+    }
+  }
+
+  fail(
+    [
+      '',
+      'No externally-reachable DATABASE_URL. Railway only injects the internal',
+      'hostname (postgres.railway.internal) which is reachable only inside the',
+      'container — not from your local shell.',
+      '',
+      'Two ways to fix:',
+      '',
+      '  (a) Get the public URL from Railway:',
+      '      Dashboard → Postgres service → Variables tab.',
+      '      Copy DATABASE_PUBLIC_URL (or the URL labelled "Connect via',
+      '      public network"). Then either:',
+      '',
+      '        - Paste it into webapp/.env.local on a single line:',
+      '            DATABASE_PUBLIC_URL=postgresql://...',
+      '          Re-run `railway run pnpm backup:prod`.',
+      '',
+      '        - OR add it to the APP service Variables on Railway as',
+      '          DATABASE_PUBLIC_URL = ${{Postgres.DATABASE_PUBLIC_URL}}',
+      '          Then `railway run` will inject it next time.',
+      '',
+      '  (b) Run inside the container instead — no public URL needed:',
+      '            railway shell',
+      '            pnpm backup:prod',
+      '          The dump lands inside the container; SCP it out via Railway',
+      '          CLI or commit it temporarily to a new branch as a backup.',
+      '',
+    ].join('\n'),
+  );
+}
+
 function jsDump() {
   ensureDir();
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    fail(
-      'DATABASE_URL unset. Run via `railway run pnpm tsx scripts/backup-prod.ts` so prod env injects.',
-    );
-  }
+  const databaseUrl = resolvePublicDatabaseUrl();
+  const host = new URL(databaseUrl).hostname;
+  console.warn(`[backup] using DB host: ${host}`);
   const stamp = isoStamp();
   const outDir = join(BACKUPS_DIR, stamp);
   mkdirSync(outDir, { recursive: true });

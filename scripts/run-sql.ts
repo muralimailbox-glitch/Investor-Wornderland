@@ -26,11 +26,38 @@ if (!file) {
   process.exit(1);
 }
 
-const databaseUrl = process.env.DATABASE_URL;
+function resolvePublicDatabaseUrl(): string | null {
+  const candidates = [
+    process.env.DATABASE_PUBLIC_URL,
+    process.env.DATABASE_URL_EXTERNAL,
+    process.env.DATABASE_URL_PUBLIC,
+    process.env.POSTGRES_PUBLIC_URL,
+    process.env.PG_PUBLIC_URL,
+    process.env.DATABASE_URL,
+  ].filter((v): v is string => Boolean(v));
+  for (const url of candidates) {
+    try {
+      const host = new URL(url).hostname;
+      if (!host.endsWith('.railway.internal')) return url;
+    } catch {
+      /* skip malformed */
+    }
+  }
+  return null;
+}
+
+const databaseUrl = resolvePublicDatabaseUrl();
 if (!databaseUrl) {
-  console.error('[run-sql] DATABASE_URL unset — run via `railway run`');
+  console.error(
+    '[run-sql] No externally-reachable DATABASE_URL.\n' +
+      "  Railway's DATABASE_URL points at *.railway.internal (in-container only).\n" +
+      '  Add DATABASE_PUBLIC_URL to webapp/.env.local with the value from\n' +
+      '  Railway dashboard → Postgres service → Variables → DATABASE_PUBLIC_URL.\n' +
+      '  Or run inside the container: `railway shell` then re-run.',
+  );
   process.exit(1);
 }
+console.warn(`[run-sql] using DB host: ${new URL(databaseUrl).hostname}`);
 
 const path = resolve(process.cwd(), file);
 const raw = readFileSync(path, 'utf8');
