@@ -7,7 +7,8 @@ import { db } from '@/lib/db/client';
 import { documentsRepo, type DocumentRow } from '@/lib/db/repos/documents';
 import { investors, leads, meetings, users } from '@/lib/db/schema';
 import { getStorage } from '@/lib/storage';
-import { DEFAULT_FOUNDER_TZ, slotsInTz } from '@/lib/time/tz';
+import { FOUNDER_TZ, generateBookableSlots } from '@/lib/time/availability';
+import { DEFAULT_FOUNDER_TZ } from '@/lib/time/tz';
 
 export type LoungeBundle = {
   investorName: string | null;
@@ -58,13 +59,19 @@ export async function getLoungeBundle(): Promise<LoungeBundle> {
     .from(users)
     .where(and(eq(users.workspaceId, workspaceId), eq(users.role, 'founder')))
     .limit(1);
-  const founderTimezone: string = founderRow[0]?.tz ?? DEFAULT_FOUNDER_TZ;
+  // Founder timezone is anchored to IST per the OotaOS scheduling policy.
+  const founderTimezone: string = founderRow[0]?.tz ?? FOUNDER_TZ;
 
   const docs = await documentsRepo.list(workspaceId);
 
+  // Generate IST-windowed bookable slots (skips breakfast/lunch/dinner breaks
+  // and weekends, with 20-hour minimum notice). Show 6 options.
   const taken = await takenMeetingStarts(workspaceId);
-  const rawSlots = slotsInTz(new Date(), 6, investorTimezone, { businessDaysOnly: true });
-  const suggestedSlots = rawSlots.filter((slot) => !taken.has(slot.startsAt)).slice(0, 3);
+  const rawSlots = generateBookableSlots(30, 60);
+  const suggestedSlots = rawSlots
+    .filter((slot) => !taken.has(slot.startsAt))
+    .slice(0, 6)
+    .map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt }));
 
   const documents = await Promise.all(
     docs.map(async (d) => ({

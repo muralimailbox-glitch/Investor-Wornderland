@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CalendarCheck, Download, FileText, Loader2, ShieldCheck } from 'lucide-react';
+import { CalendarCheck, FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type Document = { id: string; kind: string; filename: string; sizeBytes: number; viewUrl: string };
@@ -43,6 +43,38 @@ export function Lounge() {
   const [state, setState] = useState<{ status: 'loading' | 'ok' | 'locked' | 'error'; bundle?: Bundle; error?: string }>({ status: 'loading' });
   const [bookingSlot, setBookingSlot] = useState<string | null>(null);
   const [bookedSlot, setBookedSlot] = useState<string | null>(null);
+  const [requestOpen, setRequestOpen] = useState<{ kind: 'original_document' | 'more_info'; documentId?: string; filename?: string } | null>(null);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestSending, setRequestSending] = useState(false);
+  const [requestSent, setRequestSent] = useState<string | null>(null);
+
+  async function submitRequest() {
+    if (!requestOpen) return;
+    setRequestSending(true);
+    try {
+      const res = await fetch('/api/v1/lounge/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: requestOpen.kind,
+          documentId: requestOpen.documentId,
+          message: requestMessage || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('request failed');
+      setRequestSent(
+        requestOpen.kind === 'original_document'
+          ? `Request sent. The founders will respond from info@ootaos.com within 24 hours.`
+          : `Sent. The founders will respond shortly.`,
+      );
+      setRequestMessage('');
+      setRequestOpen(null);
+    } catch {
+      setRequestSent('Could not send — try again or email info@ootaos.com.');
+    } finally {
+      setRequestSending(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -129,11 +161,8 @@ export function Lounge() {
             <p className="text-sm text-slate-500">The founders are preparing this week&apos;s refresh — check back shortly.</p>
           ) : (
             bundle.documents.map((doc, i) => (
-              <motion.a
+              <motion.div
                 key={doc.id}
-                href={doc.viewUrl}
-                target="_blank"
-                rel="noopener"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.04 }}
@@ -147,9 +176,29 @@ export function Lounge() {
                   <p className="text-xs text-slate-500">
                     {doc.kind} · {formatBytes(doc.sizeBytes)}
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <a
+                      href={`/lounge/document/${doc.id}`}
+                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                    >
+                      <FileText className="h-3 w-3" /> Open preview
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRequestOpen({
+                          kind: 'original_document',
+                          documentId: doc.id,
+                          filename: doc.filename,
+                        })
+                      }
+                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                    >
+                      <Send className="h-3 w-3" /> Request original
+                    </button>
+                  </div>
                 </div>
-                <Download className="mt-1 h-4 w-4 text-slate-400 transition group-hover:text-violet-700" />
-              </motion.a>
+              </motion.div>
             ))
           )}
         </div>
@@ -161,7 +210,8 @@ export function Lounge() {
             Book a 30-min founder call
           </h2>
           <p className="text-xs text-slate-500">
-            Your time ({shortTz(bundle.investorTimezone)}) · Priya&apos;s time ({shortTz(bundle.founderTimezone)})
+            Your time ({shortTz(bundle.investorTimezone)}) · Murali&apos;s time (IST). Slots are
+            8am–8pm IST minus meal breaks, with 20-hour notice.
           </p>
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -200,6 +250,75 @@ export function Lounge() {
           )}
         </div>
       </section>
+
+      <section className="rounded-2xl border border-violet-100 bg-white/80 p-5 backdrop-blur">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">
+          Need something specific?
+        </h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Ask Priya inline, request the original of any document, or send a free-text question
+          straight to the founders.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setRequestOpen({ kind: 'more_info' })}
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-md shadow-violet-500/30 transition hover:-translate-y-px"
+          >
+            <MessageSquare className="h-4 w-4" /> Request more info
+          </button>
+        </div>
+        {requestSent ? (
+          <p className="mt-3 text-xs text-emerald-700">{requestSent}</p>
+        ) : null}
+      </section>
+
+      {requestOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl border border-violet-100 bg-white p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-900">
+              {requestOpen.kind === 'original_document'
+                ? `Request the original ${requestOpen.filename ?? 'document'}`
+                : 'Send a question to the founders'}
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              The founders will reply from info@ootaos.com within 24 hours.
+            </p>
+            <textarea
+              value={requestMessage}
+              onChange={(e) => setRequestMessage(e.target.value)}
+              placeholder={
+                requestOpen.kind === 'original_document'
+                  ? 'Optional — say what you intend to use it for, or any context.'
+                  : 'What would you like to ask?'
+              }
+              rows={5}
+              className="mt-3 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/40"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestOpen(null);
+                  setRequestMessage('');
+                }}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitRequest()}
+                disabled={requestSending || (requestOpen.kind === 'more_info' && !requestMessage.trim())}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-md shadow-violet-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {requestSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

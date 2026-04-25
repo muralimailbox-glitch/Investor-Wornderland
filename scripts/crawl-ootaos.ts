@@ -122,13 +122,20 @@ async function main() {
     }
     pages++;
 
-    // Extract & ingest
+    // Extract & ingest with replace-by-source semantics so re-crawling
+    // a page picks up the latest content and discards stale chunks.
     try {
+      const { knowledgeChunksRepo } = await import('@/lib/db/repos/knowledge-chunks');
       const sections = extractHtml(url, html);
       let chunks = 0;
       for (const sec of sections) {
         const hash = sha256(`${sec.source}::${sec.text}`);
-        if (await kbIngestLogRepo.hasContent(workspace.id, hash)) continue;
+        const existing = await kbIngestLogRepo.getBySource(workspace.id, sec.source);
+        if (existing && existing.contentSha256 === hash) continue;
+        if (existing) {
+          await knowledgeChunksRepo.wipeBySource(workspace.id, sec.source);
+          await knowledgeChunksRepo.wipeBySourceFile(workspace.id, sec.source);
+        }
         const result = await ingestKnowledge({
           workspaceId: workspace.id,
           actorUserId,
@@ -137,11 +144,11 @@ async function main() {
           text: sec.text,
           metadata: { ...(sec.metadata ?? {}), source: sec.source },
         });
-        await kbIngestLogRepo.record({
+        await kbIngestLogRepo.upsertSource({
           workspaceId: workspace.id,
-          contentSha256: hash,
           source: sec.source,
           section: sec.section,
+          contentSha256: hash,
           chunkCount: result.inserted,
         });
         chunks += result.inserted;

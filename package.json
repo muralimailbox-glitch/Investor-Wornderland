@@ -29,6 +29,8 @@
     "crawl:web": "tsx scripts/crawl-ootaos.ts",
     "qa:synth": "tsx scripts/synthesize-qa.ts",
     "ingest:full": "tsx scripts/seed-knowledge.ts && tsx scripts/ingest-corpus.ts && tsx scripts/crawl-ootaos.ts && tsx scripts/synthesize-qa.ts",
+    "refresh:knowledge": "tsx scripts/seed-knowledge.ts && tsx scripts/ingest-corpus.ts --prune-missing && tsx scripts/crawl-ootaos.ts && tsx scripts/synthesize-qa.ts --refresh",
+    "preview:extractors": "tsx scripts/preview-extractors.ts",
     "bootstrap": "tsx scripts/bootstrap.ts",
     "ingest:all": "tsx scripts/seed-knowledge.ts && tsx scripts/ingest-investor-pack.ts",
     "test": "vitest run",

@@ -9,6 +9,7 @@ import { meetingsRepo } from '@/lib/db/repos/meetings';
 import { investors, leads, users } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { sendMail } from '@/lib/mail/smtp';
+import { checkAvailability, FOUNDER_TZ } from '@/lib/time/availability';
 import { DEFAULT_FOUNDER_TZ, formatInTz } from '@/lib/time/tz';
 
 export type BookMeetingInput = {
@@ -41,12 +42,11 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
   if (startsAt.getTime() >= endsAt.getTime()) {
     throw new ApiError(400, 'invalid_time_range');
   }
-  const now = Date.now();
-  if (startsAt.getTime() < now + 60 * 60 * 1000) {
-    throw new ApiError(400, 'too_soon');
-  }
-  if (startsAt.getTime() > now + 14 * 24 * 60 * 60 * 1000) {
-    throw new ApiError(400, 'too_far_out');
+  const durationMinutes = Math.round((endsAt.getTime() - startsAt.getTime()) / 60_000);
+  const availability = checkAvailability(startsAt, durationMinutes);
+  if (!availability.ok) {
+    // Surface the specific reason; the public-API caller maps it to a UX message.
+    throw new ApiError(400, availability.reason);
   }
 
   const leadRow = await db
@@ -67,7 +67,8 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     .from(users)
     .where(and(eq(users.workspaceId, lead.workspaceId), eq(users.role, 'founder')))
     .limit(1);
-  const founderTimezone: string = founderRow[0]?.tz ?? DEFAULT_FOUNDER_TZ;
+  // Founder TZ is always IST for OotaOS — overrides any stale defaultTimezone column.
+  const founderTimezone: string = founderRow[0]?.tz ?? FOUNDER_TZ ?? DEFAULT_FOUNDER_TZ;
 
   const conflict = await db.execute<{ count: number }>(sql`
     SELECT COUNT(*)::int AS count FROM meetings

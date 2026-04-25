@@ -1,13 +1,17 @@
 /**
  * Synthesize 1000+ investor-tailored Q&A pairs grounded in the existing
  * knowledge_chunks table. Uses Claude Opus 4.7 via the central AI client.
- * Idempotent — resumable via .qa-progress.json. Writes each Q&A as a
- * knowledge_chunks row with section = "FAQ/<original-section>".
+ *
+ * Each FAQ chunk is tagged with `metadata.sourceFile` so when a source
+ * file is re-ingested with new content, ingest-corpus.ts wipes both the
+ * file's chunks AND its FAQ chunks. Re-running synth then regenerates
+ * only the missing FAQs.
  *
  * Usage:
  *   pnpm tsx scripts/synthesize-qa.ts
  *   pnpm tsx scripts/synthesize-qa.ts --target 1000
- *   pnpm tsx scripts/synthesize-qa.ts --reset  # discard previous progress
+ *   pnpm tsx scripts/synthesize-qa.ts --reset    # discard progress, start over
+ *   pnpm tsx scripts/synthesize-qa.ts --refresh  # wipe ALL FAQs and regenerate
  *
  * Cost: ~50 calls × (~6k in + ~3k out) tokens × Opus 4.7 ($15/$75 MTok) ≈ $15.
  */
@@ -26,6 +30,7 @@ const flag = (name: string): string | undefined => {
 };
 const target = Number.parseInt(flag('--target') ?? '1000', 10);
 const reset = args.includes('--reset');
+const refresh = args.includes('--refresh');
 const perCall = Number.parseInt(flag('--per-call') ?? '20', 10);
 const concurrency = Number.parseInt(flag('--concurrency') ?? '2', 10);
 
@@ -97,12 +102,12 @@ async function main() {
   const { eq } = await import('drizzle-orm');
   const { workspacesRepo } = await import('@/lib/db/repos/workspaces');
   const { usersRepo } = await import('@/lib/db/repos/users');
-  const { kbIngestLogRepo } = await import('@/lib/db/repos/kb-ingest-log');
+  const { knowledgeChunksRepo } = await import('@/lib/db/repos/knowledge-chunks');
   const { ingestKnowledge } = await import('@/lib/services/knowledge');
   const { runMessage } = await import('@/lib/ai/client');
   const { loadPrompt } = await import('@/lib/ai/prompts');
   const { embed } = await import('@/lib/ai/embed');
-  const { sha256, dedupeByEmbedding } = await import('@/lib/ingest/dedupe');
+  const { dedupeByEmbedding } = await import('@/lib/ingest/dedupe');
   const pLimitMod = await import('p-limit');
   const pLimit = (pLimitMod as unknown as { default: typeof pLimitMod.default }).default;
 
@@ -114,12 +119,20 @@ async function main() {
   const user = await usersRepo.firstInWorkspace(workspace.id);
   const actorUserId = user?.id ?? workspace.id;
 
-  // Pull every chunk; group by section
+  if (refresh) {
+    console.log('[qa] --refresh: wiping all FAQ/* chunks and progress file');
+    await knowledgeChunksRepo.wipeBySectionPrefix(workspace.id, 'FAQ/');
+    saveProgress({ processedSections: [], totalGenerated: 0, totalIngested: 0 });
+  }
+
+  // Pull every chunk; preserve metadata.source so we can tag generated FAQs
+  // with their source file for cascade-replace on file updates.
   const allChunks = await db
     .select({
       section: knowledgeChunks.section,
       version: knowledgeChunks.version,
       content: knowledgeChunks.content,
+      metadata: knowledgeChunks.metadata,
     })
     .from(knowledgeChunks)
     .where(eq(knowledgeChunks.workspaceId, workspace.id));
@@ -131,12 +144,16 @@ async function main() {
     process.exit(1);
   }
 
-  const grouped = new Map<string, string[]>();
+  type Grouped = { contents: string[]; sourceFile: string | null };
+  const grouped = new Map<string, Grouped>();
   for (const c of allChunks) {
     if (c.section.startsWith('FAQ/')) continue; // never feed FAQs back into the synthesizer
-    const list = grouped.get(c.section) ?? [];
-    list.push(c.content);
-    grouped.set(c.section, list);
+    const meta = (c.metadata ?? {}) as Record<string, unknown>;
+    const sourceFile = typeof meta.source === 'string' ? meta.source : null;
+    const entry = grouped.get(c.section) ?? { contents: [], sourceFile };
+    entry.contents.push(c.content);
+    if (!entry.sourceFile && sourceFile) entry.sourceFile = sourceFile;
+    grouped.set(c.section, entry);
   }
 
   const progress = loadProgress();
@@ -152,7 +169,7 @@ async function main() {
   const prompt = loadPrompt('faq-synth');
   const limit = pLimit(concurrency);
 
-  type Pair = { q: string; a: string; sourceSection: string };
+  type Pair = { q: string; a: string; sourceSection: string; sourceFile: string | null };
   const pendingPairs: Pair[] = [];
 
   // Multi-pass: cycle through sections until we hit target. Each section gets
@@ -173,7 +190,10 @@ async function main() {
 
     const tasks = remaining.map((section) =>
       limit(async () => {
-        const chunks = grouped.get(section) ?? [];
+        const entry = grouped.get(section);
+        if (!entry) return;
+        const chunks = entry.contents;
+        const sourceFile = entry.sourceFile;
         const context = chunks.slice(0, 12).join('\n\n---\n\n').slice(0, 12000);
         const sys = `${prompt.body}\n\n## CONTEXT (section: ${section})\n${context}\n`;
         const userMsg = [
@@ -219,7 +239,12 @@ async function main() {
             ) {
               continue;
             }
-            pendingPairs.push({ q: pair.q.trim(), a: pair.a.trim(), sourceSection: section });
+            pendingPairs.push({
+              q: pair.q.trim(),
+              a: pair.a.trim(),
+              sourceSection: section,
+              sourceFile,
+            });
           }
           console.log(`  ${section} [${passLabel}] → ${qa.length} pairs`);
         } catch (err) {
@@ -254,22 +279,17 @@ async function main() {
   for (const pair of finalPairs) {
     const section = `FAQ/${pair.sourceSection}`;
     const text = `Q: ${pair.q}\n\nA: ${pair.a}`;
-    const hash = sha256(`faq::${section}::${text}`);
-    if (await kbIngestLogRepo.hasContent(workspace.id, hash)) continue;
     const result = await ingestKnowledge({
       workspaceId: workspace.id,
       actorUserId,
       section,
       version: 'v1',
       text,
-      metadata: { source: 'qa_synthesis', sourceSection: pair.sourceSection },
-    });
-    await kbIngestLogRepo.record({
-      workspaceId: workspace.id,
-      contentSha256: hash,
-      source: 'qa_synthesis',
-      section,
-      chunkCount: result.inserted,
+      metadata: {
+        source: 'qa_synthesis',
+        sourceSection: pair.sourceSection,
+        ...(pair.sourceFile ? { sourceFile: pair.sourceFile } : {}),
+      },
     });
     ingested += result.inserted;
   }
