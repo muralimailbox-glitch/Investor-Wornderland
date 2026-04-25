@@ -71,10 +71,10 @@ export default async function DocumentPreviewPage({ params }: { params: Promise<
           <Image
             src="/brand/oota-rect-tagline.png"
             alt="OotaOS"
-            width={200}
-            height={50}
+            width={320}
+            height={82}
             priority
-            className="h-9 w-auto"
+            className="h-14 w-auto"
           />
         </Link>
         <Link href="/lounge" className="text-sm text-violet-700 hover:text-violet-900">

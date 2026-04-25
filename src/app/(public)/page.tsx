@@ -27,10 +27,10 @@ export default async function LandingPage() {
           <Image
             src="/brand/oota-rect-tagline.png"
             alt="OotaOS"
-            width={220}
-            height={56}
+            width={360}
+            height={92}
             priority
-            className="h-10 w-auto"
+            className="h-16 w-auto"
           />
         </Link>
         <nav className="flex items-center gap-4 text-sm text-slate-700">
