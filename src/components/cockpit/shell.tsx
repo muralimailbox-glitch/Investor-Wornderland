@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
@@ -18,15 +19,20 @@ import {
   X,
 } from 'lucide-react';
 
+// Four-screen consolidation per the fundraising-OS plan. The four primary
+// screens are reachable from the top of the nav; deal / knowledge / settings
+// are kept as a "More" group. Existing routes /cockpit/{investors,pipeline,
+// inbox,documents} are preserved (no broken links) but relabeled to match
+// the four-screen vocabulary.
 const NAV = [
-  { href: '/cockpit', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/cockpit/investors', label: 'Investors', icon: Users },
-  { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints },
-  { href: '/cockpit/inbox', label: 'Inbox', icon: Mail },
-  { href: '/cockpit/documents', label: 'Documents', icon: FileText },
-  { href: '/cockpit/deal', label: 'Deal', icon: Briefcase },
-  { href: '/cockpit/knowledge', label: 'Knowledge', icon: BookOpen },
-  { href: '/cockpit/settings', label: 'Settings', icon: Settings },
+  { href: '/cockpit', label: 'Dashboard', icon: LayoutDashboard, group: 'main' as const },
+  { href: '/cockpit/investors', label: 'Firms & Contacts', icon: Users, group: 'main' as const },
+  { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints, group: 'main' as const },
+  { href: '/cockpit/inbox', label: 'Communications', icon: Mail, group: 'main' as const },
+  { href: '/cockpit/documents', label: 'Diligence Room', icon: FileText, group: 'main' as const },
+  { href: '/cockpit/deal', label: 'Deal', icon: Briefcase, group: 'more' as const },
+  { href: '/cockpit/knowledge', label: 'Knowledge', icon: BookOpen, group: 'more' as const },
+  { href: '/cockpit/settings', label: 'Settings', icon: Settings, group: 'more' as const },
 ];
 
 export function CockpitShell({ email, children }: { email: string | null; children: ReactNode }) {
@@ -49,14 +55,15 @@ export function CockpitShell({ email, children }: { email: string | null; childr
         )}
       >
         <div className="mb-8 flex items-center justify-between gap-2">
-          <Link
-            href="/cockpit"
-            className="flex items-center gap-2 font-semibold tracking-tight text-slate-900"
-          >
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-md shadow-violet-500/30">
-              O
-            </span>
-            <span>OotaOS</span>
+          <Link href="/cockpit" aria-label="OotaOS cockpit" className="flex items-center">
+            <Image
+              src="/brand/oota-rect-tagline.png"
+              alt="OotaOS"
+              width={200}
+              height={50}
+              priority
+              className="h-10 w-auto"
+            />
           </Link>
           <button
             type="button"
@@ -68,7 +75,7 @@ export function CockpitShell({ email, children }: { email: string | null; childr
           </button>
         </div>
         <nav className="flex flex-1 flex-col gap-1">
-          {NAV.map((item) => {
+          {NAV.filter((item) => item.group === 'main').map((item) => {
             const Icon = item.icon;
             const active =
               pathname === item.href ||
@@ -83,6 +90,32 @@ export function CockpitShell({ email, children }: { email: string | null; childr
                   active
                     ? 'bg-violet-50 text-violet-800'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+          <div className="my-3 h-px bg-slate-100" />
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+            More
+          </p>
+          {NAV.filter((item) => item.group === 'more').map((item) => {
+            const Icon = item.icon;
+            const active =
+              pathname === item.href ||
+              (item.href !== '/cockpit' && pathname?.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={clsx(
+                  'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition',
+                  active
+                    ? 'bg-violet-50 text-violet-800'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
                 )}
               >
                 <Icon className="h-4 w-4" />
