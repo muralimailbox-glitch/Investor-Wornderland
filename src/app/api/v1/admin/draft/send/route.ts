@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
-import { handle } from '@/lib/api/handle';
+import { ApiError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { db } from '@/lib/db/client';
@@ -27,6 +27,31 @@ export const POST = handle(async (req) => {
   await rateLimit(req, { key: 'admin:draft:send', perMinute: 30 });
   const { user } = await requireAuth({ role: 'founder' });
   const body = Body.parse(await req.json());
+
+  // Rule #3: no outreach without a lead. If the recipient maps to a known
+  // investor in this workspace, require an active lead. If the recipient is
+  // a freeform email (no matching investor row), allow — that path is for
+  // ad-hoc replies / non-investor emails.
+  if (body.leadId) {
+    const lead = await db
+      .select({ id: leads.id, stage: leads.stage })
+      .from(leads)
+      .where(and(eq(leads.id, body.leadId), eq(leads.workspaceId, user.workspaceId)))
+      .limit(1);
+    if (!lead[0]) throw new ApiError(404, 'lead_not_found');
+    if (lead[0].stage === 'funded' || lead[0].stage === 'closed_lost') {
+      throw new ApiError(409, 'lead_terminal');
+    }
+  } else {
+    const matched = await db
+      .select({ id: investors.id })
+      .from(investors)
+      .where(and(eq(investors.workspaceId, user.workspaceId), eq(investors.email, body.toEmail)))
+      .limit(1);
+    if (matched[0]) {
+      throw new ApiError(409, 'lead_required');
+    }
+  }
 
   let subject = body.subject;
   let text = body.bodyText;
