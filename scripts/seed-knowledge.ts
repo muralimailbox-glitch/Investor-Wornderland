@@ -1,15 +1,16 @@
 /**
- * Seed the default workspace's knowledge_chunks table with grounded
- * content so the concierge has something to retrieve. Must be run AFTER
- * `pnpm db:seed` (which creates the default workspace).
+ * Seed the default workspace's knowledge_chunks with the canonical OotaOS
+ * narrative — every fact here is grounded in the Investor Pack documents
+ * (Term Sheet, SSA, SHA, Cap Table, Financial Model, DD Questionnaire,
+ * Pitch Deck, Patent Applications, ESOP Scheme, Founder Agreement, etc.).
  *
- * Dotenv is loaded manually and BEFORE any app module import so the
- * @/lib/env contract is satisfied in the tsx runtime.
+ * This is the FALLBACK content the AI uses when the full corpus ingest
+ * (scripts/ingest-corpus.ts) hasn't been run — and it stays useful even
+ * after corpus ingest because narrative summaries are easier to retrieve
+ * than long legal prose. The corpus ingest layers the full document text
+ * on top.
  *
- * Each entry below is a self-contained narrative passage. The ingestion
- * service splits long passages into ~600-char chunks before embedding.
- * Cover the questions investors actually ask: what, who, market, why now,
- * traction, round, terms, moat, pricing, security, hiring, risks, FAQ.
+ * Re-run any time: `pnpm seed:knowledge`.
  */
 import { config as loadEnv } from 'dotenv';
 
@@ -18,407 +19,240 @@ loadEnv({ path: '.env' });
 
 const KNOWLEDGE: Array<{ section: string; version: string; text: string }> = [
   {
-    section: 'pitch',
-    version: 'v3',
-    text: `OotaOS is an AI-native investor relations platform for early-stage founders.
+    section: 'company',
+    version: 'v1',
+    text: `OotaOS Platform Services Private Limited is the legal entity behind OotaOS — an Indian company incorporated under the Companies Act, 2013, headquartered in Bengaluru, Karnataka.
 
-We replace the messy thread of pitch decks, NDA PDFs, and email follow-ups with a single always-on concierge that answers investor questions, gates the data room behind a signed NDA, and books founder meetings automatically.
+The product is an AI-native restaurant operating system: a single integrated stack that replaces the four-to-six disconnected tools a typical independent restaurant runs today (POS, QR ordering, reservations, kitchen display, inventory, marketing, HR).
 
-The platform is built on Next.js 15, Postgres with pgvector, and Anthropic Claude. Every answer is grounded in the founder's own writing — no hallucinations, no open-web browsing, full citations.
-
-We are based in Bengaluru. Our customers are seed and Series A founders raising between $2M and $20M.`,
+We ship two product tiers from a shared codebase: OotaOS Regular for full-service restaurants and OotaOS Lite for street food vendors and food trucks. Both run on Railway with Postgres, deployed via the SnapSiteBuild infrastructure.`,
   },
   {
     section: 'one_liner',
     version: 'v1',
-    text: `One sentence: OotaOS turns a fundraise into a conversation — investors ask anything, our AI answers from the founder's own writing with citations, and the data room opens the moment they sign the NDA.
+    text: `One sentence: OotaOS is the restaurant operating system — one integrated stack of POS, QR ordering, kitchen display, reservations, inventory, marketing, HR, and analytics, replacing the four-to-six disconnected tools restaurants juggle today.
 
-The category we belong to is "AI-native investor relations" — not a CRM, not a data room, not a chatbot. A spokesperson that never forgets a number and never goes off-message.`,
+The category we belong to is "vertical SaaS for restaurants" — operator-grade, India-first, AI-augmented. Not a payment app, not a delivery aggregator, not a marketplace. The system of record for the restaurant.`,
   },
   {
     section: 'problem',
     version: 'v1',
-    text: `Founders raise twice. Once for the money, and continuously for attention. Investors are inundated, decks get skimmed for 90 seconds, follow-up email threads die in week three.
+    text: `Independent restaurants run on 4–6 disconnected tools. POS, QR ordering, reservations, inventory, HR, marketing — all separate, all paid for separately, all siloed.
 
-The fundraise stack today is fragmented: Notion or Airtable for the CRM, DocSend for the deck, a manual NDA-by-email loop, Calendly for meetings, a personal inbox for every conversation. Founders spend 60-70% of their fundraising hours on logistics — chasing replies, resending decks, redacting NDAs, scheduling — instead of selling.
+A typical owner pays four to six monthly bills, reconciles four to six dashboards, and has no single view of revenue, costs, or guests. Staff retype orders between systems. Inventory drifts because the POS doesn't see the kitchen. Marketing campaigns can't reach customers because contact data lives in three different places. Reservations conflict with walk-ins because the table map is on a whiteboard.
 
-OotaOS collapses that stack into one surface. Investors arrive at a personalized link, ask anything in plain English, get grounded answers with citations, sign a 60-second NDA, and walk straight into the data room.`,
-  },
-  {
-    section: 'why_now',
-    version: 'v1',
-    text: `Three forces converged in the last 18 months that make this category possible only now.
-
-First, retrieval-grounded LLMs crossed the quality threshold where a model can speak on behalf of a founder without hallucinating, provided the corpus is well-organized and citations are mandatory. We do not allow open-web browsing or training-data recall — every answer cites a section the founder wrote.
-
-Second, founder writing has become the highest-leverage asset of a fundraise. Pitch decks have shrunk; long-form posts, memos, FAQs, and design docs have grown. Our platform turns that corpus into a 24/7 spokesperson.
-
-Third, investor calendars are fuller than ever. The first ten minutes of an investor's interest in a startup are now a Slack DM and a "send me your deck" — not a 30-minute call. We meet investors in those ten minutes.`,
+The owner is the integration layer. That doesn't scale, and it's why most restaurants never measure their unit economics with any rigour.`,
   },
   {
     section: 'product',
-    version: 'v2',
-    text: `Three things ship today.
-
-(1) The Public Wonderland — a magic-link-personalized investor landing page with a concierge chat ("Ask Priya"), a 60-second self-serve NDA flow, a data room that watermarks every PDF per investor, and a founder lounge with a meeting booker.
-
-(2) The Founder Cockpit — a CRM-grade dashboard for the founding team. Pipeline view across stages, investor and firm pages with thesis-fit scoring, an AI-drafted reply panel for the inbox, AI cost monitoring per workspace, and a knowledge editor where the founder writes the source-of-truth content the concierge cites.
-
-(3) The AI Layer — three named agents (Concierge for investor chat, Drafter for email replies, Strategist for cockpit summaries) that share a centralized client, mandatory citations, hard cost cap, prompt-injection scrubbing, and per-workspace evaluation logs.
-
-There is no "send" button on the AI side. Every email, every record change, every stage move is a button a human founder presses. AI drafts. Founders ship.`,
-  },
-  {
-    section: 'concierge',
     version: 'v1',
-    text: `The concierge is an AI persona named Priya who answers investor questions on behalf of the founders. She speaks warmly, with full citations, and only from content the founders themselves wrote.
+    text: `OotaOS ships eight modules, all running on the same Postgres tenant and surfaced through one operator UI:
 
-She handles the casual surface — what OotaOS does, the team, the market, the why-now narrative — freely. The moment a question goes deep (specific MRR, cap-table detail, churn cohorts, named customer contracts, IP detail), she gracefully invites the investor to verify their email and sign the NDA. She never gatekeeps the basic narrative; she gates the numbers.
-
-She refuses jailbreaks and prompt-injection attempts with a single line and an offer to book the founders directly. She never sends mail, never moves a stage, never edits a record.
-
-If a question has no good match in the knowledge base (similarity below 0.65), she returns a graceful "I don't have that publicly — let me book you with the founders" rather than guessing.`,
+(1) POS — order entry with frozen prices at order creation, idempotent payment processing, multi-currency.
+(2) QR Ordering — diners scan a sticker, browse the menu, build a cart, pay (Razorpay / Stripe / cash). Multi-user same-table sessions with merged billing.
+(3) Kitchen Display System — orders route to stations in real time over Pusher, with polling fallback as the authoritative source of truth.
+(4) Reservations + Waitlist — table holds, walk-in queue, predictive ETA computation feeding the kitchen dispatch.
+(5) Inventory — sub-second real-time 86'd sync across all customer devices via geofenced inventory broadcasting.
+(6) Marketing — referral programs, partner commissions, segmented campaigns from CRM data captured at every order.
+(7) Reports & Finance — JSON, CSV, PDF, and accounting-grade revenue summaries from raw order + loyalty + discount streams.
+(8) AI Support Investigator (AISI) — read-only Claude-Sonnet-backed agent that answers "what happened to my order / payment / KDS?" with PII masking and dual cost caps.`,
   },
   {
-    section: 'data_room',
+    section: 'tiers',
     version: 'v1',
-    text: `The data room opens the moment an investor signs the mutual NDA — no manual unlock, no founder pings.
+    text: `Two product tiers from a shared codebase:
 
-Every PDF served from the data room is watermarked per investor with their email and the timestamp of access. The watermark policy is configurable per document: per_investor, static, or none. Term sheets and the cap table default to per_investor. The pitch deck defaults to none for friction reasons.
+OotaOS Regular — full restaurant management for sit-down restaurants, cafes, casual dining, fine dining. POS + KDS + reservations + waitlist + inventory + marketing + reports. Three plans: Starter (pay-as-you-go), Growth (flat monthly), Pro (flat monthly with premium features).
 
-Share links are signed, expiring (default 15 minutes), and revocable. Every download is logged to the audit trail with IP, user agent, and timestamp.
+OotaOS Lite — lightweight ordering for street food vendors, food trucks, dabbas, small eateries. Onboarding under two minutes, print a QR sticker, take orders. Indian payments via PhonePe UPI deep link with owner-confirm fallback. Reduced feature surface, simpler auth.
 
-The cockpit shows the founder which documents each investor opened and how long they spent — a rough engagement signal that travels with the lead's stage.`,
-  },
-  {
-    section: 'nda',
-    version: 'v1',
-    text: `The NDA flow is mutual, founder-friendly, and self-serve. It takes about 60 seconds.
-
-The investor enters their name, title, firm, and work email. We send a 6-digit OTP that expires in 10 minutes. After verification, they review the short-form clauses on screen and click sign. We immediately seal the PDF — adding their full name, firm, IP, user-agent, signed-at timestamp, and the template version — and email a countersigned copy with a 15-minute signed download URL.
-
-The terms are mutual: both parties keep the other's non-public information confidential for two years. We chose mutual rather than one-way because we are pitching investors and they are pitching us — the relationship is bidirectional.
-
-Every signed NDA is stored with its sha256 in our audit log. We never lose track of who signed what.`,
-  },
-  {
-    section: 'cockpit',
-    version: 'v1',
-    text: `The founder cockpit is where the team runs the round. A single shell with five sections: deal, pipeline, investors, inbox, knowledge.
-
-The deal page shows the round at a glance — target size, pre-money, post-money, committed dollars, percent closed, optional pool. Editable inline.
-
-The pipeline page is a kanban across ten stages — prospect, contacted, engaged, nda_pending, nda_signed, meeting_scheduled, diligence, term_sheet, funded, closed_lost. Drag-drop transitions are audit-logged.
-
-The investors page is a searchable, filterable grid with bulk import (JSON or CSV), Tracxn auto-enrichment, and per-investor activity drawers showing every interaction (page views, questions, NDA signatures, document opens).
-
-The inbox is a unified IMAP feed. The Drafter agent suggests a reply for each email; the founder edits and presses send. We never auto-send.
-
-The knowledge page is where the founder writes — markdown content, organized by section. The concierge cites the section and version on every answer.`,
-  },
-  {
-    section: 'team',
-    version: 'v1',
-    text: `The founding team is two people.
-
-Murali Krishnan (CEO) spent 11 years at enterprise SaaS companies including as a founding engineer at a venture-backed ERP platform. He writes all customer-facing content and owns the AI guardrails. Bengaluru-based.
-
-Priya Nair (CTO) is an applied-ML engineer who spent 6 years at a payments company building fraud detection and document understanding pipelines. She owns the retrieval, evaluation, and deployment stack. Bengaluru-based.
-
-We have worked together informally for three years and formally as co-founders since Q3 2025. First hire planned within 60 days of close: a senior full-stack engineer to own the founder cockpit UI. Second and third hires within 180 days: a senior ML engineer to own retrieval evaluation and a founder-led GTM lead for India.`,
-  },
-  {
-    section: 'traction',
-    version: 'v2',
-    text: `Since private beta in Q4 2025 we have onboarded 18 founder workspaces.
-
-Aggregate numbers across the beta: 340 investor conversations handled by the AI concierge, 112 NDAs signed through the self-serve flow, 64 founder meetings booked. Median time from first investor question to NDA signature is 4 minutes.
-
-Concierge grounded-answer rate sits at 94% — the remaining 6% route to graceful refusal with an offer to book a call. Zero hallucinations flagged by founders in the last 90 days.
-
-Monthly active founders: 14 of 18. NPS from founders is +62. Investors who complete the NDA flow report a median of 4.6 out of 5 on the "did this feel high-quality" post-signup survey.`,
-  },
-  {
-    section: 'round',
-    version: 'v1',
-    text: `We are raising a $4M seed round to close by end of Q2 2026.
-
-Target terms: $4M at $20M post-money SAFE, with a 20% option pool created pre-close. We have $1.6M in soft circles from two tier-one India funds and four founder-operator angels. Lead-investor check size $1.5M to $2M.
-
-Use of funds: 60% engineering (two senior full-stack, one ML engineer focused on retrieval eval), 25% go-to-market and founder-led sales in India and SE Asia, 15% runway buffer for 18 months of operation at the planned burn.
-
-The round is not a priced round. We expect to do the priced Series A in 2027 once we are at $1M ARR.`,
-  },
-  {
-    section: 'use_of_funds',
-    version: 'v1',
-    text: `The $4M unlocks 18 months of runway at the planned burn.
-
-Engineering ($2.4M, 60%): two senior full-stack engineers ($60K each per year fully loaded India), one senior ML engineer ($90K), one product-design contractor for cockpit polish, plus annual SaaS tooling.
-
-Go-to-market ($1.0M, 25%): one founder-led BD lead, two founding-customer-success engineers, one content/community lead, plus targeted founder-events sponsorship in India and SE Asia.
-
-Runway buffer ($0.6M, 15%): legal, finance, audit, infrastructure cost ceiling, and a deliberately conservative 18-month visibility on burn.
-
-We grow into a priced Series A at $1M ARR. The seed buys us the team to get there.`,
-  },
-  {
-    section: 'moat',
-    version: 'v1',
-    text: `Our moat is the pairing of prompt discipline with auditable retrieval.
-
-Three things compound: (1) a growing library of versioned prompts tuned per agent (concierge, drafter, strategist) that competitors cannot copy without matching our eval suite; (2) a founder-facing evaluation loop that flags hallucinations within 24 hours and retrains retrieval thresholds per workspace; (3) a tight integration with Zoho and Google mail so the inbox becomes a first-class source of truth alongside the pitch deck.
-
-Competitors who ship "AI investor CRM" features treat AI as a chat bubble. Our design treats AI as a grounded spokesperson with hard rules: never send mail, never move a stage, never answer from outside the knowledge base.`,
-  },
-  {
-    section: 'competition',
-    version: 'v1',
-    text: `Three categories overlap with us, none of them ship the same thing.
-
-DocSend / Brij and other deck-tracking tools — they tell you the deck got opened. They don't speak for the founder, don't gate documents behind a signed NDA, don't book meetings. We replace them.
-
-Foundersuite, Visible, Affinity — these are CRM tools for fundraising. They organize who you talk to. They don't talk for you. We sit on top of a CRM (or replace it for early-stage founders who don't have one).
-
-ChatGPT-style chat widgets — these are open-web bots glued onto a marketing page. They hallucinate, they have no audit trail, they have no NDA flow. Investors notice the difference within two questions.
-
-Our wedge is the combination: grounded chat + NDA + watermarked data room + cockpit, all in one surface, all founder-controlled.`,
-  },
-  {
-    section: 'market',
-    version: 'v1',
-    text: `Our primary market is India and SE Asia: roughly 8,000 seed-stage fundraises per year across these geographies, with an estimated $4B in annual round value.
-
-We expand to Europe and North America once the India playbook is proven, driven by the observation that founders in those geographies currently rely on spreadsheet-based CRMs (Airtable, Notion) plus calendar tools plus DocSend — a fragmented stack with no AI layer.
-
-Serviceable obtainable market in year three at a $200/month average price: $10M ARR from 4,000 paying founder workspaces globally.`,
+Both share Railway hosting, the same Postgres instance (different schemas), and the same Pusher realtime spine.`,
   },
   {
     section: 'pricing',
     version: 'v1',
-    text: `Pricing is per founder workspace per month, billed annually.
+    text: `OotaOS Regular runs three plan tiers with a 15-day trial across 10 currencies (Razorpay routes India, Stripe routes everything else):
 
-Solo plan, $99/month: one workspace, one founder seat, unlimited investors, the full concierge + NDA + data room stack, 100K AI tokens per month included.
+Starter — pay-as-you-go. Per-order transaction fee. No monthly minimum. Designed for restaurants <₹2 lakh monthly revenue.
+Growth — flat monthly subscription. Includes reservations, full reporting, and marketing campaigns. The plan most beta restaurants use.
+Pro — flat monthly with premium features: multi-location, advanced reporting, white-label customer-facing UI, dedicated success engineer, custom integration support.
 
-Team plan, $249/month: up to five team seats, advanced cockpit (pipeline, inbox, drafter), 500K AI tokens, priority support, custom NDA template upload.
-
-Series plan, $749/month: white-label option, custom domain, dedicated retrieval eval, 2M AI tokens, SSO, dedicated success engineer.
-
-Most beta founders are on Team. The price point assumes a founder considers $250/month a rounding error in the cost of fundraising — and so far that has held.`,
+Trial is 15 days from signup. After trial, billing flips to past_due → unpaid after another 15 days, with a requireSubscription() middleware that gates premium features across the platform.`,
   },
   {
-    section: 'business_model',
+    section: 'team',
     version: 'v1',
-    text: `We charge SaaS — annual subscriptions, monthly billing option for solo plan only.
+    text: `Two founders.
 
-Gross margin target at scale is 78%. The largest variable cost line is Anthropic API spend, which we cap per workspace ($50/month default, configurable up to $200). Embeddings run locally on a small CPU model — zero per-call cost.
+Murali Krishna Chimakurthy is the Operating Founder and CEO. He owns customer-facing content, the AI guardrails, fundraising, and product direction. Bengaluru-based.
 
-We do not take a percentage of the round, do not charge per investor, do not charge per document. The price is independent of round size — a $2M seed founder pays the same as a $20M Series A founder, which keeps the value/price ratio extreme for larger rounds.
+Jyothsna Chimakurthy is the Passive Shareholder and co-founder. She holds equity that traces back to a documented Gift Deed Of Equity Shares between spouses; her role is non-operating and is captured in the Founder Agreement as such.
 
-Average revenue per workspace target by month 24: $230. Net revenue retention target: 110% (driven by team plan upgrades as the round grows).`,
+First three planned hires post-funding are a VP Sales, two SDRs, and a Customer Success Lead — about 40% of the seed round flows into Sales and Onboarding.`,
   },
   {
-    section: 'unit_economics',
+    section: 'round',
     version: 'v1',
-    text: `On the team plan ($249/mo), CAC payback target is six months, blended across organic and paid channels.
+    text: `Seed round: USD 800,000 for 10% of the company at USD 8,000,000 post-money valuation. Pre-money valuation USD 7,200,000. FX rate ₹94/USD. INR equivalent of the round is ₹7.52 crore.
 
-Founder-led GTM is our cheapest channel — the typical funnel today is "founder posts on LinkedIn, three founders DM, one converts" which costs effectively zero.
+The round is structured as a primary equity issuance under Section 62(1)(c) of the Companies Act, 2013, with a 10% ESOP pool created pre-money via Special Resolution under Section 62(1)(b). All filings (PAS-3, MGT-14, FC-GPR if non-resident) are mapped in the Cap Table's MCA Filings sheet.
 
-Paid CAC sits at roughly $400 (LinkedIn ads to founder communities), giving a 1.6x payback on month one, 6 months to recoup, ~3.5x LTV/CAC at the planned 18-month average lifetime. As we shift up to Team and Series plans, payback compresses.
-
-Annual cost per workspace: $40 in infra (Railway, Cloudflare R2, Postgres) + ~$20 in average AI usage = $60/year direct cost. At $2,988 ARR per workspace on Team plan, that's a 98% gross margin before salaries.`,
+The Term Sheet, Share Subscription Agreement, and Shareholders' Agreement are the three execution documents. The Disclosure Letter sits beside them as the founder's qualifications to the warranties. The Cover Note (founder-only, kept out of the data room) explains how all the documents fit together.`,
   },
   {
-    section: 'security',
+    section: 'use_of_funds',
     version: 'v1',
-    text: `Security is built in, not bolted on.
+    text: `The ₹7.52 crore (USD 800K) seed round is allocated across an 18-month runway:
 
-Every API handler validates input with Zod, requires authentication where appropriate, applies rate limits, and writes an audit event on state-changing actions. The audit feed is queryable from the cockpit.
+Sales & Onboarding — 40% (₹3.0 crore / USD 320K). VP Sales, two SDRs, a Customer Success Lead, field sales costs, onboarding tools.
+Marketing — 25% (₹1.88 crore / USD 200K). Digital campaigns, brand, content, referral programme, founder events.
+Engineering — 25% (₹1.88 crore / USD 200K). Two senior full-stack hires, one ML engineer, design contractor, SaaS tooling.
+Operations & buffer — 10% (₹0.76 crore / USD 80K). Legal, finance, audit, infrastructure cost ceiling, contingency.
 
-Secrets live in Railway env vars; no secret is committed to the repo. Pre-commit hooks scan for accidentally added secrets and block the commit.
-
-Sessions are HttpOnly, Secure (in production), SameSite=Lax cookies. Lucia v3 manages the session lifecycle. Founder accounts require a TOTP MFA code on every login.
-
-PDFs in the data room are watermarked per investor. Share links are signed, expire in 15 minutes by default, and are revocable from the cockpit. NDAs are sealed with a SHA-256 hash stored in the database.
-
-The concierge has prompt-injection scrubbing on every user input and refuses jailbreak attempts with a fixed phrase rather than answering.`,
+We grow into a priced Series A at the milestone of approximately 1,500 paying restaurants and ₹2.5 Cr+ MRR.`,
   },
   {
-    section: 'compliance',
+    section: 'financial_projections',
     version: 'v1',
-    text: `We are India-incorporated. Our primary mail region is Zoho India (smtp.zoho.in / imap.zoho.in). Our data lives in EU-region Postgres for GDPR friendliness even though our customer base is predominantly India today.
+    text: `36-month projections in three scenarios (Conservative / Base / Aggressive). All numbers below are Base.
 
-We do not sell or share customer data. We do not train any model on customer content. The Anthropic API contract we operate under explicitly prohibits training on submitted prompts.
+Starting point: 1 paying restaurant (current beta) at month 0.
+Restaurant additions: 88/month in months 1–6, 190/month in months 7–12, 380/month in months 13–18, then 4-figure additions in months 19–36.
 
-For SOC2 — we are in the "ready to start" phase. We have all the controls (audit logging, MFA, secret scanning, access reviews) in place; the formal type-2 audit is on the post-Series-A roadmap, not before.`,
+Active restaurants: 497 by month 6, 1,498 by month 12, 3,430 by month 18, 5,342 by month 24, 8,395 by month 36.
+MRR: USD 74,550 (m6), USD 224,700 (m12), USD 565,950 (m18), USD 881,430 (m24), USD 1,523,693 (m36).
+ARR at month 36: USD 18.28M (₹171.87 crore).
+
+The model has a Cash Flow sheet showing opening cash, net flow, and closing cash month by month — the seed round closes a 18-month runway with a small buffer at the planned base burn.`,
   },
   {
-    section: 'risks',
+    section: 'patents',
     version: 'v1',
-    text: `The honest list of risks.
+    text: `Seven provisional patent applications have been drafted for filing with the Indian Patent Office (Form 1 + Form 2 each):
 
-(1) AI provider concentration. We rely on Anthropic. Mitigation: the AI client is centralized in src/lib/ai/client.ts; switching providers is a one-week swap. We've already prototyped against an OpenAI fallback.
+1. Dynamic QR Code Lifecycle Management for Restaurant Tables — the Smart QR Resolution Engine.
+2. Multi-User Same-Table Digital Ordering and Merged Payment System — the Collaborative Table Session Engine.
+3. Cross-Table Group Session Management with Multi-Party Billing — the Group Session and Corporate Invoice Engine.
+4. Pre-Queue Waitlist System with Predictive Kitchen Dispatch and Dynamic ETA Computation — the Smart Waitlist and Kitchen Dispatch Engine.
+5. Digital Service Request Relay System with Session-Aware Automation — the Call Waiter and Service Automation Engine.
+6. Server-Side Price Integrity Enforcement and Idempotent Order Processing — the Anti-Tamper and Order Deduplication Engine.
+7. Geofence-Validated Restaurant Ordering with Sub-Second Real-Time Inventory Synchronisation — the Location Validation and Live 86'd Sync Engine.
 
-(2) Founder dependency on quality of writing. The concierge is only as good as the founder's corpus. Mitigation: we ship a "writing prompts" cockpit feature that drives founders to fill in gaps the concierge has flagged.
-
-(3) Trust gap on first contact. Investors may not believe an AI is grounded. Mitigation: every answer cites the source section and version. We expose a "see what Priya read" link on every reply.
-
-(4) Pricing pressure if a free competitor lands. Mitigation: our wedge is the integration depth (NDA + watermarked data room + cockpit), not the chat. A free chatbot does not replace our stack.
-
-(5) Hiring in Bengaluru senior ML talent is competitive. Mitigation: founder Priya runs the ML stack; we hire to scale, not to start.`,
-  },
-  {
-    section: 'roadmap',
-    version: 'v1',
-    text: `Public roadmap (no specific dates beyond the next two quarters).
-
-Q2 2026: ship the calendar integration (Google Calendar deep link with three suggested slots), ship the meeting pre-brief generator (Strategist agent reads investor + firm + interactions, produces a one-page brief).
-
-Q3 2026: ship the "round dashboard" public view — a single shareable link with the live commit chart, anonymized cap table delta, and target close date. Also ship custom NDA template upload for the Series plan.
-
-Q4 2026: ship multi-language concierge (English + Hindi + Mandarin), ship Zoho/Google Workspace SSO for the cockpit.
-
-Beyond that we leave open. We tune the roadmap to which features the beta founders ask for most often. The retrieval evaluation loop directly feeds the roadmap.`,
+The full text of each is in the data room under Patent 1 through Patent 7. The IP Assignment Deed transfers all founder-created IP to the company prior to closing.`,
   },
   {
     section: 'tech_stack',
     version: 'v1',
-    text: `The stack is deliberately boring on the infrastructure side and ambitious on the AI side.
+    text: `OotaOS Regular runs Express + Vite — a deliberate pivot from the originally planned Next.js stack (documented in DECISIONS.md). Backend is TypeScript on Express, frontend is Vite-built React, database is Postgres on Railway with 15 migrations shipped (numbered 0000–0014). Realtime over Pusher with polling as the authoritative fallback.
 
-Frontend: Next.js 15 App Router, TypeScript strict mode, Tailwind, shadcn/ui (Radix), Framer Motion. No SPA framework, no separate API server — Next handles both.
+OotaOS Lite shares the same Postgres instance under a different schema with reduced auth and feature surface, enabling sub-2-minute onboarding for street food vendors.
 
-Backend: Next.js route handlers (Node runtime), Drizzle ORM, Postgres 16 with the pgvector extension, Lucia v3 for auth. Sessions live in Postgres.
-
-Mail: Nodemailer over Zoho SMTP for outbound, imapflow for inbound. Sender is info@ootaos.com, India region.
-
-AI: Anthropic Claude Haiku for the concierge (latency-optimized), Sonnet for the strategist, Haiku for the drafter. Embeddings are local (Xenova/multilingual-e5-small, 384 dim) — zero per-call cost.
-
-Storage: Cloudflare R2 via the AWS S3 SDK for documents and signed PDFs.
-
-Hosting: Railway. CI: GitHub Actions. Observability: structured logs to Railway with a per-call ai_logs row capturing tokens, latency, cost.`,
+Production readiness is approximately 87% as of April 2026 — see PRODUCTION_READINESS_2026-04-18.md for per-module scores. Multi-tenancy is enforced at every DB query (every tenant-scoped table requires AND restaurant_id = $sessionRestaurantId), and a CI grep blocks any commit that omits it.`,
   },
   {
-    section: 'ai_discipline',
+    section: 'security_compliance',
     version: 'v1',
-    text: `We treat AI as a serious system, not a feature. Seven hard rules, all enforced server-side:
+    text: `Security is built in, not bolted on. Every API handler validates input with Zod, applies rate limits, and writes an audit event on state-changing actions. Sessions are HttpOnly + Secure cookies. Per-restaurant Razorpay keys are encrypted at rest; Stripe runs platform keys only.
 
-(1) Retrieval-only. The concierge answers only from knowledge_chunks. No open-web browsing. No reliance on training data.
+OTP is email-only since 2026-04-18 (SMS OTP returns 410 Gone), eliminating telecom-side credential exposure. PII masking is enforced in the AI Support Investigator. Cross-tenant access is structurally impossible: every request resolves a single sessionRestaurantId and every query carries it.
 
-(2) Citations always. Every factual claim cites a chunk by section and version. No citation, no claim.
+Compliance: India-incorporated, GDPR-friendly Postgres in EU region, no training on customer data (Anthropic API contract prohibits it). SOC2 type-2 is on the post-Series-A roadmap; controls (audit logging, MFA, secret scanning, access reviews) are already in place.`,
+  },
+  {
+    section: 'cap_table',
+    version: 'v1',
+    text: `Three-stage cap table: incorporation → ESOP creation → seed round closing.
 
-(3) No autonomous actions. AI never sends an email, never moves a pipeline stage, never edits a record. Drafts only.
+Stage 1 (At incorporation): the two founders hold 10,000 pre-money shares between them, with the spousal Gift Deed already executed.
 
-(4) Cost cap. Every workspace has a monthly USD cap (default $50). Exceeding it disables AI features and emails the founder.
+Stage 2 (After ESOP): a 10% ESOP pool is created pre-money via Special Resolution under Section 62(1)(b), bringing the fully-diluted share count to 11,111.
 
-(5) Prompt-injection scrub. User input is scanned for injection patterns before concatenation into the prompt. Matches are neutralized.
+Stage 3 (After seed): the lead investor subscribes to new shares for 10% of the post-money cap table at USD 8M post / USD 7.2M pre. Founders + ESOP + investor sum to 100% of the post-money fully-diluted total.
 
-(6) Versioned prompts. Every agent's prompt lives in /prompts/<agent>.md with a YAML frontmatter (model, version, temperature). The deployed version hash is logged with every call.
+The full Detailed Cap Table sheet shows shares, percentages, and INR/USD valuations at each stage. The Valuation Math sheet derives every number arithmetically — investor's CA can verify in five minutes.`,
+  },
+  {
+    section: 'governance',
+    version: 'v1',
+    text: `Governance flows through the Shareholders' Agreement (SHA) executed alongside the Share Subscription Agreement (SSA).
 
-(7) Centralized client. All Anthropic calls go through src/lib/ai/client.ts. CI fails if any handler imports the SDK directly.`,
+Board: founder-controlled at seed; one investor observer seat on request. Reserved matters list aligned with the Term Sheet — material asset transfers, material related-party transactions, change of business, and budget approval require investor consent.
+
+Information rights: monthly management accounts, quarterly financial statements, annual audited statements, board materials at least 5 business days before meetings.
+
+ESOP grants vest over four years with a one-year cliff per the ESOP Scheme. The Plan was prepared as a clean Section 62(1)(b) document and is intended to be filed alongside the seed paperwork.
+
+Founders have an 18-month vesting reset on round close, with 25% vested at close to acknowledge prior service.`,
+  },
+  {
+    section: 'risks',
+    version: 'v1',
+    text: `Honest list of risks documented in the DD Questionnaire.
+
+Founder concentration. Two founders, one operating, one passive — the Operating Founder is the system. Mitigation: knowledge captured in DECISIONS.md, CLAUDE.md, and the per-module design docs (00-OVERVIEW through 22-Staff-Roles). First two senior engineering hires are funded for redundancy.
+
+AI provider concentration. AISI uses Anthropic Claude. Mitigation: provider-agnostic client layer, prototyped against OpenAI fallback.
+
+Payment provider concentration in India. Razorpay is the primary route. Mitigation: PhonePe UPI deep link is wired for Lite, and Stripe carries international flow; Razorpay is one of three.
+
+Operational risk: 87% production readiness implies real residual debt. The PRODUCTION_READINESS_2026-04-18.md report scores each module so the gap to 100% is measurable, not aspirational.
+
+Regulatory risk: SaaS over a payment surface invites RBI and state-level scrutiny. Mitigation: per-restaurant encrypted Razorpay keys, no platform-managed funds float, no nodal-account flow.`,
   },
   {
     section: 'gtm',
     version: 'v1',
-    text: `Go to market is founder-led for the first 12 months.
+    text: `Go-to-market is founder-led for the first 12 months, then hires a VP Sales. Three channels:
 
-We launch publicly via three channels: (1) founder-community LinkedIn and Twitter (where our ICP already posts about fundraising), (2) targeted sponsorships of founder events in Bangalore, Mumbai, Singapore, and Jakarta, (3) referrals from beta-customer founders who introduce us to the next two or three founders in their network.
+(1) Direct field sales — the VP Sales and SDRs walk into restaurants in Bengaluru, Hyderabad, Mumbai, and Pune. India-first because the product is built for Indian payment rails (Razorpay, PhonePe UPI) and Indian regulatory constraints (FEMA, GST).
 
-Conversion cycle in beta: ~9 days from signup to first investor question handled, ~14 days from signup to first NDA signed through OotaOS. We track those two milestones as the activation north stars; founders who hit both within 30 days have 92% month-2 retention.
+(2) Marketing partner program — external affiliates earn commission as a percentage of the SaaS revenue their referred restaurants generate. Self-service partner portal with a unique referral code per partner.
 
-Paid acquisition starts in Q3 2026 once the organic playbook hits a $5K MRR floor.`,
+(3) Lite-led acquisition — street food vendors and food trucks onboard themselves via the Lite product (under two minutes, one QR sticker), and a portion graduate to Regular as their operations grow.
+
+The 15-day trial is the conversion event. Activation north stars are first-order-placed and first-week-of-orders, with month-2 retention as the primary KPI.`,
   },
   {
-    section: 'metrics_summary',
+    section: 'data_room_index',
     version: 'v1',
-    text: `Headline metrics today (Apr 2026):
+    text: `The investor data room contains 14 transaction documents and 30 supporting design / patent documents. The transaction set:
 
-Workspaces onboarded: 18.
-Monthly active founders: 14 (78%).
-Investor conversations handled: 340.
-NDAs signed self-serve: 112.
-Founder meetings booked: 64.
-Concierge grounded-answer rate: 94%.
-Hallucinations flagged in 90 days: 0.
-Founder NPS: +62.
-MRR (paid): not yet — public launch and pricing flip is May 2026.
+Cover Note (founder-only — describes how the documents fit together).
+Pitch Deck v3.
+Cap Table — Summary, Detailed, Valuation Math, Future Rounds, MCA Filings.
+Financial Model — README, Assumptions, Scenario, Revenue, Costs, P&L, Cash Flow, KPIs, Use of Funds.
+DD Questionnaire — founder-prepared answers to standard investor diligence questions.
+Term Sheet — USD 800K for 10% at USD 8M post-money.
+Share Subscription Agreement.
+Shareholders' Agreement.
+Disclosure Letter — founder qualifications to SSA / SHA warranties.
+ESOP Scheme and Resolutions — Section 62(1)(b) plan, ready for filing.
+Founder Agreement — Operating + Passive founder roles, vesting reset on close.
+IP Assignment Deed — pre-close transfer of founder IP to the company.
+Gift Deed — spousal equity transfer establishing the Passive Shareholder's holding.
+Cross-Promotion Agreement — strategic agreement with SnapSiteBuild for co-marketing.
 
-We are deliberately pre-revenue in the public-launch sense. The 18 beta workspaces are on a free founder pilot. The first paying cohort begins May 2026.`,
+Plus seven Provisional Patent Applications (Indian Patent Office Form 1 + Form 2) and twenty-two design / module documents covering the technical architecture from auth to staff roles.`,
   },
   {
-    section: 'demo_access',
+    section: 'concierge_meta',
     version: 'v1',
-    text: `Three ways to see the product.
+    text: `Priya is OotaOS's AI concierge — built on Claude Opus 4.7, grounded in this knowledge base, with mandatory inline citations on every factual claim.
 
-(1) The fastest: ask Priya anything on this page. She is running on the production stack you would deploy if you backed us — the same model, the same retrieval, the same prompts.
+She handles the public narrative freely: what OotaOS does, the team, the round size, the high-level use of funds. The moment a question goes deep into specific cap-table line items, deal terms, named customer contracts, or unfiled IP, she invites the investor to verify their email and sign the 60-second mutual NDA before sharing the original documents.
 
-(2) Sign the NDA (60 seconds) and walk into our own data room — the same room a founder customer would build for their investors.
-
-(3) Book a 20-minute live walkthrough with Murali or Priya — we open the cockpit, show the pipeline, draft an investor reply live, and answer anything the recording would not.`,
-  },
-  {
-    section: 'press_social_proof',
-    version: 'v1',
-    text: `We are deliberately quiet on press until public launch in May 2026.
-
-Beta founders who have publicly endorsed us by name: three (their consent given for investor conversations on request, not for public quotation).
-
-We have one signed founding-design-partner agreement with a Bengaluru-based seed fund — they use OotaOS to triage incoming founder pitches, an early sign that the platform's grounding discipline is useful on the buy side too.`,
-  },
-  {
-    section: 'why_us',
-    version: 'v1',
-    text: `Why this team, this problem.
-
-Murali has fundraised twice as a founding engineer and watched both founders burn weeks on logistics. He has felt the pain. He writes well, which matters because the platform's quality is bounded by the founder's writing — Murali is the canary on whether the platform amplifies a strong writer.
-
-Priya has spent six years putting LLMs into adversarial production environments (fraud, document understanding). She brings the discipline that an AI investor relations tool requires: hard cost caps, hallucination evaluation, prompt versioning, injection defense. None of these are obvious; all of them are non-negotiable.
-
-Together: the writer-CEO and the eval-CTO. The combination is rare and we believe necessary.`,
-  },
-  {
-    section: 'investor_faq',
-    version: 'v1',
-    text: `Common investor questions, plain answers.
-
-How is this different from a chatbot? Every answer cites a section the founder wrote. No open web. No model recall. Investors see the citations inline.
-
-Is this a CRM? No, it sits on top of a CRM. We replace the lightweight CRM most early-stage founders use (Airtable, Notion).
-
-Do you train on customer data? No. Anthropic's API contract prohibits training on prompts; we never feed customer content into a fine-tune.
-
-What if Anthropic raises prices or shuts off access? Our client layer is provider-agnostic. We have prototyped against OpenAI and could swap in a week.
-
-Is the data room secure? PDFs are watermarked per investor, share links expire in 15 minutes by default and are revocable, every download is audit-logged with IP and user agent.
-
-Why mutual NDA? Because you, the investor, are also sharing thesis and intent with us. Mutual is the right default at this stage.
-
-Where is data hosted? EU-region Postgres for GDPR friendliness. Mail through Zoho India. Documents on Cloudflare R2.
-
-How do you handle very technical investor questions? The concierge defers gracefully and offers to book the founders. Murali and Priya answer technical questions live.`,
+She refuses jailbreaks and prompt-injection attempts with a single line and an offer to book the founders directly. She never sends mail, never moves a stage, never edits a record. AI drafts; humans press buttons.`,
   },
   {
     section: 'meeting_booking',
     version: 'v1',
     text: `Booking a meeting takes about 30 seconds.
 
-The investor lands on the lounge after signing the NDA, sees three suggested 20-minute slots in the next week (drawn from Murali's and Priya's Google Calendars), picks one, and confirms. We immediately send a calendar invite with a Google Meet link to both sides.
+Available slots are between 8 AM and 8 PM IST (Indian Standard Time, UTC+5:30), excluding the founder's standing breaks: breakfast (8–9 AM IST), lunch (12 PM – 1:30 PM IST), and dinner (7 PM – 8 PM IST). Effective booking windows are therefore 9:00–12:00 IST and 13:30–19:00 IST, Monday through Saturday.
 
-Before the meeting, the Strategist agent generates a one-page pre-brief — what we know about the firm, the investor's recent investments, the questions they have asked the concierge, and the documents they have viewed. The brief is in our cockpit; the founder reads it five minutes before the call.
+Minimum advance notice is 20 hours — slots within the next 20 hours of the investor's click-time are unavailable. Maximum lead time is 14 days.
 
-After the meeting, the founder writes a two-line note in the cockpit and the lead's stage updates accordingly.`,
-  },
-  {
-    section: 'metrics_to_watch',
-    version: 'v1',
-    text: `If you are tracking us between now and the next milestone, watch these.
-
-(1) Paying workspaces by end of Q3 2026. Target: 50 paying.
-(2) Median time from investor's first concierge question to NDA signature. Today: 4 minutes. Target: under 3.
-(3) Concierge grounded-answer rate. Today: 94%. Target floor: 92% — below that triggers an evaluation sprint.
-(4) Founder NPS. Today: +62. Target floor: +50.
-(5) Hallucination flags from founders. Target: 0 in any rolling 90-day window. Triggers an emergency prompt revision if breached.
-(6) Public launch (paid) — May 2026.
-(7) $1M ARR — target H2 2027.`,
+The investor sees the slot rendered in their local timezone alongside IST, so there is no ambiguity. After confirmation, both parties get a calendar invite. A pre-brief is generated automatically by the Strategist agent and lands in the founder's cockpit five minutes before the call.`,
   },
 ];
 
@@ -435,9 +269,13 @@ async function main() {
   const user = await usersRepo.firstInWorkspace(workspace.id);
   const actorUserId = user?.id ?? workspace.id;
 
-  console.log(`seeding knowledge for workspace ${workspace.id}`);
-  await wipeKnowledge(workspace.id, actorUserId);
+  const wipe = process.argv.includes('--wipe');
+  if (wipe) {
+    console.log(`wiping knowledge for workspace ${workspace.id}`);
+    await wipeKnowledge(workspace.id, actorUserId);
+  }
 
+  console.log(`seeding ${KNOWLEDGE.length} curated sections for workspace ${workspace.id}`);
   let total = 0;
   for (const entry of KNOWLEDGE) {
     const result = await ingestKnowledge({

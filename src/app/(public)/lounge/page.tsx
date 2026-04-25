@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
@@ -13,17 +14,15 @@ export default function LoungePage() {
         <AnimatedBackdrop />
       </div>
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-semibold tracking-tight text-slate-900"
-        >
-          <span
-            aria-hidden
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 text-white shadow-md shadow-violet-500/30"
-          >
-            O
-          </span>
-          OotaOS
+        <Link href="/" aria-label="OotaOS home" className="flex items-center">
+          <Image
+            src="/brand/oota-rect-tagline.png"
+            alt="OotaOS"
+            width={220}
+            height={56}
+            priority
+            className="h-10 w-auto"
+          />
         </Link>
       </header>
       <section className="mx-auto w-full max-w-4xl px-6 pb-16 pt-10">

@@ -8,7 +8,7 @@
  *   - Passing an invalid IANA zone throws `RangeError` (surfaced to the caller).
  */
 
-export const DEFAULT_FOUNDER_TZ = 'Australia/Perth';
+export const DEFAULT_FOUNDER_TZ = 'Asia/Kolkata';
 
 export type IanaZone = string;
 

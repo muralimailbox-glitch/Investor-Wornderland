@@ -33,7 +33,7 @@
     {
       "idx": 4,
       "version": "7",
-      "when": 1745577600000,
+      "when": 1777057280000,
       "tag": "0004_postgres_file_storage",
       "breakpoints": true
     },
@@ -42,6 +42,13 @@
       "version": "7",
       "when": 1777117411153,
       "tag": "0005_organic_ghost_rider",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777130156081,
+      "tag": "0006_wealthy_master_chief",
       "breakpoints": true
     }
   ]

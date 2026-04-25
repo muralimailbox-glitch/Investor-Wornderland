@@ -14,6 +14,39 @@ export const knowledgeChunksRepo = {
   async wipeForWorkspace(workspaceId: string) {
     await db.delete(knowledgeChunks).where(eq(knowledgeChunks.workspaceId, workspaceId));
   },
+  /** Delete every chunk whose metadata.source matches this filename/url. */
+  async wipeBySource(workspaceId: string, source: string) {
+    await db
+      .delete(knowledgeChunks)
+      .where(
+        and(
+          eq(knowledgeChunks.workspaceId, workspaceId),
+          sql`${knowledgeChunks.metadata}->>'source' = ${source}`,
+        ),
+      );
+  },
+  /** Delete every chunk under a section prefix (e.g. 'FAQ/cap_table'). */
+  async wipeBySectionPrefix(workspaceId: string, prefix: string) {
+    await db
+      .delete(knowledgeChunks)
+      .where(
+        and(
+          eq(knowledgeChunks.workspaceId, workspaceId),
+          sql`${knowledgeChunks.section} LIKE ${prefix + '%'}`,
+        ),
+      );
+  },
+  /** Delete every chunk whose metadata.sourceFile matches (used for FAQ rolling refresh). */
+  async wipeBySourceFile(workspaceId: string, sourceFile: string) {
+    await db
+      .delete(knowledgeChunks)
+      .where(
+        and(
+          eq(knowledgeChunks.workspaceId, workspaceId),
+          sql`${knowledgeChunks.metadata}->>'sourceFile' = ${sourceFile}`,
+        ),
+      );
+  },
   async listForSection(workspaceId: string, section: string) {
     return db
       .select()
