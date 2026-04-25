@@ -104,7 +104,7 @@ async function main() {
   const { usersRepo } = await import('@/lib/db/repos/users');
   const { knowledgeChunksRepo } = await import('@/lib/db/repos/knowledge-chunks');
   const { ingestKnowledge } = await import('@/lib/services/knowledge');
-  const { runMessage } = await import('@/lib/ai/client');
+  const { getModel, runMessage } = await import('@/lib/ai/client');
   const { loadPrompt } = await import('@/lib/ai/prompts');
   const { embed } = await import('@/lib/ai/embed');
   const { dedupeByEmbedding } = await import('@/lib/ingest/dedupe');
@@ -167,6 +167,9 @@ async function main() {
   );
 
   const prompt = loadPrompt('faq-synth');
+  // Q&A bulk generation runs on the cheaper bulk-gen model — same env var as
+  // the drafter — flip ANTHROPIC_MODEL_DRAFTER on Railway to swap.
+  const synthModel = getModel('curator');
   const limit = pLimit(concurrency);
 
   type Pair = { q: string; a: string; sourceSection: string; sourceFile: string | null };
@@ -213,7 +216,7 @@ async function main() {
             runMessage({
               workspaceId: workspace.id,
               agent: 'curator',
-              model: prompt.model,
+              model: synthModel,
               promptHash: prompt.hash,
               promptVersion: prompt.version,
               system: sys,

@@ -121,13 +121,20 @@ export async function runMessage(args: RunArgs): Promise<RunResult> {
 
 export type ModelRole = 'concierge' | 'drafter' | 'strategist' | 'curator';
 
+/**
+ * Resolve the deployed model for a role. Reads ANTHROPIC_MODEL_CONCIERGE for
+ * the live investor concierge and strategist agents, and ANTHROPIC_MODEL_DRAFTER
+ * for bulk-generation roles (drafter, curator/Q&A synthesis). Both env vars
+ * can be flipped on Railway and a redeploy applies the new model — no code
+ * change needed to swap Opus / Sonnet / Haiku.
+ */
 export function getModel(role: ModelRole): string {
   switch (role) {
     case 'drafter':
+    case 'curator':
       return env.ANTHROPIC_MODEL_DRAFTER;
     case 'concierge':
     case 'strategist':
-    case 'curator':
     default:
       return env.ANTHROPIC_MODEL_CONCIERGE;
   }

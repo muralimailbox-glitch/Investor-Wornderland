@@ -1,5 +1,5 @@
 import { CapExceededError, checkCap } from '@/lib/ai/cap';
-import { runMessage, type AiMessageParam } from '@/lib/ai/client';
+import { getModel, runMessage, type AiMessageParam } from '@/lib/ai/client';
 import { classifyDepth, type DepthTopic } from '@/lib/ai/depth';
 import { REFUSAL_TEXT, scrubInjection } from '@/lib/ai/injection';
 import { loadPrompt } from '@/lib/ai/prompts';
@@ -61,6 +61,9 @@ function buildSessionBlock(input: ConciergeInput): string {
 
 export async function runConcierge(input: ConciergeInput): Promise<ConciergeResult> {
   const prompt = loadPrompt('concierge');
+  // Model is resolved from env (ANTHROPIC_MODEL_CONCIERGE) so it can be
+  // swapped on Railway without redeploying the prompt frontmatter.
+  const model = getModel('concierge');
 
   const cap = await checkCap(input.workspaceId);
   if (cap.exceeded) {
@@ -82,7 +85,7 @@ export async function runConcierge(input: ConciergeInput): Promise<ConciergeResu
       citations: [],
       refused: true,
       refusalReason: 'injection',
-      model: prompt.model,
+      model,
       promptVersion: prompt.version,
       gate: { needsEmailVerify: false, needsNda: false, topics: [] },
       depthTopics: [],
@@ -106,7 +109,7 @@ export async function runConcierge(input: ConciergeInput): Promise<ConciergeResu
       citations: [],
       refused: true,
       refusalReason: 'no_context',
-      model: prompt.model,
+      model,
       promptVersion: prompt.version,
       gate,
       depthTopics: depthSignal.topics,
@@ -126,7 +129,7 @@ export async function runConcierge(input: ConciergeInput): Promise<ConciergeResu
   const result = await runMessage({
     workspaceId: input.workspaceId,
     agent: 'concierge',
-    model: prompt.model,
+    model,
     promptHash: prompt.hash,
     promptVersion: prompt.version,
     system: systemPrompt,
