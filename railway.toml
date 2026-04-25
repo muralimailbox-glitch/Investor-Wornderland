@@ -2,10 +2,17 @@
 builder = "nixpacks"
 
 [deploy]
-# bootstrap.ts is sentinel-gated: first boot runs founder seed + KB ingest
-# (corpus, crawl, 1000+ Q&A); subsequent boots exit in <2s. Failures are
-# swallowed so the app still starts even if a KB phase fails.
-startCommand = "node_modules/.bin/drizzle-kit migrate && node_modules/.bin/tsx scripts/bootstrap.ts && node_modules/.bin/next start"
+# Boot order:
+#   1. pre-migrate.ts — runs ALTER TYPE … ADD VALUE in autocommit BEFORE
+#      drizzle-kit migrate, because Postgres forbids enum additions inside
+#      a transaction and drizzle-kit wraps migrations in one.
+#   2. drizzle-kit migrate — applies pending SQL migrations.
+#   3. bootstrap.ts — sentinel-gated: first boot runs founder seed + KB
+#      ingest (corpus, crawl, 1000+ Q&A); subsequent boots exit in <2s.
+#      Failures are swallowed so the app still starts even if a KB phase
+#      fails.
+#   4. next start — listens on $PORT.
+startCommand = "node_modules/.bin/tsx scripts/pre-migrate.ts && node_modules/.bin/drizzle-kit migrate && node_modules/.bin/tsx scripts/bootstrap.ts && node_modules/.bin/next start"
 healthcheckPath = "/api/health"
 # First-deploy KB build can run minutes; bump healthcheck. Use `railway run pnpm tsx scripts/bootstrap.ts --force` for cold KB to bypass healthcheck pressure.
 healthcheckTimeout = 600
