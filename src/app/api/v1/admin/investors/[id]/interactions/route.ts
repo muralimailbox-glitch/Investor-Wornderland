@@ -1,10 +1,10 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { handle, NotFoundError } from '@/lib/api/handle';
 import { requireAuth } from '@/lib/auth/guard';
 import { db } from '@/lib/db/client';
-import { interactions, investors } from '@/lib/db/schema';
+import { interactions, investors, leads } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
@@ -37,16 +37,32 @@ export const GET = handle(async (req) => {
     .limit(1);
   if (!inv) throw new NotFoundError('investor_not_found');
 
+  // Activity flows in via either `investorId` directly (concierge questions,
+  // email verification) or via `leadId` (email_sent, stage_change, document
+  // viewed, meeting_held). Pull the investor's lead ids first so we can
+  // OR over both keys and surface the complete timeline.
+  const leadRows = await db
+    .select({ id: leads.id })
+    .from(leads)
+    .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.investorId, investorId)));
+  const leadIds = leadRows.map((l) => l.id);
+
   const rows = await db
     .select({
       id: interactions.id,
       kind: interactions.kind,
       payload: interactions.payload,
       createdAt: interactions.createdAt,
+      leadId: interactions.leadId,
     })
     .from(interactions)
     .where(
-      and(eq(interactions.workspaceId, user.workspaceId), eq(interactions.investorId, investorId)),
+      and(
+        eq(interactions.workspaceId, user.workspaceId),
+        leadIds.length > 0
+          ? or(eq(interactions.investorId, investorId), inArray(interactions.leadId, leadIds))
+          : eq(interactions.investorId, investorId),
+      ),
     )
     .orderBy(desc(interactions.createdAt))
     .limit(200);

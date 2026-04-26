@@ -15,6 +15,7 @@ import {
   Sparkles,
   Upload,
   UserCircle2,
+  Wrench,
 } from 'lucide-react';
 
 import { FirmEditModal } from '@/components/cockpit/firm-edit-modal';
@@ -121,6 +122,31 @@ export function InvestorsBoard() {
     if (r.ok) setData((await r.json()) as ListResponse);
   }
 
+  const [repairing, setRepairing] = useState(false);
+  const [repairNote, setRepairNote] = useState<string | null>(null);
+  async function repairPipeline() {
+    setRepairing(true);
+    setRepairNote(null);
+    try {
+      const r = await fetch('/api/v1/admin/pipeline/repair', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = (await r.json()) as { created: number; skipped: number; total: number };
+      setRepairNote(
+        j.created === 0
+          ? `All ${j.total} investors already have a lead — nothing to repair.`
+          : `Created ${j.created} new lead${j.created === 1 ? '' : 's'} (${j.skipped} already had one). Pipeline is now complete.`,
+      );
+      await refresh();
+    } catch (e) {
+      setRepairNote(`Repair failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setRepairing(false);
+    }
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -135,7 +161,21 @@ export function InvestorsBoard() {
             Every firm and partner you&apos;re building a relationship with.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void repairPipeline()}
+            disabled={repairing}
+            title="Create a lead on the active deal for any investor that doesn't have one. Idempotent."
+            className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800 shadow-sm transition hover:-translate-y-px hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {repairing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wrench className="h-4 w-4" />
+            )}
+            Repair pipeline
+          </button>
           <button
             type="button"
             onClick={() => setImportOpen(true)}
@@ -183,6 +223,12 @@ export function InvestorsBoard() {
       {error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Failed to load ({error}). Try reloading.
+        </div>
+      ) : null}
+
+      {repairNote ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {repairNote}
         </div>
       ) : null}
 
