@@ -8,7 +8,7 @@
  * Usage:  node scripts/test-ask-citations.mjs
  */
 
-const BASE_URL = 'https://investor-wornderland-production.up.railway.app';
+const BASE_URL = process.env.OOTAOS_BASE_URL ?? 'https://investors.ootaos.com';
 
 async function readSse(response) {
   const reader = response.body.getReader();

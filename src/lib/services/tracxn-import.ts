@@ -6,6 +6,8 @@ import { loadPrompt } from '@/lib/ai/prompts';
 import { firmsRepo } from '@/lib/db/repos/firms';
 import { investorsRepo } from '@/lib/db/repos/investors';
 
+import { ensureActiveLead } from './investors';
+
 const FIRM_TYPES = ['vc', 'cvc', 'angel', 'family_office', 'accelerator', 'syndicate'] as const;
 
 const RecentDealSchema = z.object({
@@ -185,9 +187,10 @@ function normFirmType(t: FirmDraft['firmType']): (typeof FIRM_TYPES)[number] {
 export async function bulkImport(
   workspaceId: string,
   input: BulkImportInput,
-  opts: { dryRun?: boolean } = {},
+  opts: { dryRun?: boolean; actorUserId?: string } = {},
 ): Promise<BulkImportResult> {
   const dryRun = Boolean(opts.dryRun);
+  const actorUserId = opts.actorUserId;
   const rows: BulkRowStatus[] = [];
   let firmsCreated = 0;
   let firmsUpdated = 0;
@@ -366,6 +369,12 @@ export async function bulkImport(
           email: emailForLookup,
           timezone: inv.timezone ?? 'Asia/Kolkata',
         });
+        // Auto-create a prospect lead so the cockpit pipeline shows the
+        // investor immediately. Without this the investor card renders
+        // "no lead yet" and bulk-email + auto-transitions both no-op.
+        if (actorUserId) {
+          await ensureActiveLead(workspaceId, created.id, actorUserId).catch(() => {});
+        }
         investorsCreated += 1;
         rows.push({ kind: 'investor', email: emailForLookup, status: 'created', id: created.id });
       } else {

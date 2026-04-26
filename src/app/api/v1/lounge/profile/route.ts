@@ -77,7 +77,18 @@ export const POST = handle(async (req) => {
   if (!leadRow) throw new ApiError(404, 'lead_not_found');
 
   // Resolve target firm: reuse if already exists by name (case-insensitive).
+  // Reject all-whitespace firm names — the Zod min(1) check happens before
+  // trim, so "  " would otherwise create an empty-name firm row.
   const desiredFirmName = input.firmName.trim();
+  if (desiredFirmName.length === 0) {
+    throw new ApiError(400, 'firm_name_required');
+  }
+  const trimmedFirstName = input.firstName.trim();
+  const trimmedLastName = input.lastName.trim();
+  const trimmedTitle = input.title.trim();
+  if (trimmedFirstName.length === 0 || trimmedLastName.length === 0 || trimmedTitle.length === 0) {
+    throw new ApiError(400, 'name_or_title_required');
+  }
   const [matchingFirm] = await db
     .select({ id: firms.id })
     .from(firms)
@@ -115,9 +126,10 @@ export const POST = handle(async (req) => {
       and(eq(investors.workspaceId, leadRow.workspaceId), eq(investors.id, leadRow.investorId)),
     );
 
+  // actorUserId=null — the actor is the investor themselves, not a users row.
   await audit({
     workspaceId: leadRow.workspaceId,
-    actorUserId: leadRow.investorId,
+    actorUserId: null,
     action: 'investor.self_edit',
     targetType: 'investor',
     targetId: leadRow.investorId,
@@ -126,6 +138,7 @@ export const POST = handle(async (req) => {
       lastName: input.lastName,
       title: input.title,
       firmName: desiredFirmName,
+      investorId: leadRow.investorId,
     },
   });
 

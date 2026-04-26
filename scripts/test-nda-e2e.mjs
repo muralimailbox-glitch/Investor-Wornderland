@@ -17,10 +17,17 @@
 import { createHmac } from 'node:crypto';
 import postgres from 'postgres';
 
-const BASE_URL = 'https://investor-wornderland-production.up.railway.app';
-const DATABASE_URL =
-  'postgresql://postgres:SGjhCqKsdslMLhJHVcAnctSJebsBYWpg@shuttle.proxy.rlwy.net:37766/railway';
-const AUTH_SECRET = '553ccfb39064a2fb4adad7ff6620575d77be1c57408d5b22e9f9385b4dd1766c';
+// All three of these previously contained hardcoded production secrets
+// (DB password and AUTH_SECRET) committed to Git. They are now read from
+// env so the cleartext values can be rotated and removed from history.
+// Rotate the leaked secrets — they're still recoverable from `git log -p`.
+const BASE_URL = process.env.OOTAOS_BASE_URL ?? 'https://investors.ootaos.com';
+const DATABASE_URL = process.env.DATABASE_URL ?? '';
+const AUTH_SECRET = process.env.AUTH_SECRET ?? '';
+if (!DATABASE_URL || !AUTH_SECRET) {
+  console.error('Set DATABASE_URL and AUTH_SECRET in your env before running this smoke test.');
+  process.exit(1);
+}
 
 const ts = Date.now();
 const TEST_EMAIL = `muralimailbox+nda-test-${ts}@gmail.com`;

@@ -245,7 +245,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
                         <button
                           type="button"
                           onClick={() => void submitFeedback(turn.id, 'up')}
-                          disabled={Boolean(turn.feedback)}
+                          disabled={Boolean(turn.feedback) || streaming}
                           className={`rounded-full p-1 transition ${
                             turn.feedback === 'up'
                               ? 'bg-emerald-100 text-emerald-700'
@@ -258,7 +258,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
                         <button
                           type="button"
                           onClick={() => void submitFeedback(turn.id, 'down')}
-                          disabled={Boolean(turn.feedback)}
+                          disabled={Boolean(turn.feedback) || streaming}
                           className={`rounded-full p-1 transition ${
                             turn.feedback === 'down'
                               ? 'bg-rose-100 text-rose-700'

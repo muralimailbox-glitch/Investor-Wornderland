@@ -125,9 +125,11 @@ export const POST = handle(async (req) => {
       from: session.email,
     },
   });
+  // actorUserId=null because the actor here is the investor (no users row),
+  // not a founder. lead.id was previously sent which violated the FK to users.id.
   await audit({
     workspaceId: lead.workspaceId,
-    actorUserId: lead.id,
+    actorUserId: null,
     action: 'lounge.request',
     targetType: 'lead',
     targetId: lead.id,
@@ -135,6 +137,7 @@ export const POST = handle(async (req) => {
       kind: input.kind,
       documentId: input.documentId ?? null,
       filename: docFilename,
+      from: session.email,
     },
   });
 

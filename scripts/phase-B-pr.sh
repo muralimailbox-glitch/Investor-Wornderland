@@ -29,7 +29,7 @@ BODY=$(cat <<'PRBODY'
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (private) |
 | `SMTP_*` | Zoho India (smtp.zoho.in:465) |
 | `IMAP_*` | Zoho India (imap.zoho.in:993) |
-| `NEXT_PUBLIC_SITE_URL` | https://investor-wornderland.up.railway.app |
+| `NEXT_PUBLIC_SITE_URL` | https://investors.ootaos.com |
 | `AI_MONTHLY_CAP_USD` | 50 |
 
 ⚠️ Still needs in Railway dashboard: `ANTHROPIC_API_KEY`, `R2_*` (Cloudflare R2), `GOOGLE_CLIENT_*`

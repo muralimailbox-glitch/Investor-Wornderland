@@ -16,11 +16,11 @@ Set `CRON_SECRET` on Railway → Variables, then create one Cron Job per row bel
 | `POST /api/v1/cron/pre-meeting`      | `0 * * * *`                  | 24-hour-out brief — investor context, recent questions, doc views.                | `pre-meeting.ts`      |
 | `POST /api/v1/cron/link-expiry-warn` | `0 4 * * *` (09:30 IST)      | Email investors a fresh 14-day link at day 12 of the cookie TTL.                  | `link-expiry-warn.ts` |
 
-## Sample Railway cron entry
+## Sample cron entry
 
 ```bash
 curl -X POST -H "Authorization: Bearer $CRON_SECRET" \
-  https://investor-wornderland-production.up.railway.app/api/v1/cron/inbox-sync
+  https://investors.ootaos.com/api/v1/cron/inbox-sync
 ```
 
 ## Local testing

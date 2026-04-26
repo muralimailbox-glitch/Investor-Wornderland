@@ -24,7 +24,7 @@ export const POST = handle(async (req: Request) => {
   const result = await bulkImport(
     user.workspaceId,
     { firms: body.firms ?? [], investors: body.investors },
-    { dryRun: Boolean(body.dryRun) },
+    { dryRun: Boolean(body.dryRun), actorUserId: user.id },
   );
 
   await audit({
