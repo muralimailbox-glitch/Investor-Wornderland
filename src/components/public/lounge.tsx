@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
 import { MeetingCalendar } from '@/components/public/meeting-calendar';
 import { WhatsappButton } from '@/components/public/whatsapp-button';
 
@@ -12,6 +13,10 @@ type Slot = { startsAt: string; endsAt: string };
 
 type Bundle = {
   investorName: string | null;
+  investorFirstName: string | null;
+  investorLastName: string | null;
+  investorEmail: string;
+  investorFirmName: string | null;
   investorTimezone: string;
   founderTimezone: string;
   documents: Document[];
@@ -130,6 +135,16 @@ export function Lounge() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <InvestorIdentityPill
+          firstName={bundle.investorFirstName}
+          lastName={bundle.investorLastName}
+          firmName={bundle.investorFirmName}
+        />
+        <p className="text-xs text-slate-500">
+          Signed in as <span className="font-medium text-slate-700">{bundle.investorEmail}</span>
+        </p>
+      </div>
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}

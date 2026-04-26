@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 
+import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
 import { readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
 import { documentsRepo } from '@/lib/db/repos/documents';
@@ -28,12 +29,23 @@ export default async function DocumentPreviewPage({ params }: { params: Promise<
   const session = readNdaSession(jar.get('ootaos_nda')?.value);
   if (!session) redirect('/nda');
 
+  const { investors, firms } = await import('@/lib/db/schema');
   const leadRow = await db
-    .select({ workspaceId: leads.workspaceId })
+    .select({
+      workspaceId: leads.workspaceId,
+      firstName: investors.firstName,
+      lastName: investors.lastName,
+      firmName: firms.name,
+    })
     .from(leads)
+    .leftJoin(investors, eq(investors.id, leads.investorId))
+    .leftJoin(firms, eq(firms.id, investors.firmId))
     .where(eq(leads.id, session.leadId))
     .limit(1);
   const workspaceId = leadRow[0]?.workspaceId;
+  const investorFirstName = leadRow[0]?.firstName ?? null;
+  const investorLastName = leadRow[0]?.lastName ?? null;
+  const investorFirmName = leadRow[0]?.firmName ?? null;
   if (!workspaceId) notFound();
 
   const doc = await documentsRepo.byId(workspaceId, id);
@@ -66,7 +78,7 @@ export default async function DocumentPreviewPage({ params }: { params: Promise<
 
   return (
     <main className="relative flex-1 overflow-hidden bg-gradient-to-b from-[#F5F0FF] via-white to-[#FFF8EE]">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 pt-8">
         <Link href="/lounge" aria-label="Back to data room" className="flex items-center">
           <Image
             src="/brand/oota-light.png"
@@ -77,9 +89,16 @@ export default async function DocumentPreviewPage({ params }: { params: Promise<
             className="h-14 w-auto"
           />
         </Link>
-        <Link href="/lounge" className="text-sm text-violet-700 hover:text-violet-900">
-          ← Back to data room
-        </Link>
+        <div className="flex items-center gap-2">
+          <InvestorIdentityPill
+            firstName={investorFirstName}
+            lastName={investorLastName}
+            firmName={investorFirmName}
+          />
+          <Link href="/lounge" className="text-sm text-orange-700 hover:text-orange-900">
+            ← Data room
+          </Link>
+        </div>
       </header>
 
       <section className="mx-auto w-full max-w-4xl px-6 pb-16 pt-6">

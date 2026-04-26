@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
 import { Concierge } from '@/components/public/concierge';
+import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 
 export const metadata = { title: 'Ask Priya — OotaOS' };
@@ -24,7 +25,7 @@ export default async function AskPage() {
       <div className="absolute inset-0 -z-10">
         <AnimatedBackdrop />
       </div>
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-6 pt-8">
         <Link href="/lounge" aria-label="OotaOS home" className="flex items-center">
           <Image
             src="/brand/oota-light.png"
@@ -35,12 +36,19 @@ export default async function AskPage() {
             className="h-16 w-auto"
           />
         </Link>
-        <Link
-          href="/nda"
-          className="rounded-full border border-violet-200 bg-white/70 px-3.5 py-1.5 text-sm font-medium text-violet-800 backdrop-blur transition hover:bg-white"
-        >
-          Sign NDA
-        </Link>
+        <div className="flex items-center gap-2">
+          <InvestorIdentityPill
+            firstName={session.firstName}
+            lastName={session.lastName}
+            firmName={session.firmName}
+          />
+          <Link
+            href="/nda"
+            className="rounded-full border border-orange-200 bg-white/70 px-3.5 py-1.5 text-sm font-medium text-orange-800 backdrop-blur transition hover:bg-white"
+          >
+            Sign NDA
+          </Link>
+        </div>
       </header>
       <section className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
         <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900">

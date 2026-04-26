@@ -12,6 +12,10 @@ import { DEFAULT_FOUNDER_TZ } from '@/lib/time/tz';
 
 export type LoungeBundle = {
   investorName: string | null;
+  investorFirstName: string | null;
+  investorLastName: string | null;
+  investorEmail: string;
+  investorFirmName: string | null;
   investorTimezone: string;
   founderTimezone: string;
   documents: Array<{
@@ -39,18 +43,26 @@ export async function getLoungeBundle(): Promise<LoungeBundle> {
   const session = readNdaSession(cookie);
   if (!session) throw new ApiError(401, 'nda_required');
 
+  const { firms } = await import('@/lib/db/schema');
   const leadJoin = await db
     .select({
       workspaceId: leads.workspaceId,
       investorTimezone: investors.timezone,
+      investorFirstName: investors.firstName,
+      investorLastName: investors.lastName,
+      investorFirmName: firms.name,
     })
     .from(leads)
     .leftJoin(investors, eq(investors.id, leads.investorId))
+    .leftJoin(firms, eq(firms.id, investors.firmId))
     .where(eq(leads.id, session.leadId))
     .limit(1);
 
   const workspaceId: string | null = leadJoin[0]?.workspaceId ?? null;
   const investorTimezone: string = leadJoin[0]?.investorTimezone ?? DEFAULT_FOUNDER_TZ;
+  const investorFirstName: string | null = leadJoin[0]?.investorFirstName ?? null;
+  const investorLastName: string | null = leadJoin[0]?.investorLastName ?? null;
+  const investorFirmName: string | null = leadJoin[0]?.investorFirmName ?? null;
 
   if (!workspaceId) throw new ApiError(404, 'lead_not_found');
 
@@ -83,8 +95,17 @@ export async function getLoungeBundle(): Promise<LoungeBundle> {
     })),
   );
 
+  const investorName =
+    [investorFirstName, investorLastName]
+      .filter((s): s is string => Boolean(s))
+      .join(' ')
+      .trim() || session.email;
   return {
-    investorName: session.email,
+    investorName,
+    investorFirstName,
+    investorLastName,
+    investorEmail: session.email,
+    investorFirmName,
     investorTimezone,
     founderTimezone,
     documents,
