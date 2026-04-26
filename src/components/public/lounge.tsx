@@ -1,8 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CalendarCheck, FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+import { MeetingCalendar } from '@/components/public/meeting-calendar';
+import { WhatsappButton } from '@/components/public/whatsapp-button';
 
 type Document = { id: string; kind: string; filename: string; sizeBytes: number; viewUrl: string };
 type Slot = { startsAt: string; endsAt: string };
@@ -41,7 +44,6 @@ function shortTz(tz: string): string {
 
 export function Lounge() {
   const [state, setState] = useState<{ status: 'loading' | 'ok' | 'locked' | 'error'; bundle?: Bundle; error?: string }>({ status: 'loading' });
-  const [bookingSlot, setBookingSlot] = useState<string | null>(null);
   const [bookedSlot, setBookedSlot] = useState<string | null>(null);
   const [requestOpen, setRequestOpen] = useState<{ kind: 'original_document' | 'more_info'; documentId?: string; filename?: string } | null>(null);
   const [requestMessage, setRequestMessage] = useState('');
@@ -92,21 +94,6 @@ export function Lounge() {
       }
     })();
   }, []);
-
-  async function book(slot: Slot) {
-    setBookingSlot(slot.startsAt);
-    try {
-      const res = await fetch('/api/v1/meeting/book', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ startsAt: slot.startsAt, endsAt: slot.endsAt }),
-      });
-      if (!res.ok) throw new Error('booking failed');
-      setBookedSlot(slot.startsAt);
-    } catch {
-      setBookingSlot(null);
-    }
-  }
 
   if (state.status === 'loading') {
     return (
@@ -205,49 +192,42 @@ export function Lounge() {
       </section>
 
       <section>
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-orange-700">
             Book a 30-min founder call
           </h2>
           <p className="text-xs text-slate-500">
-            Your time ({shortTz(bundle.investorTimezone)}) · Murali&apos;s time (IST). Slots are
-            8am–8pm IST minus meal breaks, with 20-hour notice.
+            Your time ({shortTz(bundle.investorTimezone)}) · founder is in IST. Mon–Sat,
+            9–12 + 1:30–7. 20-hour notice. Up to 14 days out.
           </p>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          {bundle.suggestedSlots.length === 0 ? (
-            <p className="text-sm text-slate-500 sm:col-span-3">
-              No open slots this week. Email info@ootaos.com and we will make room.
-            </p>
-          ) : (
-            bundle.suggestedSlots.map((slot) => {
-              const booked = bookedSlot === slot.startsAt;
-              const busy = bookingSlot === slot.startsAt;
-              return (
-                <button
-                  key={slot.startsAt}
-                  onClick={() => !booked && !busy && void book(slot)}
-                  disabled={booked || busy}
-                  className={`flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition ${
-                    booked
-                      ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                      : 'border-violet-100 bg-white/90 text-slate-900 hover:-translate-y-0.5 hover:border-violet-300'
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.12em] text-violet-700">
-                    {booked ? <CalendarCheck className="h-3.5 w-3.5" /> : null}
-                    {booked ? 'Booked' : busy ? 'Booking…' : 'Available'}
-                  </span>
-                  <span className="text-sm font-medium">
-                    {formatSlotIn(slot.startsAt, bundle.investorTimezone)}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {formatSlotIn(slot.startsAt, bundle.founderTimezone)} (Priya)
-                  </span>
-                </button>
-              );
-            })
-          )}
+        <MeetingCalendar
+          investorTimezone={bundle.investorTimezone}
+          founderTimezone={bundle.founderTimezone}
+          onBooked={(s) => setBookedSlot(s.startsAt)}
+        />
+        {bookedSlot ? (
+          <p className="mt-3 text-xs text-emerald-700">
+            ✓ Booked for {formatSlotIn(bookedSlot, bundle.investorTimezone)}. A confirmation
+            email is on its way.
+          </p>
+        ) : null}
+      </section>
+
+      <section className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
+          Prefer WhatsApp?
+        </h2>
+        <p className="mt-2 text-sm text-slate-700">
+          Quickest way to reach the founder for a sharp question. Sydney-based, replies most
+          messages within a few hours.
+        </p>
+        <div className="mt-3">
+          <WhatsappButton
+            message={`Hi Murali — investor question from the OotaOS lounge.${
+              bundle.investorName ? ` (${bundle.investorName})` : ''
+            }`}
+          />
         </div>
       </section>
 

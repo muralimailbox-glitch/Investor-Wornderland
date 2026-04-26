@@ -12,7 +12,7 @@ export default function PrivacyPage() {
       <p className="mt-2 text-sm text-slate-500">Effective 1 February 2026</p>
       <div className="prose prose-slate mt-6 max-w-none text-[15px] leading-relaxed text-slate-700">
         <p>
-          OotaOS is operated by the founding team of OotaOS Technologies based in Bengaluru, India.
+          OotaOS is operated by the founding team of OotaOS Technologies based in Sydney, Australia.
           This page explains what we collect, why, and how long we keep it.
         </p>
         <h2>What we collect</h2>

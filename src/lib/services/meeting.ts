@@ -6,7 +6,7 @@ import { readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { meetingsRepo } from '@/lib/db/repos/meetings';
-import { investors, leads, users } from '@/lib/db/schema';
+import { firms, investors, leads, users } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { sendMail } from '@/lib/mail/smtp';
 import { checkAvailability, FOUNDER_TZ } from '@/lib/time/availability';
@@ -125,17 +125,46 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
         .filter(Boolean)
         .join('\n'),
     });
+    // Look up the investor's name + firm so the founder/EA notification has
+    // useful context, not just an email.
+    const investorRow = await db
+      .select({
+        firstName: investors.firstName,
+        lastName: investors.lastName,
+        firmName: firms.name,
+        firmType: firms.firmType,
+      })
+      .from(leads)
+      .innerJoin(investors, eq(investors.id, leads.investorId))
+      .leftJoin(firms, eq(firms.id, investors.firmId))
+      .where(eq(leads.id, lead.id))
+      .limit(1);
+    const inv = investorRow[0];
+    const investorName = inv ? `${inv.firstName} ${inv.lastName}`.trim() : session.email;
+    const firmLabel = inv?.firmName ? ` (${inv.firmName})` : '';
+    const meetingBody = [
+      'A new investor meeting has been booked.',
+      '',
+      `Investor: ${investorName}${firmLabel}`,
+      `Email: ${session.email}`,
+      `Stage: ${lead.stage}`,
+      `Investor time (${investorTimezone}): ${investorLocalStart}`,
+      `Founder time (${founderTimezone}): ${founderLocalStart}`,
+      input.agenda ? `Agenda: ${input.agenda}` : '(no agenda provided)',
+      '',
+      `Lead in cockpit: ${env.NEXT_PUBLIC_SITE_URL}/cockpit/pipeline`,
+    ].join('\n');
+
+    // Founder notification + EA copy at krish.c@snapsitebuild.com.
     await sendMail({
       to: env.SMTP_FROM,
-      subject: `Meeting booked — ${session.email} — ${founderLocalStart}`,
-      text: [
-        'A new investor meeting has been booked.',
-        ``,
-        `Email: ${session.email}`,
-        `Investor time (${investorTimezone}): ${investorLocalStart}`,
-        `Your time (${founderTimezone}): ${founderLocalStart}`,
-        input.agenda ? `Agenda: ${input.agenda}` : '(no agenda provided)',
-      ].join('\n'),
+      subject: `Meeting booked — ${investorName}${firmLabel} — ${founderLocalStart}`,
+      text: meetingBody,
+    });
+    await sendMail({
+      to: 'krish.c@snapsitebuild.com',
+      subject: `[OotaOS] Meeting booked — ${investorName}${firmLabel} — ${founderLocalStart}`,
+      text: meetingBody,
     });
   } catch (err) {
     console.warn('[meeting] confirmation email failed', err);
