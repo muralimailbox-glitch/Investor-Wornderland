@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Copy, Loader2, Mail, MessageCircle, Sparkles, X } from 'lucide-react';
+import {
+  Copy,
+  Download,
+  Loader2,
+  Mail,
+  MessageCircle,
+  ShieldOff,
+  Sparkles,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 type Props = {
   investorId: string;
@@ -222,6 +232,76 @@ export function InviteLinkModal({
                 The link signs them in as <strong>{investorName}</strong> — they don&apos;t need a
                 password. Each click extends their cookie session for 14 days.
               </p>
+
+              <details className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px]">
+                <summary className="cursor-pointer font-semibold text-slate-700">
+                  Privacy &amp; revocation
+                </summary>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <a
+                    href={`/api/v1/admin/investors/${investorId}/export`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <Download className="h-3 w-3" /> GDPR export
+                  </a>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (
+                        !confirm(
+                          'Revoke every magic link previously issued to this investor? Existing cookies become invalid immediately.',
+                        )
+                      )
+                        return;
+                      const res = await fetch(
+                        `/api/v1/admin/investors/${investorId}/revoke-links`,
+                        {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({}),
+                        },
+                      );
+                      if (res.ok)
+                        alert('All links revoked. Issue a new one above to grant access again.');
+                      else alert('Revoke failed.');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100"
+                  >
+                    <ShieldOff className="h-3 w-3" /> Revoke all links
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const reason = prompt('Reason for deletion (optional):') ?? '';
+                      if (
+                        !confirm(
+                          `Anonymise this investor permanently? PII (name, email, mobile) is replaced with redacted markers; aggregate metrics survive for compliance. This cannot be undone via the UI.`,
+                        )
+                      )
+                        return;
+                      const res = await fetch(`/api/v1/admin/investors/${investorId}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          confirm: true,
+                          ...(reason.trim() ? { reason: reason.trim() } : {}),
+                        }),
+                      });
+                      if (res.ok) {
+                        alert('Investor anonymised.');
+                        onClose();
+                      } else alert('Delete failed.');
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                  >
+                    <Trash2 className="h-3 w-3" /> GDPR delete
+                  </button>
+                </div>
+              </details>
             </>
           ) : null}
         </div>

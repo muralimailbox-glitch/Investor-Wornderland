@@ -9,7 +9,7 @@
  * fallback. After Phase 7 cutover this fallback is removed.
  */
 import { cookies } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 import {
   INVESTOR_COOKIE,
@@ -18,7 +18,7 @@ import {
 } from '@/lib/auth/investor-link';
 import { db } from '@/lib/db/client';
 import { leadsRepo } from '@/lib/db/repos/leads';
-import { deals } from '@/lib/db/schema';
+import { deals, investorLinkRevocations } from '@/lib/db/schema';
 
 export type InvestorContext = {
   session: InvestorLinkSession;
@@ -38,6 +38,23 @@ export async function getInvestorContext(): Promise<InvestorContext | null> {
   const token = jar.get(INVESTOR_COOKIE)?.value;
   const session = verifyInvestorLink(token);
   if (!session) return null;
+
+  // Honour link revocations: a row in investor_link_revocations with
+  // revokedBefore > session.issuedAt invalidates this token even though
+  // the HMAC signature is still good.
+  const [revocation] = await db
+    .select({ revokedBefore: investorLinkRevocations.revokedBefore })
+    .from(investorLinkRevocations)
+    .where(
+      and(
+        eq(investorLinkRevocations.workspaceId, session.workspaceId),
+        eq(investorLinkRevocations.investorId, session.investorId),
+      ),
+    )
+    .limit(1);
+  if (revocation && revocation.revokedBefore.getTime() > session.issuedAt) {
+    return null;
+  }
 
   let dealId = session.dealId;
   if (!dealId) {

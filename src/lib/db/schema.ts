@@ -539,6 +539,30 @@ export const auditEvents = pgTable(
   }),
 );
 
+// ── Magic-link revocations ───────────────────────────────────────────────
+// Stateless HMAC tokens can't carry a revoked bit, so we record a "revoked
+// before <ts>" cutoff per investor. verifyInvestorLink consults this on
+// every request and rejects tokens with issuedAt earlier than the cutoff.
+export const investorLinkRevocations = pgTable(
+  'investor_link_revocations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    investorId: uuid('investor_id')
+      .notNull()
+      .references(() => investors.id, { onDelete: 'cascade' }),
+    revokedBefore: timestamp('revoked_before', { withTimezone: true }).notNull(),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }).notNull().defaultNow(),
+    revokedBy: uuid('revoked_by').references(() => users.id),
+    reason: text('reason'),
+  },
+  (t) => ({
+    lookupIdx: index('investor_link_revocations_lookup_idx').on(t.workspaceId, t.investorId),
+  }),
+);
+
 // ── Rate Limits ──────────────────────────────────────────────────────────
 export const rateLimits = pgTable('rate_limits', {
   key: text('key').primaryKey(),
