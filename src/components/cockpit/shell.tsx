@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import clsx from 'clsx';
 import {
+  BarChart3,
   BookOpen,
   Briefcase,
   CalendarClock,
@@ -15,6 +16,7 @@ import {
   Mail,
   Menu,
   Settings,
+  Shield,
   Users,
   Waypoints,
   X,
@@ -33,8 +35,10 @@ const NAV = [
   { href: '/cockpit/drafts', label: 'Drafts & Outbox', icon: FileText, group: 'main' as const },
   { href: '/cockpit/documents', label: 'Diligence Room', icon: FileText, group: 'main' as const },
   { href: '/cockpit/meetings', label: 'Meetings', icon: CalendarClock, group: 'main' as const },
+  { href: '/cockpit/analytics', label: 'Analytics', icon: BarChart3, group: 'main' as const },
   { href: '/cockpit/deal', label: 'Deal', icon: Briefcase, group: 'more' as const },
   { href: '/cockpit/knowledge', label: 'Knowledge', icon: BookOpen, group: 'more' as const },
+  { href: '/cockpit/audit', label: 'Audit log', icon: Shield, group: 'more' as const },
   { href: '/cockpit/settings', label: 'Settings', icon: Settings, group: 'more' as const },
 ];
 
