@@ -34,7 +34,9 @@ if (!databaseUrl) {
  *
  * Each entry: [enum_type_name, [value1, value2, ...]]
  */
-const ENUM_ADDITIONS: Array<[string, string[]]> = [['email_outbox_status', ['draft', 'approved']]];
+const ENUM_ADDITIONS: Array<[string, string[]]> = [
+  ['email_outbox_status', ['draft', 'approved', 'cancelled']],
+];
 
 async function main() {
   const sql = postgres(databaseUrl!, { max: 1, prepare: false });

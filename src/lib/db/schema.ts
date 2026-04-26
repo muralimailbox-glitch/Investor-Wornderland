@@ -86,6 +86,7 @@ export const emailOutboxStatusEnum = pgEnum('email_outbox_status', [
   'sent',
   'bounced',
   'failed',
+  'cancelled',
 ]);
 
 // ── Workspaces ───────────────────────────────────────────────────────────
@@ -566,6 +567,12 @@ export const emailOutbox = pgTable(
     approvedAt: timestamp('approved_at', { withTimezone: true }),
     // Optional FK to a lead so we can enforce rule #3 (no outreach without a lead).
     leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    /** Drip cadence support — set to a future timestamp to defer dispatch. */
+    scheduledFor: timestamp('scheduled_for', { withTimezone: true }),
+    /** Groups multi-step cadences so a reply can cancel the rest. */
+    cadenceGroupId: uuid('cadence_group_id'),
+    /** 0-indexed position in the cadence; null for one-shot sends. */
+    stepIndex: integer('step_index'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

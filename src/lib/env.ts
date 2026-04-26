@@ -71,6 +71,10 @@ const EnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: optionalString,
   GOOGLE_REDIRECT_URI: optionalUrl,
 
+  /** Shared secret for /api/v1/cron/* routes. Railway cron pings these with
+   * a Bearer header to drive inbox sync, reminder dispatch, daily digest, etc. */
+  CRON_SECRET: optionalString,
+
   SENTRY_DSN: optionalUrl,
 });
 
