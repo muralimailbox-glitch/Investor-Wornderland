@@ -1,10 +1,24 @@
+import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { handle, NotFoundError } from '@/lib/api/handle';
 import { requireAuth } from '@/lib/auth/guard';
+import { db } from '@/lib/db/client';
 import { investorsRepo } from '@/lib/db/repos/investors';
+import { leads } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 import { updateInvestor } from '@/lib/services/investors';
+
+const LEAD_SOURCES = [
+  'tracxn',
+  'linkedin',
+  'referral',
+  'inbound_email',
+  'twitter',
+  'event',
+  'self_serve',
+  'other',
+] as const;
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +53,8 @@ const PatchBody = z.object({
   stageInterests: z.array(z.string().max(40)).max(20).nullable().optional(),
   bioSummary: z.string().max(2000).nullable().optional(),
   warmthScore: z.number().int().min(0).max(100).nullable().optional(),
+  sourceOfLead: z.enum(LEAD_SOURCES).optional(),
+  referrerName: z.string().max(160).nullable().optional(),
 });
 
 const IdSchema = z.string().uuid();
@@ -54,7 +70,20 @@ export const GET = handle(async (req) => {
   const id = idFromUrl(req.url);
   const inv = await investorsRepo.byId(user.workspaceId, id);
   if (!inv) throw new NotFoundError('investor_not_found');
-  return Response.json(inv);
+
+  // Surface the active lead's sourceOfLead so the cockpit modal can render it.
+  const [activeLead] = await db
+    .select({ sourceOfLead: leads.sourceOfLead, referrerName: leads.referrerName })
+    .from(leads)
+    .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.investorId, id)))
+    .orderBy(desc(leads.stageEnteredAt))
+    .limit(1);
+
+  return Response.json({
+    ...inv,
+    sourceOfLead: activeLead?.sourceOfLead ?? null,
+    referrerName: activeLead?.referrerName ?? null,
+  });
 });
 
 export const PATCH = handle(async (req) => {
@@ -62,6 +91,28 @@ export const PATCH = handle(async (req) => {
   const { user } = await requireAuth({ role: 'founder' });
   const id = idFromUrl(req.url);
   const patch = PatchBody.parse(await req.json());
-  const updated = await updateInvestor(user.workspaceId, user.id, id, patch);
+
+  // Split lead-only fields out before delegating to the investor service.
+  const { sourceOfLead, referrerName, ...investorPatch } = patch;
+  const updated = await updateInvestor(user.workspaceId, user.id, id, investorPatch);
+
+  if (sourceOfLead !== undefined || referrerName !== undefined) {
+    const [activeLead] = await db
+      .select({ id: leads.id })
+      .from(leads)
+      .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.investorId, id)))
+      .orderBy(desc(leads.stageEnteredAt))
+      .limit(1);
+    if (activeLead) {
+      const leadPatch: Partial<typeof leads.$inferInsert> = { updatedAt: new Date() };
+      if (sourceOfLead !== undefined) leadPatch.sourceOfLead = sourceOfLead;
+      if (referrerName !== undefined) leadPatch.referrerName = referrerName;
+      await db
+        .update(leads)
+        .set(leadPatch)
+        .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.id, activeLead.id)));
+    }
+  }
+
   return Response.json(updated);
 });

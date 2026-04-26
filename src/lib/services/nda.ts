@@ -12,10 +12,13 @@ import { deals, firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
+// Single source of truth lives in mutual-nda-text.ts; sealed PDFs and inline
+// reads must agree on the same version string.
+import { MUTUAL_NDA_TEMPLATE_VERSION } from '@/lib/nda/mutual-nda-text';
 import { sealNda } from '@/lib/pdf/seal-nda';
 import { getStorage } from '@/lib/storage';
 
-const NDA_TEMPLATE_VERSION = '2026-04-v1';
+const NDA_TEMPLATE_VERSION = MUTUAL_NDA_TEMPLATE_VERSION;
 
 async function resolveDefaultWorkspaceId(): Promise<string> {
   const rows = await db.select({ id: leads.workspaceId }).from(leads).limit(1);

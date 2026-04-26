@@ -30,6 +30,8 @@ type InvestorFull = {
   stageInterests: string[] | null;
   bioSummary: string | null;
   warmthScore: number | null;
+  sourceOfLead?: string | null;
+  referrerName?: string | null;
 };
 
 type Props = {
@@ -71,6 +73,8 @@ const EMPTY_FORM: Form = {
   stageInterests: '',
   bioSummary: '',
   warmthScore: '',
+  sourceOfLead: '',
+  referrerName: '',
 };
 
 function fromInvestor(inv: InvestorFull): Form {
@@ -99,6 +103,8 @@ function fromInvestor(inv: InvestorFull): Form {
     stageInterests: (inv.stageInterests ?? []).join(', '),
     bioSummary: inv.bioSummary ?? '',
     warmthScore: inv.warmthScore == null ? '' : String(inv.warmthScore),
+    sourceOfLead: inv.sourceOfLead ?? '',
+    referrerName: inv.referrerName ?? '',
   };
 }
 
@@ -136,6 +142,8 @@ function toPatch(f: Form): Record<string, unknown> {
     .split(',')
     .map((s2) => s2.trim())
     .filter(Boolean);
+  if (f.sourceOfLead) patch.sourceOfLead = f.sourceOfLead;
+  patch.referrerName = s(f.referrerName);
   return patch;
 }
 
@@ -357,6 +365,31 @@ export function InvestorEditModal({ investorId, onClose, onSaved }: Props) {
                     label="Intro path"
                     value={form.introPath}
                     onChange={(v) => setForm((f) => ({ ...f, introPath: v }))}
+                  />
+                  <label className="flex flex-col gap-1 text-xs">
+                    <span className="font-semibold uppercase tracking-[0.12em] text-slate-500">
+                      Source of lead
+                    </span>
+                    <select
+                      value={form.sourceOfLead}
+                      onChange={(e) => setForm((f) => ({ ...f, sourceOfLead: e.target.value }))}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                    >
+                      <option value="">— pick —</option>
+                      <option value="tracxn">Tracxn import</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="referral">Warm referral</option>
+                      <option value="inbound_email">Inbound email</option>
+                      <option value="twitter">Twitter / X</option>
+                      <option value="event">Event / pitch</option>
+                      <option value="self_serve">Self-serve NDA</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <F
+                    label="Referrer name (if warm)"
+                    value={form.referrerName}
+                    onChange={(v) => setForm((f) => ({ ...f, referrerName: v }))}
                   />
                 </div>
               </Group>

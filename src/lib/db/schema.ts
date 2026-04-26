@@ -356,6 +356,40 @@ export const documents = pgTable('documents', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── Document Versions ────────────────────────────────────────────────────
+// Every time a document is replaced, the previous row's bytes + metadata
+// are archived here so the founder can audit what was shared with whom.
+export const documentVersions = pgTable(
+  'document_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    documentId: uuid('document_id')
+      .notNull()
+      .references(() => documents.id, { onDelete: 'cascade' }),
+    version: integer('version').notNull(),
+    kind: documentKindEnum('kind').notNull(),
+    originalFilename: text('original_filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    r2Key: text('r2_key').notNull(),
+    sha256: text('sha256').notNull(),
+    minLeadStage: stageEnum('min_lead_stage'),
+    dealId: uuid('deal_id'),
+    archivedAt: timestamp('archived_at', { withTimezone: true }).notNull().defaultNow(),
+    archivedBy: uuid('archived_by').references(() => users.id),
+  },
+  (t) => ({
+    lookupIdx: index('document_versions_workspace_doc_idx').on(
+      t.workspaceId,
+      t.documentId,
+      t.version,
+    ),
+  }),
+);
+
 // ── Share Links ──────────────────────────────────────────────────────────
 export const shareLinks = pgTable(
   'share_links',

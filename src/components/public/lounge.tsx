@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 
 import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
 import { MeetingCalendar } from '@/components/public/meeting-calendar';
+import { ProfileEditModal } from '@/components/public/profile-edit-modal';
 import { WhatsappButton } from '@/components/public/whatsapp-button';
 
 type Document = {
@@ -47,6 +48,7 @@ export function Lounge() {
   const [state, setState] = useState<{ status: 'loading' | 'ok' | 'locked' | 'error'; bundle?: Bundle; error?: string }>({ status: 'loading' });
   const [bookedSlot, setBookedSlot] = useState<string | null>(null);
   const [requestOpen, setRequestOpen] = useState<{ kind: 'original_document' | 'more_info'; documentId?: string; filename?: string } | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestSending, setRequestSending] = useState(false);
   const [requestSent, setRequestSent] = useState<string | null>(null);
@@ -137,9 +139,18 @@ export function Lounge() {
           lastName={bundle.investorLastName}
           firmName={bundle.investorFirmName}
         />
-        <p className="text-xs text-slate-500">
-          Signed in as <span className="font-medium text-slate-700">{bundle.investorEmail}</span>
-        </p>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>
+            Signed in as <span className="font-medium text-slate-700">{bundle.investorEmail}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="rounded-full border border-violet-200 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+          >
+            Update name / firm
+          </button>
+        </div>
       </div>
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -296,6 +307,22 @@ export function Lounge() {
           <p className="mt-3 text-xs text-emerald-700">{requestSent}</p>
         ) : null}
       </section>
+
+      {profileOpen ? (
+        <ProfileEditModal
+          onClose={() => setProfileOpen(false)}
+          onSaved={() => {
+            // Reload bundle so the identity pill reflects the new name/firm.
+            void (async () => {
+              const res = await fetch('/api/v1/lounge', { credentials: 'include' });
+              if (res.ok) {
+                const bundle = (await res.json()) as Bundle;
+                setState({ status: 'ok', bundle });
+              }
+            })();
+          }}
+        />
+      ) : null}
 
       {requestOpen ? (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-sm sm:items-center">
