@@ -9,6 +9,7 @@ import {
   uploadDocument,
   type DocumentKind,
   type DocumentRow,
+  type LeadStage,
   type WatermarkPolicy,
 } from '@/lib/api/documents';
 
@@ -29,6 +30,15 @@ const WATERMARK_OPTIONS: Array<{ value: WatermarkPolicy; label: string }> = [
   { value: 'none', label: 'No watermark' },
 ];
 
+const STAGE_GATE_OPTIONS: Array<{ value: LeadStage | ''; label: string }> = [
+  { value: '', label: 'No gate — visible after NDA (default)' },
+  { value: 'engaged', label: 'Engaged or later' },
+  { value: 'nda_signed', label: 'NDA signed (most cap tables, term sheets)' },
+  { value: 'meeting_scheduled', label: 'After meeting scheduled' },
+  { value: 'diligence', label: 'In diligence or later' },
+  { value: 'term_sheet', label: 'Term sheet or later' },
+];
+
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -45,6 +55,7 @@ export function DocumentsBoard() {
   const [kind, setKind] = useState<DocumentKind>('pitch_deck');
   const [title, setTitle] = useState('');
   const [watermark, setWatermark] = useState<WatermarkPolicy>('per_investor');
+  const [minLeadStage, setMinLeadStage] = useState<LeadStage | ''>('');
   const [expiresDays, setExpiresDays] = useState<number | ''>('');
   const [dragOver, setDragOver] = useState(false);
 
@@ -81,9 +92,11 @@ export function DocumentsBoard() {
       };
       if (title) args.title = title;
       if (expiresDays !== '') args.expiresInDays = Number(expiresDays);
+      if (minLeadStage) args.minLeadStage = minLeadStage;
       await uploadDocument(args);
       setTitle('');
       setExpiresDays('');
+      setMinLeadStage('');
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'upload_failed');
@@ -171,6 +184,26 @@ export function DocumentsBoard() {
               placeholder="30"
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
             />
+          </label>
+          <label className="flex flex-col gap-1 sm:col-span-2">
+            <span className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+              Visible from stage (rule #10)
+            </span>
+            <select
+              value={minLeadStage}
+              onChange={(e) => setMinLeadStage(e.target.value as LeadStage | '')}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+            >
+              {STAGE_GATE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-slate-400">
+              Sensitive docs (cap table, financial model, term sheet) commonly gate at &quot;NDA
+              signed&quot;. Investors at earlier stages get a 403 if they try to fetch.
+            </span>
           </label>
         </div>
 

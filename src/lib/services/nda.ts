@@ -229,32 +229,13 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
   const { autoAdvanceOnEvent } = await import('@/lib/services/auto-transition');
   await autoAdvanceOnEvent(workspaceId, decoded.leadId, 'nda_signed');
 
-  const downloadUrl = await storage.url(r2Key, 900);
-
+  // Per the in-app NDA flow: investor reads + signs on screen, no PDF is
+  // emailed. The sealed PDF is still kept in storage for audit. The
+  // investor's confirmation lives in the in-app "Signed. Taking you in."
+  // success screen and the audit log entry below.
   const session = issueNdaSession({ leadId: decoded.leadId, ndaId: nda.id, email: decoded.email });
 
-  try {
-    await sendMail({
-      to: decoded.email,
-      subject: 'Your countersigned OotaOS NDA',
-      text: [
-        `Hi ${input.name},`,
-        '',
-        'Thanks for signing the OotaOS mutual NDA.',
-        'Your sealed copy is attached (and available at the link below for the next 15 minutes).',
-        '',
-        downloadUrl,
-        '',
-        'Signed at: ' + signedAt.toISOString(),
-        '',
-        '— OotaOS',
-      ].join('\n'),
-      html: ndaConfirmationHtml(input.name, downloadUrl, signedAt),
-    });
-  } catch (err) {
-    console.warn('[nda] confirmation email failed', err);
-  }
-
+  // Founder notification stays — operator wants to know an NDA was signed.
   try {
     await sendMail({
       to: env.SMTP_FROM,
@@ -268,12 +249,15 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
         `Email: ${decoded.email}`,
         `IP: ${input.signerIp}`,
         `Signed at: ${signedAt.toISOString()}`,
-        `PDF: ${downloadUrl}`,
+        ``,
+        `Sealed PDF stored at: ${r2Key}`,
+        `(Available from the cockpit Diligence Room for audit.)`,
       ].join('\n'),
     });
   } catch (err) {
     console.warn('[nda] founder notification failed', err);
   }
+  const downloadUrl = '';
 
   return {
     ndaId: nda.id,
@@ -294,13 +278,6 @@ function ndaOtpHtml(code: string): string {
 </body></html>`;
 }
 
-function ndaConfirmationHtml(name: string, url: string, signedAt: Date): string {
-  return `<!doctype html>
-<html><body style="font-family: -apple-system, Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; color: #111">
-  <h1 style="font-size: 20px; letter-spacing: -0.01em; margin: 0 0 16px">Hi ${name} — your NDA is sealed</h1>
-  <p style="font-size: 14px; line-height: 1.6; color: #333">A sealed copy is attached to this email and available at the link below for the next 15 minutes.</p>
-  <p><a href="${url}" style="display: inline-block; padding: 10px 18px; background: #111; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px">Download signed NDA</a></p>
-  <p style="font-size: 12px; color: #666">Signed at ${signedAt.toISOString()}.</p>
-  <p style="font-size: 12px; color: #666">— OotaOS</p>
-</body></html>`;
-}
+// ndaConfirmationHtml was used to email the investor a sealed PDF link.
+// The investor flow is now fully in-app per product decision; the helper is
+// removed. The sealed PDF stays in storage for audit access from the cockpit.

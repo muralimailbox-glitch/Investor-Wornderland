@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, Inbox as InboxIcon, Loader2, Mail, Send, Sparkles } from 'lucide-react';
 
+import { DraftsQueue } from '@/components/cockpit/drafts-queue';
+
 type Email = {
   id: string;
   fromEmail: string;
@@ -70,6 +72,8 @@ export function InboxBoard() {
           {err}
         </div>
       ) : null}
+
+      <DraftsQueue />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">

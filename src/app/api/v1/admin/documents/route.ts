@@ -23,6 +23,18 @@ const ALLOWED_KINDS = [
   'other',
 ] as const;
 const ALLOWED_WATERMARK = ['per_investor', 'static', 'none'] as const;
+const ALLOWED_STAGES = [
+  'prospect',
+  'contacted',
+  'engaged',
+  'nda_pending',
+  'nda_signed',
+  'meeting_scheduled',
+  'diligence',
+  'term_sheet',
+  'funded',
+  'closed_lost',
+] as const;
 const MAX_BYTES = 50 * 1024 * 1024;
 
 const MetaBody = z.object({
@@ -30,6 +42,7 @@ const MetaBody = z.object({
   title: z.string().max(200).nullable(),
   watermarkPolicy: z.enum(ALLOWED_WATERMARK),
   expiresInDays: z.number().positive().max(365).nullable(),
+  minLeadStage: z.enum(ALLOWED_STAGES).nullable(),
 });
 
 const ALLOWED_MIME = new Set([
@@ -70,13 +83,18 @@ export const POST = handle(async (req) => {
     .trim()
     .slice(0, 200);
   const expiresDaysRaw = String(form.get('expiresInDays') ?? '');
+  const minLeadStageRaw = String(form.get('minLeadStage') ?? '').trim();
   const meta = MetaBody.parse({
     kind: String(form.get('kind') ?? 'other'),
     title: titleRaw.length > 0 ? titleRaw : null,
     watermarkPolicy: String(form.get('watermarkPolicy') ?? 'per_investor'),
     expiresInDays: expiresDaysRaw ? Number(expiresDaysRaw) : null,
+    minLeadStage:
+      minLeadStageRaw && ALLOWED_STAGES.includes(minLeadStageRaw as (typeof ALLOWED_STAGES)[number])
+        ? (minLeadStageRaw as (typeof ALLOWED_STAGES)[number])
+        : null,
   });
-  const { kind, title, watermarkPolicy } = meta;
+  const { kind, title, watermarkPolicy, minLeadStage } = meta;
   const expiresAt =
     meta.expiresInDays != null
       ? new Date(Date.now() + meta.expiresInDays * 24 * 60 * 60 * 1000)
@@ -98,6 +116,7 @@ export const POST = handle(async (req) => {
     sizeBytes: file.size,
     sha256,
     watermarkPolicy,
+    minLeadStage,
     expiresAt,
     uploadedBy: user.id,
   });

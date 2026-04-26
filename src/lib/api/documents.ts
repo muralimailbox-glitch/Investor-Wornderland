@@ -10,6 +10,18 @@ export type DocumentKind =
 
 export type WatermarkPolicy = 'per_investor' | 'static' | 'none';
 
+export type LeadStage =
+  | 'prospect'
+  | 'contacted'
+  | 'engaged'
+  | 'nda_pending'
+  | 'nda_signed'
+  | 'meeting_scheduled'
+  | 'diligence'
+  | 'term_sheet'
+  | 'funded'
+  | 'closed_lost';
+
 export type DocumentRow = {
   id: string;
   workspaceId: string;
@@ -21,6 +33,7 @@ export type DocumentRow = {
   sizeBytes: number;
   sha256: string;
   watermarkPolicy: WatermarkPolicy;
+  minLeadStage: LeadStage | null;
   expiresAt: string | null;
   uploadedBy: string;
   deletedAt: string | null;
@@ -40,6 +53,7 @@ export async function uploadDocument(input: {
   title?: string;
   watermarkPolicy?: WatermarkPolicy;
   expiresInDays?: number;
+  minLeadStage?: LeadStage;
 }): Promise<DocumentRow> {
   const form = new FormData();
   form.set('file', input.file);
@@ -47,6 +61,7 @@ export async function uploadDocument(input: {
   if (input.title) form.set('title', input.title);
   if (input.watermarkPolicy) form.set('watermarkPolicy', input.watermarkPolicy);
   if (input.expiresInDays !== undefined) form.set('expiresInDays', String(input.expiresInDays));
+  if (input.minLeadStage) form.set('minLeadStage', input.minLeadStage);
   const res = await fetch('/api/v1/admin/documents', {
     method: 'POST',
     credentials: 'include',

@@ -94,6 +94,13 @@ export function InvestorsBoard() {
   function clearSelection() {
     setSelectedLeadIds(new Set());
   }
+  function selectAllVisible() {
+    const allLeadIds = (data?.rows ?? [])
+      .map((r) => r.lead?.id)
+      .filter((id): id is string => Boolean(id));
+    if (allLeadIds.length === 0) return;
+    setSelectedLeadIds(new Set(allLeadIds));
+  }
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -248,6 +255,42 @@ export function InvestorsBoard() {
       ) : null}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium text-slate-500">
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              aria-label="Select all"
+              checked={
+                (data?.rows.filter((r) => r.lead).length ?? 0) > 0 &&
+                selectedLeadIds.size === (data?.rows.filter((r) => r.lead).length ?? 0)
+              }
+              onChange={(e) => {
+                if (e.target.checked) selectAllVisible();
+                else clearSelection();
+              }}
+              className="h-4 w-4 cursor-pointer rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+            />
+            <span className="uppercase tracking-[0.12em]">
+              {selectedLeadIds.size > 0 ? `${selectedLeadIds.size} selected` : 'Select all'}
+            </span>
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              disabled={selectedLeadIds.size === 0}
+              title={
+                selectedLeadIds.size === 0
+                  ? 'Tick at least one investor to email in bulk'
+                  : `Send to ${selectedLeadIds.size} selected`
+              }
+              className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3 py-1.5 text-xs font-semibold text-white shadow-md transition hover:-translate-y-px disabled:cursor-not-allowed disabled:from-slate-300 disabled:to-slate-300 disabled:shadow-none"
+            >
+              <Mail className="h-3.5 w-3.5" /> Bulk email{' '}
+              {selectedLeadIds.size > 0 ? `(${selectedLeadIds.size})` : ''}
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-[24px_1.4fr_1.2fr_1fr_0.9fr_0.6fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
           <span aria-label="Select" />
           <span>Investor</span>
