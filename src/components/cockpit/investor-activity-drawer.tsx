@@ -5,16 +5,44 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
   CheckCircle2,
+  Coffee,
   FileText,
+  Globe,
   Loader2,
   Mail,
+  MessageCircle,
   MessageSquare,
+  Phone,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   X,
 } from 'lucide-react';
 
 import { getInvestorActivity, type InvestorActivity } from '@/lib/api/investor-activity';
+
+type Channel =
+  | 'phone_call'
+  | 'whatsapp'
+  | 'in_person'
+  | 'sms'
+  | 'linkedin'
+  | 'email_offline'
+  | 'other';
+
+const CHANNEL_OPTIONS: Array<{ value: Channel; label: string; Icon: typeof Phone }> = [
+  { value: 'phone_call', label: 'Phone call', Icon: Phone },
+  { value: 'whatsapp', label: 'WhatsApp', Icon: MessageCircle },
+  { value: 'in_person', label: 'In person', Icon: Coffee },
+  { value: 'sms', label: 'SMS', Icon: Smartphone },
+  { value: 'linkedin', label: 'LinkedIn', Icon: Globe },
+  { value: 'email_offline', label: 'Email (off-platform)', Icon: Mail },
+  { value: 'other', label: 'Other', Icon: Activity },
+];
+
+const CHANNEL_LABEL: Record<Channel, string> = Object.fromEntries(
+  CHANNEL_OPTIONS.map((o) => [o.value, o.label]),
+) as Record<Channel, string>;
 
 type Props = {
   investorId: string;
@@ -124,12 +152,200 @@ export function InvestorActivityDrawer({ investorId, onClose }: Props) {
           ) : data ? (
             <div className="flex flex-col gap-6">
               <SummaryCard data={data} />
+              <NoteComposer
+                investorId={data.investor.id}
+                onLogged={(interaction) => {
+                  setData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          interactions: [interaction, ...prev.interactions],
+                        }
+                      : prev,
+                  );
+                }}
+              />
               <Timeline interactions={data.interactions} />
             </div>
           ) : null}
         </div>
       </motion.aside>
     </AnimatePresence>
+  );
+}
+
+function NoteComposer({
+  investorId,
+  onLogged,
+}: {
+  investorId: string;
+  onLogged: (i: InvestorActivity['interactions'][number]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<Channel>('phone_call');
+  const [direction, setDirection] = useState<'inbound' | 'outbound'>('outbound');
+  const [body, setBody] = useState('');
+  const [occurredAt, setOccurredAt] = useState(''); // datetime-local
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    if (body.trim().length < 2) {
+      setError('Add a quick note (min 2 chars).');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload: Record<string, unknown> = {
+        channel,
+        direction,
+        body: body.trim(),
+      };
+      if (occurredAt) payload.occurredAt = new Date(occurredAt).toISOString();
+      const res = await fetch(`/api/v1/admin/investors/${investorId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { title?: string } | null;
+        throw new Error(j?.title ?? `HTTP ${res.status}`);
+      }
+      const j = (await res.json()) as {
+        interaction: InvestorActivity['interactions'][number];
+      };
+      onLogged(j.interaction);
+      setBody('');
+      setOccurredAt('');
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 px-4 py-3 text-sm font-medium text-violet-800 transition hover:border-violet-300 hover:bg-violet-50"
+      >
+        <Sparkles className="h-4 w-4" />
+        Log an offline conversation
+        <span className="text-[11px] font-normal text-violet-600">
+          (call, WhatsApp, coffee — keeps the timeline complete)
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+          Log a conversation
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="text-slate-400 hover:text-slate-700"
+          aria-label="Close composer"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {CHANNEL_OPTIONS.map((opt) => {
+          const active = opt.value === channel;
+          const Icon = opt.Icon;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setChannel(opt.value)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
+                active
+                  ? 'border-violet-500 bg-violet-600 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-violet-200 hover:bg-violet-50'
+              }`}
+            >
+              <Icon className="h-3 w-3" />
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-1.5 text-[11px]">
+        {(['outbound', 'inbound'] as const).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDirection(d)}
+            className={`rounded-full border px-2.5 py-1 font-medium transition ${
+              direction === d
+                ? 'border-violet-500 bg-violet-600 text-white'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {d === 'outbound' ? 'I reached out' : 'They reached out'}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        rows={4}
+        maxLength={4000}
+        placeholder="What did you discuss? e.g. 30-min call — they want diligence access, asked about Sydney pilot timing, will revert by Friday."
+        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+      />
+
+      <label className="block text-[11px]">
+        <span className="font-semibold uppercase tracking-[0.12em] text-slate-500">
+          When did this happen? (optional — defaults to now)
+        </span>
+        <input
+          type="datetime-local"
+          value={occurredAt}
+          onChange={(e) => setOccurredAt(e.target.value)}
+          className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+        />
+      </label>
+
+      {error ? <p className="text-xs text-rose-600">{error}</p> : null}
+
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void submit()}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-60"
+        >
+          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+          Save to timeline
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -211,10 +427,12 @@ function Timeline({ interactions }: { interactions: InvestorActivity['interactio
             key={item.id}
             className="flex gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
           >
-            <KindIcon kind={item.kind} />
+            <KindIcon kind={item.kind} payload={item.payload} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-slate-900">{labelForKind(item.kind)}</p>
+                <p className="text-sm font-semibold text-slate-900">
+                  {labelForKind(item.kind, item.payload)}
+                </p>
                 <p className="text-[11px] text-slate-400">{formatRelative(item.createdAt)}</p>
               </div>
               <InteractionBody kind={item.kind} payload={item.payload} />
@@ -226,9 +444,18 @@ function Timeline({ interactions }: { interactions: InvestorActivity['interactio
   );
 }
 
-function KindIcon({ kind }: { kind: string }) {
+function KindIcon({ kind, payload }: { kind: string; payload: Record<string, unknown> }) {
   const cls =
     'flex h-8 w-8 flex-none items-center justify-center rounded-full bg-violet-50 text-violet-700';
+  if (kind === 'note' && payload.offline === true) {
+    const ch = (payload.channel as Channel) ?? 'other';
+    const Icon = CHANNEL_OPTIONS.find((o) => o.value === ch)?.Icon ?? Activity;
+    return (
+      <span className={cls}>
+        <Icon className="h-4 w-4" />
+      </span>
+    );
+  }
   switch (kind) {
     case 'question_asked':
       return (
@@ -264,7 +491,12 @@ function KindIcon({ kind }: { kind: string }) {
   }
 }
 
-function labelForKind(kind: string): string {
+function labelForKind(kind: string, payload: Record<string, unknown>): string {
+  if (kind === 'note' && payload.offline === true) {
+    const channel = (payload.channel as Channel) ?? 'other';
+    const direction = payload.direction === 'inbound' ? 'inbound' : 'outbound';
+    return `${CHANNEL_LABEL[channel] ?? channel} · ${direction}`;
+  }
   switch (kind) {
     case 'question_asked':
       return 'Asked Priya a question';
@@ -290,6 +522,36 @@ function labelForKind(kind: string): string {
 }
 
 function InteractionBody({ kind, payload }: { kind: string; payload: Record<string, unknown> }) {
+  // Offline conversation log (call, WhatsApp, in person, etc.)
+  if (kind === 'note' && payload.offline === true) {
+    const channel = typeof payload.channel === 'string' ? (payload.channel as Channel) : 'other';
+    const direction = payload.direction === 'inbound' ? 'They reached out' : 'I reached out';
+    const body = typeof payload.body === 'string' ? (payload.body as string) : '';
+    const occurredAt =
+      typeof payload.occurredAt === 'string' ? (payload.occurredAt as string) : null;
+    return (
+      <div className="mt-1 flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 font-medium text-violet-800">
+            {CHANNEL_LABEL[channel] ?? channel}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">{direction}</span>
+          {occurredAt ? (
+            <span className="text-slate-500">
+              ·{' '}
+              {new Date(occurredAt).toLocaleString(undefined, {
+                dateStyle: 'short',
+                timeStyle: 'short',
+              })}
+            </span>
+          ) : null}
+        </div>
+        {body ? (
+          <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</p>
+        ) : null}
+      </div>
+    );
+  }
   if (kind === 'question_asked') {
     const question = typeof payload.question === 'string' ? (payload.question as string) : null;
     const topics = Array.isArray(payload.depthTopics) ? (payload.depthTopics as string[]) : [];
