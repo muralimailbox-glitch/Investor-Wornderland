@@ -10,6 +10,7 @@ import { documentsRepo } from '@/lib/db/repos/documents';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
 
@@ -50,37 +51,62 @@ export const POST = handle(async (req) => {
       ? `Investor request: original ${docFilename ?? 'document'} from ${session.email}`
       : `Investor request: more info from ${session.email}`;
 
-  const body = [
-    `An investor in the lounge has submitted a request.`,
-    ``,
-    `Investor: ${session.email}`,
-    `Lead ID: ${lead.id}`,
-    `Type: ${input.kind === 'original_document' ? 'Original document' : 'More information'}`,
-    docFilename ? `Document: ${docFilename}` : null,
-    input.message ? `Message:\n${input.message}` : '(no message provided)',
-    ``,
-    `Open the cockpit to respond:`,
-    `${env.NEXT_PUBLIC_SITE_URL}/cockpit/investors`,
-  ]
-    .filter((s): s is string => Boolean(s))
-    .join('\n');
-
-  // Notify the founder
+  // Notify the founder (branded)
   try {
-    await sendMail({ to: env.SMTP_FROM, subject, text: body });
+    const founderFacts: Array<[string, string]> = [
+      ['Investor', session.email],
+      ['Lead ID', lead.id],
+      ['Type', input.kind === 'original_document' ? 'Original document' : 'More information'],
+    ];
+    if (docFilename) founderFacts.push(['Document', docFilename]);
+    const founderEmail = renderBrandedEmail({
+      heading: 'New investor request from the lounge',
+      body:
+        (input.message
+          ? `${session.email} sent a message:\n\n"${input.message}"`
+          : `${session.email} pinged from the lounge — no message attached.`) +
+        '\n\nOpen the cockpit to draft a response.',
+      facts: founderFacts,
+      cta: [
+        {
+          label: 'Open in cockpit',
+          href: `${env.NEXT_PUBLIC_SITE_URL}/cockpit/firms-contacts`,
+        },
+      ],
+    });
+    await sendMail({
+      to: env.SMTP_FROM,
+      subject,
+      text: founderEmail.text,
+      html: founderEmail.html,
+    });
   } catch (err) {
     console.warn('[lounge:request] founder email failed', err);
   }
 
-  // Acknowledge the investor
+  // Acknowledge the investor (branded)
   try {
+    const ackBody =
+      input.kind === 'original_document'
+        ? `Thanks for the request${docFilename ? ` on ${docFilename}` : ''}. The founders will respond within 24 hours from info@ootaos.com.\n\nIf you'd rather speak directly, book a 30-minute call any time from the lounge.`
+        : `Thanks for reaching out. The founders will respond within 24 hours from info@ootaos.com.\n\nIf you'd rather speak directly, book a 30-minute call any time from the lounge.`;
+    const investorEmail = renderBrandedEmail({
+      heading: 'We received your request',
+      body: ackBody,
+      cta: [
+        { label: 'Open the lounge', href: `${env.NEXT_PUBLIC_SITE_URL}/lounge` },
+        {
+          label: 'Pick a meeting time',
+          href: `${env.NEXT_PUBLIC_SITE_URL}/lounge#calendar`,
+        },
+      ],
+      preFooter: 'You can reply to this email any time — it lands directly with the founders.',
+    });
     await sendMail({
       to: session.email,
       subject: 'We received your request',
-      text:
-        input.kind === 'original_document'
-          ? `Thanks for the request${docFilename ? ` on ${docFilename}` : ''}. The founders will respond within 24 hours from info@ootaos.com.\n\nIf you'd rather speak directly, you can book a 30-minute call any time at ${env.NEXT_PUBLIC_SITE_URL}/lounge.`
-          : `Thanks for reaching out. The founders will respond within 24 hours from info@ootaos.com.\n\nIf you'd rather speak directly, you can book a 30-minute call any time at ${env.NEXT_PUBLIC_SITE_URL}/lounge.`,
+      text: investorEmail.text,
+      html: investorEmail.html,
     });
   } catch (err) {
     console.warn('[lounge:request] investor ack email failed', err);

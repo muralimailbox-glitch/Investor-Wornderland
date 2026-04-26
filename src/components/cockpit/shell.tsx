@@ -8,6 +8,7 @@ import clsx from 'clsx';
 import {
   BookOpen,
   Briefcase,
+  CalendarClock,
   FileText,
   LayoutDashboard,
   LogOut,
@@ -30,6 +31,7 @@ const NAV = [
   { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints, group: 'main' as const },
   { href: '/cockpit/inbox', label: 'Communications', icon: Mail, group: 'main' as const },
   { href: '/cockpit/documents', label: 'Diligence Room', icon: FileText, group: 'main' as const },
+  { href: '/cockpit/meetings', label: 'Meetings', icon: CalendarClock, group: 'main' as const },
   { href: '/cockpit/deal', label: 'Deal', icon: Briefcase, group: 'more' as const },
   { href: '/cockpit/knowledge', label: 'Knowledge', icon: BookOpen, group: 'more' as const },
   { href: '/cockpit/settings', label: 'Settings', icon: Settings, group: 'more' as const },

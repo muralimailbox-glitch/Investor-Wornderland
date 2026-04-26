@@ -30,18 +30,6 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function formatSlotIn(iso: string, tz: string): string {
-  const d = new Date(iso);
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone: tz,
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(d);
-}
-
 function shortTz(tz: string): string {
   const parts = tz.split('/');
   return parts[parts.length - 1]?.replace(/_/g, ' ') ?? tz;
@@ -219,12 +207,12 @@ export function Lounge() {
         <MeetingCalendar
           investorTimezone={bundle.investorTimezone}
           founderTimezone={bundle.founderTimezone}
-          onBooked={(s) => setBookedSlot(s.startsAt)}
+          onBooked={(slots) => setBookedSlot(slots[0]?.startsAt ?? null)}
         />
         {bookedSlot ? (
           <p className="mt-3 text-xs text-emerald-700">
-            ✓ Booked for {formatSlotIn(bookedSlot, bundle.investorTimezone)}. A confirmation
-            email is on its way.
+            ✓ Booked. We&apos;ve sent a confirmation with a Google Meet link to your inbox — feel
+            free to send your own invite from any meeting tool.
           </p>
         ) : null}
       </section>

@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarCheck, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Sparkles,
+  X,
+} from 'lucide-react';
 
 type Slot = { startsAt: string; endsAt: string; istLabel: string; taken: boolean };
 
 type Props = {
   investorTimezone: string;
   founderTimezone: string;
-  onBooked?: (slot: Slot) => void;
+  onBooked?: (slots: Slot[]) => void;
 };
 
 const DAY_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MAX_SLOTS = 5;
 
 function shortTz(tz: string): string {
   const parts = tz.split('/');
@@ -41,6 +49,15 @@ function formatTime(iso: string, tz: string): string {
   }).format(new Date(iso));
 }
 
+function formatDateLong(iso: string, tz: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: tz,
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(iso));
+}
+
 function formatDateHeader(d: Date, tz: string): { weekday: string; date: string } {
   const fmt = new Intl.DateTimeFormat(undefined, {
     timeZone: tz,
@@ -56,7 +73,6 @@ function formatDateHeader(d: Date, tz: string): { weekday: string; date: string 
 }
 
 export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }: Props) {
-  // Anchor each "page" to a UTC week-start (Sunday 00:00 local).
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeekUtc(new Date()));
   const weekEnd = useMemo(() => addDays(weekStart, 7), [weekStart]);
   const today = useMemo(() => {
@@ -67,8 +83,13 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
 
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [bookingId, setBookingId] = useState<string | null>(null);
-  const [bookedId, setBookedId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Selected slots persist across weeks via Map keyed by startsAt ISO.
+  const [selected, setSelected] = useState<Map<string, Slot>>(() => new Map());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [agenda, setAgenda] = useState('');
+  const [bookedKeys, setBookedKeys] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     let alive = true;
@@ -97,7 +118,6 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
     };
   }, [weekStart, weekEnd]);
 
-  // Group slots by IST date so the columns align with the founder's working day.
   const byDay = useMemo(() => {
     const map = new Map<string, Slot[]>();
     if (!slots) return map;
@@ -115,7 +135,6 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
     return map;
   }, [slots, founderTimezone]);
 
-  // Build the 7-day column array (IST keys) in week order
   const dayColumns = useMemo(() => {
     const cols: Array<{ key: string; date: Date }> = [];
     for (let i = 0; i < 7; i++) {
@@ -131,31 +150,62 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
     return cols;
   }, [weekStart, founderTimezone]);
 
-  async function book(slot: Slot) {
-    setBookingId(slot.startsAt);
+  function toggleSlot(s: Slot) {
+    if (s.taken || bookedKeys.has(s.startsAt)) return;
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(s.startsAt)) {
+        next.delete(s.startsAt);
+      } else {
+        if (next.size >= MAX_SLOTS) return next;
+        next.set(s.startsAt, s);
+      }
+      return next;
+    });
+  }
+
+  const selectedList = useMemo(
+    () =>
+      [...selected.values()].sort(
+        (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+      ),
+    [selected],
+  );
+
+  async function confirm() {
+    if (selectedList.length === 0) return;
+    setBusy(true);
     setError(null);
     try {
       const res = await fetch('/api/v1/meeting/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ startsAt: slot.startsAt, endsAt: slot.endsAt }),
+        body: JSON.stringify({
+          slots: selectedList.map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt })),
+          ...(agenda.trim() ? { agenda: agenda.trim() } : {}),
+        }),
       });
       if (!res.ok) {
         const j = (await res.json().catch(() => null)) as { title?: string } | null;
         throw new Error(j?.title ?? `HTTP ${res.status}`);
       }
-      setBookedId(slot.startsAt);
-      onBooked?.(slot);
+      const justBooked = new Set(selectedList.map((s) => s.startsAt));
+      setBookedKeys((prev) => new Set([...prev, ...justBooked]));
+      onBooked?.(selectedList);
+      setSelected(new Map());
+      setConfirmOpen(false);
+      setAgenda('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'booking failed');
     } finally {
-      setBookingId(null);
+      setBusy(false);
     }
   }
 
   const canGoBack = weekStart > today;
   const monthLabel = weekStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const justBookedAll = bookedKeys.size > 0 && selected.size === 0;
 
   return (
     <div className="overflow-hidden rounded-3xl border border-orange-100 bg-white shadow-sm">
@@ -167,7 +217,7 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
           <p className="text-sm font-semibold text-slate-900">{monthLabel}</p>
           <p className="text-[11px] text-slate-500">
             Slots in your time ({shortTz(investorTimezone)}). Founder is in IST. Mon–Sat,
-            9–12 and 1:30–7 IST.
+            9–12 and 1:30–7 IST. Pick up to {MAX_SLOTS} options.
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -204,6 +254,13 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
         </div>
       ) : null}
 
+      {justBookedAll ? (
+        <div className="border-b border-emerald-100 bg-emerald-50 px-5 py-2 text-xs text-emerald-800">
+          <CalendarCheck className="mr-1 inline h-3.5 w-3.5" /> Confirmation sent. Check your inbox
+          for the Google Meet link.
+        </div>
+      ) : null}
+
       {slots === null ? (
         <div className="flex h-48 items-center justify-center text-sm text-slate-500">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading slots…
@@ -232,28 +289,34 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
                     </div>
                   ) : (
                     slotsForDay.map((s) => {
-                      const booked = bookedId === s.startsAt || s.taken;
-                      const busy = bookingId === s.startsAt;
+                      const booked = bookedKeys.has(s.startsAt);
+                      const isSelected = selected.has(s.startsAt);
+                      const taken = s.taken;
                       return (
                         <button
                           key={s.startsAt}
                           type="button"
-                          disabled={booked || busy || s.taken}
-                          onClick={() => void book(s)}
-                          className={`rounded-lg px-1.5 py-1 text-[11px] font-medium transition ${
+                          disabled={taken || booked}
+                          onClick={() => toggleSlot(s)}
+                          className={`group rounded-lg px-1.5 py-1 text-[11px] font-medium transition ${
                             booked
                               ? 'cursor-default border border-emerald-300 bg-emerald-50 text-emerald-800'
-                              : s.taken
+                              : taken
                                 ? 'cursor-not-allowed border border-slate-200 bg-slate-100 text-slate-400 line-through'
-                                : 'border border-orange-200 bg-white text-slate-700 hover:-translate-y-px hover:border-orange-400 hover:bg-orange-50'
+                                : isSelected
+                                  ? 'border border-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 text-white shadow-sm'
+                                  : 'border border-orange-200 bg-white text-slate-700 hover:-translate-y-px hover:border-orange-400 hover:bg-orange-50'
                           }`}
                           title={`Founder time: ${s.istLabel} IST`}
                         >
-                          {busy ? (
-                            <Loader2 className="mx-auto h-3 w-3 animate-spin" />
-                          ) : booked ? (
+                          {booked ? (
                             <span className="flex items-center justify-center gap-1">
                               <CalendarCheck className="h-3 w-3" /> Booked
+                            </span>
+                          ) : isSelected ? (
+                            <span className="flex items-center justify-center gap-1">
+                              <Sparkles className="h-3 w-3" />
+                              {formatTime(s.startsAt, investorTimezone)}
                             </span>
                           ) : (
                             formatTime(s.startsAt, investorTimezone)
@@ -268,6 +331,120 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
           })}
         </div>
       )}
+
+      {selected.size > 0 ? (
+        <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-orange-100 bg-gradient-to-r from-orange-50 via-rose-50 to-fuchsia-50 px-5 py-3">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-700">
+            <span className="font-semibold text-slate-900">
+              {selected.size} slot{selected.size === 1 ? '' : 's'} selected
+            </span>
+            <span className="text-slate-500">— review &amp; confirm to send the invite.</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelected(new Map())}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(true)}
+              className="rounded-full bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md"
+            >
+              Review &amp; confirm →
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {confirmOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-orange-50 via-rose-50 to-fuchsia-50 px-5 py-3">
+              <p className="text-sm font-semibold text-slate-900">Confirm your meeting picks</p>
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-white"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              <p className="text-xs text-slate-500">
+                We&apos;ll email you a confirmation with a Google Meet link for each pick. You can
+                send your own invite from any meeting tool — Google Meet is just our default.
+              </p>
+              <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 bg-slate-50/50">
+                {selectedList.map((s) => (
+                  <li key={s.startsAt} className="flex items-center justify-between gap-2 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">
+                        {formatDateLong(s.startsAt, investorTimezone)} ·{' '}
+                        {formatTime(s.startsAt, investorTimezone)}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        Founder: {s.istLabel} IST
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSlot(s)}
+                      className="rounded-full p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                      aria-label="Remove slot"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Anything you&apos;d like to cover? (optional)
+                </span>
+                <textarea
+                  value={agenda}
+                  onChange={(e) => setAgenda(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="e.g. Round mechanics, GTM in Sydney, founder background"
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                />
+              </label>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirm()}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:shadow-md disabled:opacity-60"
+              >
+                {busy ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Sending invite…
+                  </>
+                ) : (
+                  <>Confirm &amp; send invite</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

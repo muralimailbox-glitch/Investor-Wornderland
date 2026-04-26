@@ -10,6 +10,7 @@ import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
 import { ndasRepo } from '@/lib/db/repos/ndas';
 import { deals, firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { sealNda } from '@/lib/pdf/seal-nda';
 import { getStorage } from '@/lib/storage';
@@ -125,18 +126,21 @@ export async function initiateNda(email: string): Promise<{ sent: true }> {
   const workspaceId = await resolveDefaultWorkspaceId();
   await findOrCreatePlaceholderLead({ workspaceId, email });
   const code = await issueOtp(email);
+  const otp = renderBrandedEmail({
+    heading: 'Your OotaOS NDA verification code',
+    body: `Enter this code on the NDA signing page to continue. It expires in 10 minutes.\n\nYour code: ${code}`,
+    facts: [
+      ['Code', code],
+      ['Valid for', '10 minutes'],
+    ],
+    preFooter:
+      'If you did not request this, you can safely ignore this email — the code expires automatically.',
+  });
   await sendMail({
     to: email,
     subject: `Your OotaOS NDA verification code: ${code}`,
-    text: [
-      `Your OotaOS NDA verification code is: ${code}`,
-      '',
-      'This code expires in 10 minutes.',
-      'If you did not request this, you can safely ignore this email.',
-      '',
-      '— OotaOS',
-    ].join('\n'),
-    html: ndaOtpHtml(code),
+    text: otp.text,
+    html: otp.html,
   });
   await emailOutboxRepo.enqueue({
     workspaceId,
@@ -237,22 +241,29 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
 
   // Founder notification stays — operator wants to know an NDA was signed.
   try {
+    const founderEmail = renderBrandedEmail({
+      heading: `NDA signed — ${input.name}`,
+      body: `${input.name} from ${input.firm} just signed the NDA. Sealed PDF is in storage and surfaced from the cockpit Diligence Room for audit.`,
+      facts: [
+        ['Name', input.name],
+        ['Title', input.title],
+        ['Firm', input.firm],
+        ['Email', decoded.email],
+        ['Signed at', signedAt.toISOString()],
+        ['Sealed PDF', r2Key],
+      ],
+      cta: [
+        {
+          label: 'Open Diligence Room',
+          href: `${env.NEXT_PUBLIC_SITE_URL}/cockpit/diligence`,
+        },
+      ],
+    });
     await sendMail({
       to: env.SMTP_FROM,
       subject: `NDA signed — ${input.name} (${input.firm})`,
-      text: [
-        `A new NDA has been signed.`,
-        ``,
-        `Name: ${input.name}`,
-        `Title: ${input.title}`,
-        `Firm: ${input.firm}`,
-        `Email: ${decoded.email}`,
-        `IP: ${input.signerIp}`,
-        `Signed at: ${signedAt.toISOString()}`,
-        ``,
-        `Sealed PDF stored at: ${r2Key}`,
-        `(Available from the cockpit Diligence Room for audit.)`,
-      ].join('\n'),
+      text: founderEmail.text,
+      html: founderEmail.html,
     });
   } catch (err) {
     console.warn('[nda] founder notification failed', err);
@@ -267,17 +278,3 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
     sessionMaxAgeSeconds: session.maxAgeSeconds,
   };
 }
-
-function ndaOtpHtml(code: string): string {
-  return `<!doctype html>
-<html><body style="font-family: -apple-system, Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; color: #111">
-  <h1 style="font-size: 18px; letter-spacing: -0.01em; margin: 0 0 16px">Your OotaOS NDA verification code</h1>
-  <p style="font-size: 14px; line-height: 1.6; color: #333">Enter this code on the NDA signing page to continue. It expires in 10 minutes.</p>
-  <p style="font-size: 32px; font-weight: 700; letter-spacing: 0.2em; background: linear-gradient(135deg,#ff7a00,#ff3d71); -webkit-background-clip: text; color: transparent; margin: 24px 0">${code}</p>
-  <p style="font-size: 12px; color: #666">If you did not request this, you can safely ignore this email.</p>
-</body></html>`;
-}
-
-// ndaConfirmationHtml was used to email the investor a sealed PDF link.
-// The investor flow is now fully in-app per product decision; the helper is
-// removed. The sealed PDF stays in storage for audit access from the cockpit.
