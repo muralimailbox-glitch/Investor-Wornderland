@@ -3,8 +3,10 @@ import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { ApiError, NotFoundError } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { db } from '@/lib/db/client';
+import { dealsRepo } from '@/lib/db/repos/deals';
 import { firmsRepo } from '@/lib/db/repos/firms';
 import { investorsRepo, type InvestorInsert } from '@/lib/db/repos/investors';
+import { leadsRepo } from '@/lib/db/repos/leads';
 import { firms, investors, leads } from '@/lib/db/schema';
 
 export type InvestorListQuery = {
@@ -157,6 +159,12 @@ export async function createInvestor(
 
   const investor = await investorsRepo.create(payload);
 
+  // Rule #2: every investor in an active workspace gets a lead on the
+  // active deal. Without this, the pipeline stays empty for imported
+  // investors. The lead is created at stage='prospect' — operator promotes
+  // via the pipeline UI or auto-transitions fire on the first interaction.
+  await ensureActiveLead(workspaceId, investor.id, actorUserId);
+
   await audit({
     workspaceId,
     actorUserId,
@@ -167,6 +175,89 @@ export async function createInvestor(
   });
 
   return investor;
+}
+
+/**
+ * Idempotent — only creates a lead if there isn't already an active one
+ * for this investor on the workspace's most-recent deal. Returns the
+ * lead row (existing or newly-created). Safe to call on every investor
+ * write path: createInvestor, importInvestorsCsv, bulk-import, the
+ * Tracxn enrichment importer.
+ */
+export async function ensureActiveLead(
+  workspaceId: string,
+  investorId: string,
+  actorUserId: string,
+) {
+  const dealRows = await dealsRepo.activeForWorkspace(workspaceId);
+  const deal = dealRows[0];
+  if (!deal) return null; // workspace has no deal yet
+
+  const existing = await leadsRepo.activeForInvestorAndDeal(workspaceId, investorId, deal.id);
+  if (existing) return existing;
+
+  const lead = await leadsRepo.create({
+    workspaceId,
+    dealId: deal.id,
+    investorId,
+    stage: 'prospect',
+    sourceOfLead: 'auto_on_investor_create',
+  });
+  await audit({
+    workspaceId,
+    actorUserId,
+    action: 'lead.auto_create',
+    targetType: 'lead',
+    targetId: lead.id,
+    payload: { investorId, dealId: deal.id },
+  });
+  return lead;
+}
+
+/**
+ * Backfill: walk every investor in the workspace, create an active lead
+ * for any that lacks one. Used by the cockpit "Repair Pipeline" button
+ * to fix legacy data where investors were imported before the auto-lead
+ * rule existed.
+ */
+export async function repairPipeline(workspaceId: string, actorUserId: string) {
+  const dealRows = await dealsRepo.activeForWorkspace(workspaceId);
+  const deal = dealRows[0];
+  if (!deal) return { created: 0, skipped: 0, total: 0 };
+
+  const allInvestors = await db
+    .select({ id: investors.id })
+    .from(investors)
+    .where(eq(investors.workspaceId, workspaceId));
+
+  let created = 0;
+  let skipped = 0;
+  for (const inv of allInvestors) {
+    const existing = await leadsRepo.activeForInvestorAndDeal(workspaceId, inv.id, deal.id);
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    await leadsRepo.create({
+      workspaceId,
+      dealId: deal.id,
+      investorId: inv.id,
+      stage: 'prospect',
+      sourceOfLead: 'repair_pipeline',
+    });
+    created++;
+  }
+
+  await audit({
+    workspaceId,
+    actorUserId,
+    action: 'pipeline.repair',
+    targetType: 'workspace',
+    targetId: workspaceId,
+    payload: { created, skipped, total: allInvestors.length },
+  });
+
+  return { created, skipped, total: allInvestors.length };
 }
 
 export type InvestorUpdateInput = {
@@ -378,7 +469,8 @@ export async function importInvestorsCsv(
       if (r.mobile_e164) insert.mobileE164 = r.mobile_e164;
       if (r.intro_path) insert.introPath = r.intro_path;
 
-      await investorsRepo.create(insert);
+      const inv = await investorsRepo.create(insert);
+      await ensureActiveLead(workspaceId, inv.id, actorUserId);
       imported++;
     } catch (err) {
       errors.push({ row: i + 2, reason: (err as Error).message });

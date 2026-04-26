@@ -87,16 +87,15 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     agenda: input.agenda ?? null,
   });
 
-  await db
-    .update(leads)
-    .set({ stage: 'meeting_scheduled', stageEnteredAt: new Date(), updatedAt: new Date() })
-    .where(eq(leads.id, lead.id));
-
+  // Auto-advance to meeting_scheduled if lead isn't already further along
+  // (e.g. the founder might already have moved them to diligence by hand).
+  const { autoAdvanceOnEvent } = await import('@/lib/services/auto-transition');
+  await autoAdvanceOnEvent(lead.workspaceId, lead.id, 'meeting_booked');
   await interactionsRepo.record({
     workspaceId: lead.workspaceId,
     leadId: lead.id,
-    kind: 'stage_change',
-    payload: { meetingId: meeting.id, newStage: 'meeting_scheduled' },
+    kind: 'meeting_held',
+    payload: { meetingId: meeting.id, scheduled: true },
   });
 
   const investorLocalStart = formatInTz(startsAt, investorTimezone, {

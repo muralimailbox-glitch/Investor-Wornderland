@@ -6,10 +6,13 @@ import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
 import { db } from '@/lib/db/client';
 import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
+import { interactionsRepo } from '@/lib/db/repos/interactions';
+import { leadsRepo } from '@/lib/db/repos/leads';
 import { investors, leads, users } from '@/lib/db/schema';
 import { sendMail } from '@/lib/mail/smtp';
 import { renderByKey, TEMPLATE_KEYS } from '@/lib/mail/templates';
 import { rateLimit } from '@/lib/security/rate-limit';
+import { autoAdvanceOnEvent } from '@/lib/services/auto-transition';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -131,6 +134,22 @@ export const POST = handle(async (req) => {
         messageId: info.messageId,
       },
     });
+
+    // If the email is bound to a lead, log an email_sent interaction,
+    // touch lastContactAt, and let the auto-transition advance the stage.
+    if (body.leadId) {
+      await interactionsRepo
+        .record({
+          workspaceId: user.workspaceId,
+          leadId: body.leadId,
+          kind: 'email_sent',
+          payload: { toEmail: body.toEmail, subject, messageId: info.messageId },
+        })
+        .catch(() => {});
+      await leadsRepo.touchLastContact(user.workspaceId, body.leadId).catch(() => {});
+      await autoAdvanceOnEvent(user.workspaceId, body.leadId, 'email_sent');
+    }
+
     return Response.json({ outboxId: outbox.id, messageId: info.messageId, status: 'sent' });
   } catch (err) {
     await emailOutboxRepo.markFailed(outbox.id, (err as Error).message.slice(0, 500));

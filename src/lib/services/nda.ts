@@ -224,10 +224,10 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
     signedAt,
   });
 
-  await db
-    .update(leads)
-    .set({ stage: 'nda_signed', stageEnteredAt: signedAt, updatedAt: signedAt })
-    .where(eq(leads.id, decoded.leadId));
+  // Auto-advance to nda_signed via the central helper so activity log + audit
+  // trail stay consistent with other stage advancements.
+  const { autoAdvanceOnEvent } = await import('@/lib/services/auto-transition');
+  await autoAdvanceOnEvent(workspaceId, decoded.leadId, 'nda_signed');
 
   const downloadUrl = await storage.url(r2Key, 900);
 

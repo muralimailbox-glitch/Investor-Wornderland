@@ -129,6 +129,7 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
 
     const payload: typeof emailOutbox.$inferInsert = {
       workspaceId: input.workspaceId,
+      leadId: r.leadId,
       toEmail: r.email,
       subject,
       bodyText: personalizedText,
@@ -216,6 +217,24 @@ export async function dispatchBatch(input: {
         .where(eq(emailOutbox.id, row.id));
       details.push({ outboxId: row.id, ok: true, messageId: info.messageId });
       sent++;
+      // Auto-transition + interaction trail: batch dispatch is the most
+      // common email-sent path, so advance leads from prospect → contacted
+      // automatically and stamp lastContactAt.
+      if (row.leadId) {
+        const { autoAdvanceOnEvent } = await import('@/lib/services/auto-transition');
+        const { interactionsRepo } = await import('@/lib/db/repos/interactions');
+        const { leadsRepo } = await import('@/lib/db/repos/leads');
+        await interactionsRepo
+          .record({
+            workspaceId: input.workspaceId,
+            leadId: row.leadId,
+            kind: 'email_sent',
+            payload: { toEmail: row.toEmail, subject: row.subject, messageId: info.messageId },
+          })
+          .catch(() => {});
+        await leadsRepo.touchLastContact(input.workspaceId, row.leadId).catch(() => {});
+        await autoAdvanceOnEvent(input.workspaceId, row.leadId, 'email_sent');
+      }
     } catch (err) {
       const msg = (err as Error).message.slice(0, 500);
       await db
