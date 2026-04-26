@@ -101,6 +101,8 @@ export function PipelineBoard() {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
+  /** Mobile-only filter: pick a single stage when the kanban won't fit. */
+  const [mobileStage, setMobileStage] = useState<string>('all');
 
   async function load() {
     try {
@@ -245,94 +247,113 @@ export function PipelineBoard() {
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading pipeline
         </div>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-6">
-          {STAGES.map((stage) => {
-            const items = grouped[stage.key] ?? [];
-            const isOver = overStage === stage.key && dragId !== null;
-            return (
-              <div
-                key={stage.key}
-                className={`flex w-72 flex-none flex-col gap-3 rounded-3xl border p-3 transition ${
-                  isOver
-                    ? 'border-violet-400 bg-violet-50 shadow-lg shadow-violet-500/10'
-                    : 'border-slate-200 bg-white'
-                }`}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setOverStage(stage.key);
-                }}
-                onDragLeave={() => setOverStage((cur) => (cur === stage.key ? null : cur))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setOverStage(null);
-                  const leadId = e.dataTransfer.getData('text/plain');
-                  if (leadId && leadId !== dragId) return;
-                  if (leadId) {
-                    const row = rows.find((r) => r.lead?.id === leadId);
-                    if (row && row.lead && row.lead.stage !== stage.key) {
-                      attemptTransition(leadId, stage.key);
+        <>
+          {/* Mobile-only stage filter so the founder can focus one column at a time. */}
+          <div className="flex items-center gap-2 lg:hidden">
+            <label className="text-xs font-medium text-slate-600">Stage:</label>
+            <select
+              value={mobileStage}
+              onChange={(e) => setMobileStage(e.target.value)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+            >
+              <option value="all">All stages (scroll)</option>
+              {STAGES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label} ({(grouped[s.key] ?? []).length})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-6">
+            {STAGES.filter((s) => mobileStage === 'all' || mobileStage === s.key).map((stage) => {
+              const items = grouped[stage.key] ?? [];
+              const isOver = overStage === stage.key && dragId !== null;
+              return (
+                <div
+                  key={stage.key}
+                  className={`flex w-72 flex-none flex-col gap-3 rounded-3xl border p-3 transition ${
+                    isOver
+                      ? 'border-violet-400 bg-violet-50 shadow-lg shadow-violet-500/10'
+                      : 'border-slate-200 bg-white'
+                  }`}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setOverStage(stage.key);
+                  }}
+                  onDragLeave={() => setOverStage((cur) => (cur === stage.key ? null : cur))}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setOverStage(null);
+                    const leadId = e.dataTransfer.getData('text/plain');
+                    if (leadId && leadId !== dragId) return;
+                    if (leadId) {
+                      const row = rows.find((r) => r.lead?.id === leadId);
+                      if (row && row.lead && row.lead.stage !== stage.key) {
+                        attemptTransition(leadId, stage.key);
+                      }
                     }
-                  }
-                  setDragId(null);
-                }}
-              >
-                <div className="flex items-center justify-between px-2 py-1">
-                  <div
-                    className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${stage.accent} px-3 py-1 text-xs font-semibold text-white shadow ${stage.glow}`}
-                  >
-                    {stage.label}
-                  </div>
-                  <span className="text-xs font-medium text-slate-500">{items.length}</span>
-                </div>
-                <div className="flex min-h-[60px] flex-col gap-2">
-                  {items.length === 0 ? (
-                    <div className="flex h-20 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-xs text-slate-400">
-                      empty
+                    setDragId(null);
+                  }}
+                >
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <div
+                      className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${stage.accent} px-3 py-1 text-xs font-semibold text-white shadow ${stage.glow}`}
+                    >
+                      {stage.label}
                     </div>
-                  ) : (
-                    items.map((row, idx) => (
-                      <motion.div
-                        key={row.lead!.id}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: Math.min(0.02 * idx, 0.25) }}
-                      >
-                        <div
-                          draggable
-                          onDragStart={(e) => {
-                            setDragId(row.lead!.id);
-                            e.dataTransfer.setData('text/plain', row.lead!.id);
-                            e.dataTransfer.effectAllowed = 'move';
-                          }}
-                          onDragEnd={() => {
-                            setDragId(null);
-                            setOverStage(null);
-                          }}
-                          className={`cursor-grab rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md ${
-                            pendingId === row.lead!.id ? 'opacity-60' : ''
-                          } ${dragId === row.lead!.id ? 'rotate-1 cursor-grabbing' : ''}`}
+                    <span className="text-xs font-medium text-slate-500">{items.length}</span>
+                  </div>
+                  <div className="flex min-h-[60px] flex-col gap-2">
+                    {items.length === 0 ? (
+                      <div className="flex h-20 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-xs text-slate-400">
+                        empty
+                      </div>
+                    ) : (
+                      items.map((row, idx) => (
+                        <motion.div
+                          key={row.lead!.id}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: Math.min(0.02 * idx, 0.25) }}
                         >
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {row.investor.firstName} {row.investor.lastName}
-                          </p>
-                          <p className="truncate text-xs text-slate-500">{row.firm.name}</p>
-                          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                            <span>{new Date(row.lead!.updatedAt).toLocaleDateString()}</span>
-                            {row.lead!.thesisFitScore != null ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-violet-700">
-                                fit {row.lead!.thesisFitScore}
-                              </span>
-                            ) : null}
+                          <div
+                            draggable
+                            onDragStart={(e) => {
+                              setDragId(row.lead!.id);
+                              e.dataTransfer.setData('text/plain', row.lead!.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => {
+                              setDragId(null);
+                              setOverStage(null);
+                            }}
+                            className={`cursor-grab rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md ${
+                              pendingId === row.lead!.id ? 'opacity-60' : ''
+                            } ${dragId === row.lead!.id ? 'rotate-1 cursor-grabbing' : ''}`}
+                          >
+                            <p className="truncate text-sm font-semibold text-slate-900">
+                              {row.investor.firstName} {row.investor.lastName}
+                            </p>
+                            <p className="truncate text-xs text-slate-500">{row.firm.name}</p>
+                            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+                              <span>{new Date(row.lead!.updatedAt).toLocaleDateString()}</span>
+                              {row.lead!.thesisFitScore != null ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-violet-700">
+                                  fit {row.lead!.thesisFitScore}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
+                        </motion.div>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <div className="rounded-3xl border border-violet-100 bg-gradient-to-br from-white to-violet-50/60 p-5">

@@ -125,17 +125,69 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     }
   }
 
-  // Insert all meetings. Each gets its own meet link.
+  // Resolve the founder user id once — needed for Google Calendar event
+  // attribution. If no founder, skip Calendar and use synthetic Meet links.
+  const [founderUser] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.workspaceId, lead.workspaceId), eq(users.role, 'founder')))
+    .limit(1);
+
+  // Resolve investor identity once (used for both Calendar attendee + emails).
+  const investorIdentity = await db
+    .select({
+      firstName: investors.firstName,
+      lastName: investors.lastName,
+      firmName: firms.name,
+    })
+    .from(leads)
+    .innerJoin(investors, eq(investors.id, leads.investorId))
+    .leftJoin(firms, eq(firms.id, investors.firmId))
+    .where(eq(leads.id, lead.id))
+    .limit(1);
+  const investorIdentityRow = investorIdentity[0] ?? null;
+  const investorDisplayName = investorIdentityRow
+    ? `${investorIdentityRow.firstName} ${investorIdentityRow.lastName}`.trim()
+    : session.email;
+
+  const { createCalendarEvent } = await import('@/lib/services/google-calendar');
+
+  // Insert all meetings. Each gets its own meet link — real Calendar event
+  // when OAuth is connected, synthetic Meet link otherwise.
   const proposalGroupId = randomUUID();
   const created: BookedMeeting[] = [];
   for (const p of parsed) {
-    const meetLink = generateMeetLink();
+    let meetLink: string = generateMeetLink();
+    let googleEventId: string | null = null;
+
+    if (founderUser) {
+      try {
+        const calEvent = await createCalendarEvent({
+          workspaceId: lead.workspaceId,
+          founderUserId: founderUser.id,
+          startsAt: p.startsAt,
+          endsAt: p.endsAt,
+          summary: `OotaOS — ${investorDisplayName}`,
+          description: input.agenda ?? '',
+          attendeeEmail: session.email,
+          attendeeName: investorDisplayName,
+        });
+        if (calEvent) {
+          meetLink = calEvent.meetLink;
+          googleEventId = calEvent.eventId;
+        }
+      } catch (err) {
+        console.warn('[meeting] google calendar event failed — falling back to synthetic', err);
+      }
+    }
+
     const meeting = await meetingsRepo.create({
       workspaceId: lead.workspaceId,
       leadId: lead.id,
       startsAt: p.startsAt,
       endsAt: p.endsAt,
       meetLink,
+      googleEventId,
       agenda: input.agenda ?? null,
     });
     created.push({
@@ -169,20 +221,9 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
   const { autoAdvanceOnEvent } = await import('@/lib/services/auto-transition');
   await autoAdvanceOnEvent(lead.workspaceId, lead.id, 'meeting_booked');
 
-  // Resolve investor identity for branded emails
-  const invRow = await db
-    .select({
-      firstName: investors.firstName,
-      lastName: investors.lastName,
-      firmName: firms.name,
-    })
-    .from(leads)
-    .innerJoin(investors, eq(investors.id, leads.investorId))
-    .leftJoin(firms, eq(firms.id, investors.firmId))
-    .where(eq(leads.id, lead.id))
-    .limit(1);
-  const inv = invRow[0];
-  const investorName = inv ? `${inv.firstName} ${inv.lastName}`.trim() : session.email;
+  // Reuse the investor identity already resolved above the meeting loop.
+  const inv = investorIdentityRow;
+  const investorName = investorDisplayName;
   const firmLabel = inv?.firmName ? ` (${inv.firmName})` : '';
 
   // Single consolidated investor confirmation email
@@ -485,6 +526,23 @@ export async function cancelMeeting(input: {
     .limit(1);
   const r = meetingRow[0];
   if (!r) throw new ApiError(404, 'meeting_not_found');
+
+  // Best-effort delete from Google Calendar if a real event was created.
+  if (r.meeting.googleEventId) {
+    const [founder] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(eq(users.workspaceId, input.workspaceId), eq(users.role, 'founder')))
+      .limit(1);
+    if (founder) {
+      const { deleteCalendarEvent } = await import('@/lib/services/google-calendar');
+      await deleteCalendarEvent({
+        workspaceId: input.workspaceId,
+        founderUserId: founder.id,
+        eventId: r.meeting.googleEventId,
+      }).catch(() => {});
+    }
+  }
 
   await db
     .delete(meetings)

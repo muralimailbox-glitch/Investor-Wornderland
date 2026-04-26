@@ -573,6 +573,32 @@ export const auditEvents = pgTable(
   }),
 );
 
+// ── Google OAuth tokens ──────────────────────────────────────────────────
+// Stores OAuth tokens per founder/user for Google Calendar event creation.
+// One row per (workspace, user); refreshed on each use.
+export const googleOauthTokens = pgTable(
+  'google_oauth_tokens',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token').notNull(),
+    refreshToken: text('refresh_token'),
+    scope: text('scope').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    calendarId: text('calendar_id').notNull().default('primary'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    lookupIdx: index('google_oauth_tokens_lookup_idx').on(t.workspaceId, t.userId),
+  }),
+);
+
 // ── Magic-link revocations ───────────────────────────────────────────────
 // Stateless HMAC tokens can't carry a revoked bit, so we record a "revoked
 // before <ts>" cutoff per investor. verifyInvestorLink consults this on

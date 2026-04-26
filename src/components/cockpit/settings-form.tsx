@@ -221,8 +221,79 @@ export function SettingsForm() {
         </div>
       </form>
 
+      <GoogleCalendarSection />
+
       <SecuritySection />
     </div>
+  );
+}
+
+function GoogleCalendarSection() {
+  const [connected, setConnected] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      // Heuristic — the connected param is set by the OAuth callback redirect.
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('google') === 'connected') {
+        setConnected(true);
+        return;
+      }
+      // Otherwise we don't have a status endpoint; surface as "unknown" so
+      // the user can connect or test by attempting a booking.
+      setConnected(null);
+    });
+  }, []);
+
+  async function disconnect() {
+    setBusy(true);
+    try {
+      await fetch('/api/v1/admin/google-calendar/disconnect', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setConnected(false);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Google Calendar" icon={<Globe className="h-4 w-4" />}>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-700">
+        <p className="font-medium text-slate-900">
+          {connected === true
+            ? 'Connected — investor bookings now create real Calendar events with Google Meet.'
+            : connected === false
+              ? 'Disconnected. Bookings fall back to a synthetic Meet link.'
+              : 'Optional. When connected, every investor booking creates a real Google Calendar event on your account with Google Meet auto-attached and the investor as attendee.'}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a
+            href="/api/v1/admin/google-calendar/start"
+            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100"
+          >
+            {connected ? 'Reconnect' : 'Connect Google Calendar'}
+          </a>
+          {connected ? (
+            <button
+              type="button"
+              onClick={() => void disconnect()}
+              disabled={busy}
+              className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+            >
+              Disconnect
+            </button>
+          ) : null}
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">
+          Requires <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code>, and{' '}
+          <code>GOOGLE_REDIRECT_URI</code> on Railway. The redirect URI must point to{' '}
+          <code>/api/v1/admin/google-calendar/callback</code>.
+        </p>
+      </div>
+    </Section>
   );
 }
 
