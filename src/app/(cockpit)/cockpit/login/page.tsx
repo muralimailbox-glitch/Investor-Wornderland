@@ -69,12 +69,12 @@ export default function CockpitLogin() {
         <div className="absolute -bottom-20 -left-20 h-52 w-52 rounded-full bg-fuchsia-500/20 blur-3xl" />
         <div className="relative flex flex-col gap-6">
           <Image
-            src="/brand/oota-rect-tagline.png"
+            src="/brand/oota-dark.png"
             alt="OotaOS"
-            width={400}
-            height={102}
+            width={220}
+            height={200}
             priority
-            className="mx-auto h-20 w-auto"
+            className="mx-auto h-24 w-auto"
           />
           <div className="flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">

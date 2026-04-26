@@ -57,12 +57,12 @@ export function CockpitShell({ email, children }: { email: string | null; childr
         <div className="mb-8 flex items-center justify-between gap-2">
           <Link href="/cockpit" aria-label="OotaOS cockpit" className="flex items-center">
             <Image
-              src="/brand/oota-rect-tagline.png"
+              src="/brand/oota-light.png"
               alt="OotaOS"
-              width={200}
-              height={50}
+              width={140}
+              height={154}
               priority
-              className="h-10 w-auto"
+              className="h-14 w-auto"
             />
           </Link>
           <button

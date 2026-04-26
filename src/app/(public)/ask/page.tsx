@@ -27,12 +27,12 @@ export default async function AskPage() {
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
         <Link href="/lounge" aria-label="OotaOS home" className="flex items-center">
           <Image
-            src="/brand/oota-rect-tagline.png"
+            src="/brand/oota-light.png"
             alt="OotaOS"
-            width={320}
-            height={82}
+            width={180}
+            height={200}
             priority
-            className="h-14 w-auto"
+            className="h-16 w-auto"
           />
         </Link>
         <Link

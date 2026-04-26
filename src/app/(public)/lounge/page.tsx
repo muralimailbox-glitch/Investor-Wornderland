@@ -16,12 +16,12 @@ export default function LoungePage() {
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
         <Link href="/" aria-label="OotaOS home" className="flex items-center">
           <Image
-            src="/brand/oota-rect-tagline.png"
+            src="/brand/oota-light.png"
             alt="OotaOS"
-            width={360}
-            height={92}
+            width={200}
+            height={220}
             priority
-            className="h-16 w-auto"
+            className="h-20 w-auto"
           />
         </Link>
       </header>

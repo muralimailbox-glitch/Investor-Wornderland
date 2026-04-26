@@ -69,10 +69,10 @@ export default async function DocumentPreviewPage({ params }: { params: Promise<
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 pt-8">
         <Link href="/lounge" aria-label="Back to data room" className="flex items-center">
           <Image
-            src="/brand/oota-rect-tagline.png"
+            src="/brand/oota-light.png"
             alt="OotaOS"
-            width={320}
-            height={82}
+            width={160}
+            height={176}
             priority
             className="h-14 w-auto"
           />
