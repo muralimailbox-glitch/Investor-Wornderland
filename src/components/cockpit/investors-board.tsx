@@ -18,6 +18,7 @@ import {
   Wrench,
 } from 'lucide-react';
 
+import { BulkEmailModal } from '@/components/cockpit/bulk-email-modal';
 import { FirmEditModal } from '@/components/cockpit/firm-edit-modal';
 import { InvestorActivityDrawer } from '@/components/cockpit/investor-activity-drawer';
 import { InvestorEditModal } from '@/components/cockpit/investor-edit-modal';
@@ -79,6 +80,20 @@ export function InvestorsBoard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
   const [activityId, setActivityId] = useState<string | null>(null);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  function toggleSelect(leadId: string) {
+    setSelectedLeadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  }
+  function clearSelection() {
+    setSelectedLeadIds(new Set());
+  }
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -233,7 +248,8 @@ export function InvestorsBoard() {
       ) : null}
 
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid grid-cols-[1.4fr_1.2fr_1fr_0.9fr_0.6fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+        <div className="grid grid-cols-[24px_1.4fr_1.2fr_1fr_0.9fr_0.6fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+          <span aria-label="Select" />
           <span>Investor</span>
           <span>Firm</span>
           <span>Role</span>
@@ -254,8 +270,19 @@ export function InvestorsBoard() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(0.02 * idx, 0.3) }}
-                className="grid grid-cols-[1.4fr_1.2fr_1fr_0.9fr_0.6fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
+                className="grid grid-cols-[24px_1.4fr_1.2fr_1fr_0.9fr_0.6fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
               >
+                <div>
+                  {row.lead ? (
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${row.investor?.firstName ?? row.firm.name}`}
+                      checked={selectedLeadIds.has(row.lead.id)}
+                      onChange={() => toggleSelect(row.lead!.id)}
+                      className="h-4 w-4 cursor-pointer rounded border-slate-300 text-violet-600 focus:ring-violet-400"
+                    />
+                  ) : null}
+                </div>
                 <div className="flex items-center gap-3 min-w-0">
                   <div
                     className={`flex h-9 w-9 flex-none items-center justify-center rounded-full ${row.partnerPending ? 'bg-slate-100 text-slate-400' : 'bg-violet-100 text-violet-700'}`}
@@ -433,6 +460,54 @@ export function InvestorsBoard() {
 
       {activityId ? (
         <InvestorActivityDrawer investorId={activityId} onClose={() => setActivityId(null)} />
+      ) : null}
+
+      {/* Bulk-email floating action bar — appears when ≥1 investor selected. */}
+      {selectedLeadIds.size > 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-4">
+          <div className="flex items-center gap-3 rounded-full border border-violet-200 bg-white px-5 py-2.5 shadow-2xl">
+            <span className="text-sm font-medium text-slate-900">
+              {selectedLeadIds.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setBulkOpen(true)}
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-md shadow-violet-500/30 transition hover:-translate-y-px"
+            >
+              <Mail className="h-4 w-4" /> Bulk email
+            </button>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-sm text-slate-500 hover:text-slate-700"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {bulkOpen ? (
+        <BulkEmailModal
+          recipients={Array.from(selectedLeadIds).flatMap((leadId) => {
+            const row = data?.rows.find((r) => r.lead?.id === leadId);
+            if (!row?.investor || !row.lead) return [];
+            return [
+              {
+                leadId: row.lead.id,
+                investorId: row.investor.id,
+                name: `${row.investor.firstName} ${row.investor.lastName}`,
+                email: row.investor.email,
+              },
+            ];
+          })}
+          onClose={() => setBulkOpen(false)}
+          onSent={() => {
+            setBulkOpen(false);
+            clearSelection();
+            void refresh();
+          }}
+        />
       ) : null}
     </div>
   );
