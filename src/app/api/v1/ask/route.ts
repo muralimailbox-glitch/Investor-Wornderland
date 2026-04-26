@@ -8,6 +8,7 @@ import { handle } from '@/lib/api/handle';
 import { getInvestorContext } from '@/lib/auth/investor-context';
 import { NDA_SESSION_COOKIE, readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
+import { workspacesRepo } from '@/lib/db/repos/workspaces';
 import { interactions, investors } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 
@@ -29,22 +30,34 @@ const Body = z.object({
 });
 
 const STATIC_FALLBACK =
-  'The founders are fundraising right now and answer most investor questions within a few hours at info@ootaos.com. If you want the deep numbers, the data room opens the moment you verify your email and sign the NDA — takes about a minute.';
+  "I'm getting set up for visitors right now — the founders are reachable at info@ootaos.com and respond within a few hours. Want a private link to the lounge with the data room? Reply with your name + firm.";
 
 export const POST = handle(async (req) => {
-  await rateLimit(req, { key: 'ask', perMinute: 20 });
+  // Tighter limit for anonymous so a curious visitor can't burn AI budget.
+  // Authenticated investors get the higher 20/min ceiling.
+  const ctx = await getInvestorContext();
+  await rateLimit(req, {
+    key: ctx ? 'ask:auth' : 'ask:anon',
+    perMinute: ctx ? 20 : 6,
+  });
   const raw = await req.json().catch(() => ({}));
   const body = Body.parse(raw);
 
-  // Deal-scoped resolution (rule #8): magic-link cookie required.
-  // Anonymous fallback to the default workspace was removed — the route now
-  // returns a static "ask the founders" message if there is no cookie.
-  const ctx = await getInvestorContext();
   const cookieStore = await cookies();
   const ndaSession = readNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
   const signedNda = Boolean(ndaSession);
 
-  const workspaceId = ctx?.workspaceId;
+  // Anonymous teaser: when there's no magic-link cookie, fall back to the
+  // default workspace so the concierge can still answer surface-level
+  // questions about OotaOS. The concierge's depth-classifier will gate any
+  // sensitive topic (cap table, financials, runway) by setting gate.needsNda
+  // — the client renders the email-verify + NDA CTA off that flag.
+  let workspaceId: string | undefined = ctx?.workspaceId;
+  if (!workspaceId) {
+    const ws = await workspacesRepo.default();
+    workspaceId = ws?.id;
+  }
+
   const linkSession = ctx?.session ?? null;
   let investor: InvestorContext | null = null;
   if (linkSession && workspaceId) {

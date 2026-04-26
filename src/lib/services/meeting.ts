@@ -290,6 +290,174 @@ function shortTz(tz: string): string {
 }
 
 /**
+ * Reschedule a single meeting. Voids the old slot, updates with a fresh
+ * Google Meet link, and sends one branded "moved" email — no cancel-then-
+ * rebook spam. Caller may be the founder (workspace-scoped from cockpit) or
+ * the investor (workspace resolved from their NDA session).
+ */
+export async function rescheduleMeeting(input: {
+  workspaceId: string;
+  meetingId: string;
+  newStartsAt: string;
+  newEndsAt: string;
+  triggeredBy: 'investor' | 'founder';
+  reason?: string;
+  agenda?: string;
+}): Promise<{ meetingId: string; meetLink: string }> {
+  const { meetings } = await import('@/lib/db/schema');
+
+  const existing = await db
+    .select({
+      meeting: meetings,
+      lead: leads,
+      investorEmail: investors.email,
+      investorFirstName: investors.firstName,
+      investorLastName: investors.lastName,
+      investorTimezone: investors.timezone,
+      firmName: firms.name,
+    })
+    .from(meetings)
+    .innerJoin(leads, eq(leads.id, meetings.leadId))
+    .innerJoin(investors, eq(investors.id, leads.investorId))
+    .leftJoin(firms, eq(firms.id, investors.firmId))
+    .where(and(eq(meetings.workspaceId, input.workspaceId), eq(meetings.id, input.meetingId)))
+    .limit(1);
+  const r = existing[0];
+  if (!r) throw new ApiError(404, 'meeting_not_found');
+
+  const newStart = new Date(input.newStartsAt);
+  const newEnd = new Date(input.newEndsAt);
+  if (!Number.isFinite(newStart.getTime()) || !Number.isFinite(newEnd.getTime())) {
+    throw new ApiError(400, 'invalid_time');
+  }
+  if (newStart.getTime() >= newEnd.getTime()) {
+    throw new ApiError(400, 'invalid_time_range');
+  }
+  const durationMinutes = Math.round((newEnd.getTime() - newStart.getTime()) / 60_000);
+  const availability = checkAvailability(newStart, durationMinutes);
+  if (!availability.ok) throw new ApiError(400, availability.reason);
+
+  // Conflict-check excluding the slot we're moving from.
+  const conflict = await db.execute<{ count: number }>(sql`
+    SELECT COUNT(*)::int AS count FROM meetings
+    WHERE workspace_id = ${input.workspaceId}
+      AND id != ${input.meetingId}
+      AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${newStart.toISOString()}::timestamptz, ${newEnd.toISOString()}::timestamptz, '[)')
+  `);
+  if ((conflict[0]?.count ?? 0) > 0) {
+    throw new ApiError(409, 'slot_taken');
+  }
+
+  const newMeetLink = generateMeetLink();
+  const [updated] = await db
+    .update(meetings)
+    .set({
+      startsAt: newStart,
+      endsAt: newEnd,
+      meetLink: newMeetLink,
+      ...(input.agenda ? { agenda: input.agenda } : {}),
+    })
+    .where(and(eq(meetings.workspaceId, input.workspaceId), eq(meetings.id, input.meetingId)))
+    .returning();
+  if (!updated) throw new Error('reschedule update returned no row');
+
+  await interactionsRepo.record({
+    workspaceId: input.workspaceId,
+    leadId: r.lead.id,
+    kind: 'note',
+    payload: {
+      kind: 'meeting_rescheduled',
+      meetingId: input.meetingId,
+      triggeredBy: input.triggeredBy,
+      reason: input.reason ?? null,
+      from: r.meeting.startsAt.toISOString(),
+      to: newStart.toISOString(),
+    },
+  });
+
+  const founderRow = await db
+    .select({ tz: users.defaultTimezone })
+    .from(users)
+    .where(and(eq(users.workspaceId, input.workspaceId), eq(users.role, 'founder')))
+    .limit(1);
+  const founderTimezone: string = founderRow[0]?.tz ?? FOUNDER_TZ ?? DEFAULT_FOUNDER_TZ;
+  const investorTimezone = r.investorTimezone || DEFAULT_FOUNDER_TZ;
+
+  const investorName = `${r.investorFirstName} ${r.investorLastName}`.trim();
+  const firmLabel = r.firmName ? ` (${r.firmName})` : '';
+  const oldLocal = formatInTz(r.meeting.startsAt, investorTimezone, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+  const newLocal = formatInTz(newStart, investorTimezone, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+  const newFounder = formatInTz(newStart, founderTimezone, {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  });
+
+  try {
+    const investorEmail = renderBrandedEmail({
+      heading: 'Your OotaOS meeting was moved',
+      body:
+        (input.triggeredBy === 'founder'
+          ? `Hi ${r.investorFirstName} — we had to move our slot. The new time below.`
+          : `Confirmed — we've moved your slot.`) +
+        (input.reason ? `\n\nReason: ${input.reason}` : '') +
+        `\n\nA fresh Google Meet link is below; feel free to send your own invite from any meeting tool too.`,
+      facts: [
+        ['Was', oldLocal],
+        ['Now', `${newLocal} (${shortTz(investorTimezone)})`],
+        ['Founder time', `${newFounder} (${shortTz(founderTimezone)})`],
+        ['Google Meet', newMeetLink],
+      ],
+      cta: [
+        { label: 'Open the data room', href: `${env.NEXT_PUBLIC_SITE_URL}/lounge` },
+        { label: 'Start the Google Meet', href: newMeetLink },
+      ],
+      preFooter: MEET_DISCLAIMER,
+    });
+    await sendMail({
+      to: r.investorEmail,
+      subject: 'Your OotaOS meeting moved',
+      text: investorEmail.text,
+      html: investorEmail.html,
+    });
+
+    const eaEmail = renderBrandedEmail({
+      heading: `Meeting moved — ${investorName}${firmLabel}`,
+      body: `${input.triggeredBy === 'founder' ? 'Founder' : `${investorName}${firmLabel}`} rescheduled the slot.`,
+      facts: [
+        ['Investor', `${investorName}${firmLabel}`],
+        ['Email', r.investorEmail],
+        ['Was', oldLocal],
+        ['Now (founder)', `${newFounder} (${shortTz(founderTimezone)})`],
+        ['Google Meet', newMeetLink],
+      ],
+      cta: [{ label: 'Open in cockpit', href: `${env.NEXT_PUBLIC_SITE_URL}/cockpit/meetings` }],
+    });
+    await sendMail({
+      to: env.SMTP_FROM,
+      subject: `Meeting moved — ${investorName}${firmLabel}`,
+      text: eaEmail.text,
+      html: eaEmail.html,
+    });
+    await sendMail({
+      to: 'krish.c@snapsitebuild.com',
+      subject: `[OotaOS] Meeting moved — ${investorName}${firmLabel}`,
+      text: eaEmail.text,
+      html: eaEmail.html,
+    });
+  } catch (err) {
+    console.warn('[meeting] reschedule email failed', err);
+  }
+
+  return { meetingId: updated.id, meetLink: newMeetLink };
+}
+
+/**
  * Cancel a meeting on the founder's behalf. Notifies the investor + EA via
  * the same branded email shell.
  */

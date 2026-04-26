@@ -30,6 +30,7 @@ const NAV = [
   { href: '/cockpit/investors', label: 'Firms & Contacts', icon: Users, group: 'main' as const },
   { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints, group: 'main' as const },
   { href: '/cockpit/inbox', label: 'Communications', icon: Mail, group: 'main' as const },
+  { href: '/cockpit/drafts', label: 'Drafts & Outbox', icon: FileText, group: 'main' as const },
   { href: '/cockpit/documents', label: 'Diligence Room', icon: FileText, group: 'main' as const },
   { href: '/cockpit/meetings', label: 'Meetings', icon: CalendarClock, group: 'main' as const },
   { href: '/cockpit/deal', label: 'Deal', icon: Briefcase, group: 'more' as const },

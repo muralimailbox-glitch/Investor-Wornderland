@@ -7,6 +7,7 @@ import {
   Building2,
   Eye,
   Filter,
+  Link2,
   Loader2,
   Mail,
   Pencil,
@@ -22,6 +23,7 @@ import { BulkEmailModal } from '@/components/cockpit/bulk-email-modal';
 import { FirmEditModal } from '@/components/cockpit/firm-edit-modal';
 import { InvestorActivityDrawer } from '@/components/cockpit/investor-activity-drawer';
 import { InvestorEditModal } from '@/components/cockpit/investor-edit-modal';
+import { InviteLinkModal } from '@/components/cockpit/invite-link-modal';
 import { TracxnImportModal } from '@/components/cockpit/tracxn-import';
 import { startPreview } from '@/lib/api/preview';
 
@@ -39,6 +41,7 @@ type Investor = {
   lastName: string;
   title: string;
   email: string;
+  mobileE164?: string | null;
   decisionAuthority: string;
   timezone: string;
   updatedAt: string;
@@ -80,6 +83,12 @@ export function InvestorsBoard() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingFirmId, setEditingFirmId] = useState<string | null>(null);
   const [activityId, setActivityId] = useState<string | null>(null);
+  const [inviteFor, setInviteFor] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    mobileE164: string | null;
+  } | null>(null);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
 
@@ -416,6 +425,22 @@ export function InvestorsBoard() {
                       </button>
                       <button
                         type="button"
+                        title="Issue private invite link"
+                        onClick={() =>
+                          setInviteFor({
+                            id: row.investor!.id,
+                            name: `${row.investor!.firstName} ${row.investor!.lastName}`.trim(),
+                            email: row.investor!.email,
+                            mobileE164: row.investor!.mobileE164 ?? null,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
+                      >
+                        <Link2 className="h-3.5 w-3.5" />
+                        Send link
+                      </button>
+                      <button
+                        type="button"
                         title="Edit investor"
                         onClick={() => setEditingId(row.investor!.id)}
                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
@@ -503,6 +528,16 @@ export function InvestorsBoard() {
 
       {activityId ? (
         <InvestorActivityDrawer investorId={activityId} onClose={() => setActivityId(null)} />
+      ) : null}
+
+      {inviteFor ? (
+        <InviteLinkModal
+          investorId={inviteFor.id}
+          investorName={inviteFor.name}
+          investorEmail={inviteFor.email}
+          investorMobileE164={inviteFor.mobileE164}
+          onClose={() => setInviteFor(null)}
+        />
       ) : null}
 
       {/* Bulk-email floating action bar — appears when ≥1 investor selected. */}

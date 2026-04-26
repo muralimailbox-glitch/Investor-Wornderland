@@ -5,6 +5,7 @@ import {
   ArrowUpRight,
   CalendarClock,
   CalendarOff,
+  CalendarRange,
   Loader2,
   Mail,
   RefreshCw,
@@ -63,6 +64,11 @@ export function MeetingsBoard() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState<MeetingRow | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [rescheduleOpen, setRescheduleOpen] = useState<MeetingRow | null>(null);
+  const [rescheduleStart, setRescheduleStart] = useState('');
+  const [rescheduleDuration, setRescheduleDuration] = useState(30);
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [reschedulingId, setReschedulingId] = useState<string | null>(null);
 
   async function load(s: Scope) {
     setRows(null);
@@ -96,6 +102,43 @@ export function MeetingsBoard() {
       .sort((a, b) => (a[0] < b[0] ? -1 : 1))
       .map(([key, list]) => ({ key, rows: list }));
   }, [rows]);
+
+  async function confirmReschedule() {
+    if (!rescheduleOpen) return;
+    if (!rescheduleStart) {
+      setError('Pick a new start time.');
+      return;
+    }
+    setReschedulingId(rescheduleOpen.id);
+    setError(null);
+    try {
+      const start = new Date(rescheduleStart);
+      const end = new Date(start.getTime() + rescheduleDuration * 60_000);
+      const res = await fetch(`/api/v1/admin/meetings/${rescheduleOpen.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          newStartsAt: start.toISOString(),
+          newEndsAt: end.toISOString(),
+          ...(rescheduleReason.trim() ? { reason: rescheduleReason.trim() } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const j = (await res.json().catch(() => null)) as { title?: string } | null;
+        throw new Error(j?.title ?? `HTTP ${res.status}`);
+      }
+      setRescheduleOpen(null);
+      setRescheduleStart('');
+      setRescheduleReason('');
+      setRescheduleDuration(30);
+      await load(scope);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'reschedule failed');
+    } finally {
+      setReschedulingId(null);
+    }
+  }
 
   async function confirmCancel() {
     if (!cancelOpen) return;
@@ -268,6 +311,31 @@ export function MeetingsBoard() {
                           <button
                             type="button"
                             onClick={() => {
+                              setRescheduleOpen(m);
+                              const local = new Date(m.startsAt);
+                              const tzOffset = local.getTimezoneOffset() * 60_000;
+                              setRescheduleStart(
+                                new Date(local.getTime() - tzOffset).toISOString().slice(0, 16),
+                              );
+                              setRescheduleDuration(
+                                Math.max(
+                                  15,
+                                  Math.round(
+                                    (new Date(m.endsAt).getTime() -
+                                      new Date(m.startsAt).getTime()) /
+                                      60_000,
+                                  ),
+                                ),
+                              );
+                              setRescheduleReason('');
+                            }}
+                            className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition hover:bg-violet-50"
+                          >
+                            <CalendarRange className="h-3 w-3" /> Move
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
                               setCancelOpen(m);
                               setCancelReason('');
                             }}
@@ -352,6 +420,97 @@ export function MeetingsBoard() {
                   </>
                 ) : (
                   <>Cancel &amp; notify investor</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {rescheduleOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-violet-100 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-violet-50 via-fuchsia-50 to-rose-50 px-5 py-3">
+              <p className="text-sm font-semibold text-slate-900">Move meeting</p>
+              <button
+                type="button"
+                onClick={() => setRescheduleOpen(null)}
+                className="rounded-full p-1 text-slate-500 transition hover:bg-white"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              <p className="text-xs text-slate-600">
+                Currently <strong>{formatIn(rescheduleOpen.startsAt, 'Asia/Kolkata')} IST</strong>.
+                We&apos;ll send{' '}
+                <strong>
+                  {rescheduleOpen.investor.firstName ?? rescheduleOpen.investor.email}
+                </strong>{' '}
+                a single &quot;moved&quot; email with a fresh Google Meet link — no
+                cancel-then-rebook spam.
+              </p>
+              <label className="block text-[11px]">
+                <span className="font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  New start (your local time)
+                </span>
+                <input
+                  type="datetime-local"
+                  value={rescheduleStart}
+                  onChange={(e) => setRescheduleStart(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                />
+              </label>
+              <label className="block text-[11px]">
+                <span className="font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  Duration
+                </span>
+                <select
+                  value={rescheduleDuration}
+                  onChange={(e) => setRescheduleDuration(Number(e.target.value))}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+                >
+                  <option value={15}>15 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>60 minutes</option>
+                  <option value={90}>90 minutes</option>
+                </select>
+              </label>
+              <textarea
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                rows={2}
+                maxLength={500}
+                placeholder="Optional reason — goes straight into the email"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-200"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setRescheduleOpen(null)}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmReschedule()}
+                disabled={reschedulingId === rescheduleOpen.id}
+                className="inline-flex items-center gap-1.5 rounded-full bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-violet-700 disabled:opacity-60"
+              >
+                {reschedulingId === rescheduleOpen.id ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Moving…
+                  </>
+                ) : (
+                  <>Move &amp; notify investor</>
                 )}
               </button>
             </div>

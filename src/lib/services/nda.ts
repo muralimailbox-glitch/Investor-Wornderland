@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 
 import { ApiError, BadRequestError, NotFoundError } from '@/lib/api/handle';
 import { issueNdaSession, issueSigningToken, readSigningToken } from '@/lib/auth/nda-session';
@@ -32,14 +32,27 @@ async function resolveDefaultDealId(workspaceId: string): Promise<string> {
   return row.id;
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
 async function findOrCreatePlaceholderLead(input: {
   workspaceId: string;
   email: string;
 }): Promise<{ leadId: string; investorId: string; firmId: string }> {
+  const normalized = normalizeEmail(input.email);
+  // Match case-insensitively so 'Tariq@VC.com' and 'tariq@vc.com' point to the
+  // same investor. Tracxn imports lower-case the email, so any pre-imported
+  // record will dedup with self-serve signups out of the box.
   const existingInvestor = await db
     .select()
     .from(investors)
-    .where(and(eq(investors.workspaceId, input.workspaceId), eq(investors.email, input.email)))
+    .where(
+      and(
+        eq(investors.workspaceId, input.workspaceId),
+        sql`lower(${investors.email}) = ${normalized}`,
+      ),
+    )
     .limit(1);
 
   let investor = existingInvestor[0] ?? null;
@@ -69,7 +82,7 @@ async function findOrCreatePlaceholderLead(input: {
     }
     firmId = firm.id;
 
-    const emailLocal = input.email.split('@')[0] ?? 'investor';
+    const emailLocal = normalized.split('@')[0] ?? 'investor';
     const [createdInvestor] = await db
       .insert(investors)
       .values({
@@ -79,7 +92,7 @@ async function findOrCreatePlaceholderLead(input: {
         lastName: '—',
         title: 'Unknown',
         decisionAuthority: 'unknown',
-        email: input.email,
+        email: normalized,
         timezone: 'Asia/Kolkata',
       })
       .returning();
@@ -227,6 +240,81 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
     otpVerifiedAt,
     signedAt,
   });
+
+  // Enrich the investor record with the typed name/title/firm so the cockpit
+  // pipeline shows their real identity instead of the "emailLocal — Unknown"
+  // placeholder created by initiateNda(). Only overwrite when the existing
+  // value looks like the placeholder so we don't clobber a Tracxn-imported row.
+  try {
+    const [investorRow] = await db
+      .select()
+      .from(investors)
+      .where(and(eq(investors.workspaceId, workspaceId), eq(investors.id, lead[0].investorId)))
+      .limit(1);
+    if (investorRow) {
+      const isPlaceholderName = investorRow.lastName === '—' || investorRow.title === 'Unknown';
+      if (isPlaceholderName) {
+        const trimmed = input.name.trim();
+        const lastSpace = trimmed.lastIndexOf(' ');
+        const firstName = lastSpace > 0 ? trimmed.slice(0, lastSpace) : trimmed;
+        const lastName = lastSpace > 0 ? trimmed.slice(lastSpace + 1) : '';
+        await db
+          .update(investors)
+          .set({
+            firstName: firstName || investorRow.firstName,
+            lastName: lastName || investorRow.lastName,
+            title: input.title || investorRow.title,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(investors.workspaceId, workspaceId), eq(investors.id, investorRow.id)));
+      }
+
+      // Replace the "Unknown (self-serve NDA)" placeholder firm with a real
+      // firm matching the typed name. Reuse an existing firm if present;
+      // otherwise create one.
+      const [currentFirm] = await db
+        .select()
+        .from(firms)
+        .where(and(eq(firms.workspaceId, workspaceId), eq(firms.id, investorRow.firmId)))
+        .limit(1);
+      const isPlaceholderFirm = currentFirm?.name === 'Unknown (self-serve NDA)';
+      const desiredFirm = input.firm.trim();
+      if (isPlaceholderFirm && desiredFirm.length > 0) {
+        const [match] = await db
+          .select()
+          .from(firms)
+          .where(
+            and(
+              eq(firms.workspaceId, workspaceId),
+              sql`lower(${firms.name}) = ${desiredFirm.toLowerCase()}`,
+            ),
+          )
+          .limit(1);
+        let targetFirmId: string;
+        if (match) {
+          targetFirmId = match.id;
+        } else {
+          const [created] = await db
+            .insert(firms)
+            .values({
+              workspaceId,
+              name: desiredFirm,
+              firmType: 'angel',
+            })
+            .returning();
+          targetFirmId = created?.id ?? investorRow.firmId;
+        }
+        if (targetFirmId !== investorRow.firmId) {
+          await db
+            .update(investors)
+            .set({ firmId: targetFirmId, updatedAt: new Date() })
+            .where(and(eq(investors.workspaceId, workspaceId), eq(investors.id, investorRow.id)));
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[nda] post-sign enrichment failed (non-fatal)', err);
+  }
 
   // Auto-advance to nda_signed via the central helper so activity log + audit
   // trail stay consistent with other stage advancements.
