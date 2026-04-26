@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { and, eq } from 'drizzle-orm';
 
 import { ApiError } from '@/lib/api/handle';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { documentsRepo, type DocumentRow } from '@/lib/db/repos/documents';
 import { investors, leads, meetings, users } from '@/lib/db/schema';
@@ -42,7 +42,7 @@ async function takenMeetingStarts(workspaceId: string): Promise<Set<string>> {
 export async function getLoungeBundle(): Promise<LoungeBundle> {
   const cookieStore = await cookies();
   const cookie = cookieStore.get('ootaos_nda')?.value;
-  const session = readNdaSession(cookie);
+  const session = await getActiveNdaSession(cookie);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const { firms } = await import('@/lib/db/schema');
@@ -141,7 +141,7 @@ export async function getDocumentForSession(documentId: string): Promise<{
   signerEmail: string;
 }> {
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const leadRow = await db.execute<{ workspace_id: string; deal_id: string; stage: string }>(
@@ -158,8 +158,17 @@ export async function getDocumentForSession(documentId: string): Promise<{
   const doc = await documentsRepo.byId(workspaceId as string, documentId);
   if (!doc) throw new ApiError(404, 'document_not_found');
 
+  // Reject expired docs at fetch time. The `expiresAt` column is set when the
+  // founder uploads with an expiry; without this check the doc stayed
+  // fetchable indefinitely via direct URL.
+  if (doc.expiresAt && doc.expiresAt.getTime() <= Date.now()) {
+    throw new ApiError(404, 'document_expired');
+  }
+
   // Rule #9: deal-scoped data room — investor on deal A cannot fetch deal B's docs.
-  if (doc.dealId && doc.dealId !== dealId) throw new ApiError(404, 'document_not_found');
+  // Also reject docs with no dealId at all so unscoped uploads don't leak across
+  // deals once a workspace adds a second deal.
+  if (!doc.dealId || doc.dealId !== dealId) throw new ApiError(404, 'document_not_found');
 
   // Rule #10: per-stage permissioning. minLeadStage NULL = visible after NDA.
   if (doc.minLeadStage) {
@@ -196,7 +205,7 @@ export async function getDocumentForSession(documentId: string): Promise<{
 
 export async function signedUrlForDocument(documentId: string): Promise<string> {
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const leadWorkspace = await db.execute<{ workspace_id: string }>(

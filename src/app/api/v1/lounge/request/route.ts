@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { documentsRepo } from '@/lib/db/repos/documents';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
@@ -28,7 +28,7 @@ export const POST = handle(async (req) => {
   const input = Body.parse(await req.json());
 
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const leadRow = await db

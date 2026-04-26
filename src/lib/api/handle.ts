@@ -77,6 +77,17 @@ export function toErrorResponse(err: unknown): Response {
       { 'Retry-After': Math.ceil(err.retryAfterMs / 1000).toString() },
     );
   }
+  // OTP throttle bubbles up as 429 with a structured reason so the client
+  // can render "too many codes — wait an hour" vs "too many bad attempts".
+  if (
+    err instanceof Error &&
+    err.name === 'OtpThrottleError' &&
+    'reason' in err &&
+    typeof (err as { reason: unknown }).reason === 'string'
+  ) {
+    const reason = (err as { reason: string }).reason;
+    return problemJson(429, `otp_${reason}`, { reason }, { 'Retry-After': '3600' });
+  }
   if (err instanceof AuthError) {
     if (err.code === 'forbidden') return problemJson(403, 'forbidden');
     return problemJson(401, 'unauthorized', { code: err.code });

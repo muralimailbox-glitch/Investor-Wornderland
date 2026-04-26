@@ -92,6 +92,25 @@ export async function runConcierge(input: ConciergeInput): Promise<ConciergeResu
     };
   }
 
+  // Server-side trust gate. Until KB chunks are tagged by sensitivity tier
+  // and retrieve() filters by trust level, we hard-stop deep questions
+  // pre-retrieval rather than relying on the model to refuse via prompt.
+  // This closes the leak path where confidential KB content reached the
+  // model context for an anonymous or email-only visitor.
+  if (gate.needsNda) {
+    return {
+      answer:
+        'I can answer general questions about OotaOS without an NDA, but for the deeper detail (financials, cap table, runway, customer specifics) we ask investors to verify their email and sign the mutual NDA — both take about 60 seconds. Want me to walk you through it?',
+      citations: [],
+      refused: true,
+      refusalReason: 'no_context',
+      model,
+      promptVersion: prompt.version,
+      gate,
+      depthTopics: depthSignal.topics,
+    };
+  }
+
   let chunks: RetrievedChunk[] = await retrieve(input.workspaceId, input.question, {
     topK: 8,
     minSimilarity: 0.45,

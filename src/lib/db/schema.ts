@@ -599,6 +599,18 @@ export const googleOauthTokens = pgTable(
   }),
 );
 
+// ── OTP throttle ────────────────────────────────────────────────────────
+// Per-email OTP issuance + verification limits (FR-021). Single row per
+// email; window_started_at resets when older than 1 hour. Caps: 3 issuances,
+// 5 failed verifications, then 1-hour lockout.
+export const otpThrottle = pgTable('otp_throttle', {
+  email: text('email').primaryKey(),
+  issuanceCount: integer('issuance_count').notNull().default(0),
+  failedAttemptCount: integer('failed_attempt_count').notNull().default(0),
+  windowStartedAt: timestamp('window_started_at', { withTimezone: true }).notNull().defaultNow(),
+  lockedUntil: timestamp('locked_until', { withTimezone: true }),
+});
+
 // ── Magic-link revocations ───────────────────────────────────────────────
 // Stateless HMAC tokens can't carry a revoked bit, so we record a "revoked
 // before <ts>" cutoff per investor. verifyInvestorLink consults this on

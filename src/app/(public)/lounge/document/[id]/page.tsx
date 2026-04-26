@@ -5,7 +5,7 @@ import { notFound, redirect } from 'next/navigation';
 import { eq } from 'drizzle-orm';
 
 import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { documentsRepo } from '@/lib/db/repos/documents';
 import { leads } from '@/lib/db/schema';
@@ -26,7 +26,7 @@ export const dynamic = 'force-dynamic';
 export default async function DocumentPreviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const jar = await cookies();
-  const session = readNdaSession(jar.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(jar.get('ootaos_nda')?.value);
   if (!session) redirect('/nda');
 
   const { investors, firms } = await import('@/lib/db/schema');

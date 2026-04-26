@@ -24,6 +24,14 @@ const Body = z.object({
   ]),
   reason: z.string().max(500).optional(),
   force: z.boolean().optional(),
+  // Stage-rule fields. Pipeline service guards require these on specific
+  // transitions (closed_lost reason, funded amount/date, next-action) — we
+  // pass them through so Zod doesn't strip them and the guards can fire.
+  nextActionOwner: z.string().max(120).optional(),
+  nextActionDue: z.string().datetime().optional(),
+  closedLostReason: z.string().max(500).optional(),
+  fundedAmountUsd: z.number().int().positive().optional(),
+  fundedAt: z.string().datetime().optional(),
 });
 
 export const POST = handle(async (req) => {
@@ -38,6 +46,11 @@ export const POST = handle(async (req) => {
   };
   if (body.reason !== undefined) params.reason = body.reason;
   if (body.force !== undefined) params.force = body.force;
+  if (body.nextActionOwner !== undefined) params.nextActionOwner = body.nextActionOwner;
+  if (body.nextActionDue !== undefined) params.nextActionDue = new Date(body.nextActionDue);
+  if (body.closedLostReason !== undefined) params.closedLostReason = body.closedLostReason;
+  if (body.fundedAmountUsd !== undefined) params.fundedAmountUsd = body.fundedAmountUsd;
+  if (body.fundedAt !== undefined) params.fundedAt = new Date(body.fundedAt);
   const updated = await transitionStage(params);
   return Response.json(updated);
 });

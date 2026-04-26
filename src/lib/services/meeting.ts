@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { and, eq, sql } from 'drizzle-orm';
 
 import { ApiError } from '@/lib/api/handle';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { meetingsRepo } from '@/lib/db/repos/meetings';
@@ -67,7 +67,7 @@ const MEET_DISCLAIMER =
 
 export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingResult> {
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   // Normalize input → array of slots

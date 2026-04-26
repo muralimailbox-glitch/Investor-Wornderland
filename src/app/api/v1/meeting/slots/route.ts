@@ -15,7 +15,7 @@ import { and, eq, gte, lte } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { leads, meetings } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -32,7 +32,7 @@ const Query = z.object({
 export const GET = handle(async (req: Request) => {
   await rateLimit(req, { key: 'meeting:slots', perMinute: 60 });
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const url = new URL(req.url);

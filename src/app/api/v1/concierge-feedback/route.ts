@@ -9,7 +9,8 @@ import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
 import { getInvestorContext } from '@/lib/auth/investor-context';
-import { NDA_SESSION_COOKIE, readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
+import { NDA_SESSION_COOKIE } from '@/lib/auth/nda-session';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { workspacesRepo } from '@/lib/db/repos/workspaces';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -30,7 +31,7 @@ export const POST = handle(async (req) => {
   const input = Body.parse(await req.json());
 
   const cookieStore = await cookies();
-  const ndaSession = readNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
+  const ndaSession = await getActiveNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
   const ctx = await getInvestorContext();
 
   let workspaceId: string | undefined = ctx?.workspaceId;

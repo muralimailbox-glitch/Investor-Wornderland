@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
-import { readNdaSession } from '@/lib/auth/nda-session';
+import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { db } from '@/lib/db/client';
 import { firms, investors, leads } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -28,7 +28,7 @@ const Body = z.object({
 
 export const GET = handle(async () => {
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const [row] = await db
@@ -59,7 +59,7 @@ export const POST = handle(async (req) => {
   await rateLimit(req, { key: 'lounge:profile', perMinute: 6 });
 
   const cookieStore = await cookies();
-  const session = readNdaSession(cookieStore.get('ootaos_nda')?.value);
+  const session = await getActiveNdaSession(cookieStore.get('ootaos_nda')?.value);
   if (!session) throw new ApiError(401, 'nda_required');
 
   const input = Body.parse(await req.json());

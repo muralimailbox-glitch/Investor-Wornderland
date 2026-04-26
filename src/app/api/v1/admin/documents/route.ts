@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { BadRequestError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
+import { dealsRepo } from '@/lib/db/repos/deals';
 import { documentsRepo } from '@/lib/db/repos/documents';
 import { rateLimit } from '@/lib/security/rate-limit';
 import { getStorage } from '@/lib/storage';
@@ -100,6 +101,16 @@ export const POST = handle(async (req) => {
       ? new Date(Date.now() + meta.expiresInDays * 24 * 60 * 60 * 1000)
       : null;
 
+  // Resolve the workspace's active deal so every new document is deal-scoped.
+  // Without this the row's deal_id stayed null and the public fetch gate's
+  // existing `if (doc.dealId && doc.dealId !== dealId)` would let the doc
+  // leak across deals once the workspace ever adds a second deal.
+  const activeDeals = await dealsRepo.activeForWorkspace(user.workspaceId);
+  const activeDeal = activeDeals[0];
+  if (!activeDeal) {
+    throw new BadRequestError('no_active_deal');
+  }
+
   const bytes = new Uint8Array(await file.arrayBuffer());
   const sha256 = createHash('sha256').update(bytes).digest('hex');
   const r2Key = `workspaces/${user.workspaceId}/documents/${randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120)}`;
@@ -108,6 +119,7 @@ export const POST = handle(async (req) => {
 
   const row = await documentsRepo.create({
     workspaceId: user.workspaceId,
+    dealId: activeDeal.id,
     kind,
     title,
     r2Key,
