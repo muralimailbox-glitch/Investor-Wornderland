@@ -4,10 +4,32 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, Loader2, TrendingUp } from 'lucide-react';
 
+import {
+  StagePromptModal,
+  type StagePromptKind,
+  type StagePromptResult,
+} from '@/components/cockpit/stage-prompt-modal';
+
 type Investor = { id: string; firstName: string; lastName: string; email: string };
 type Firm = { id: string; name: string; firmType: string };
-type Lead = { id: string; stage: string; updatedAt: string; thesisFitScore: number | null };
+type Lead = {
+  id: string;
+  stage: string;
+  updatedAt: string;
+  thesisFitScore: number | null;
+  nextActionOwner?: string | null;
+  nextActionDue?: string | null;
+};
 type Row = { investor: Investor; firm: Firm; lead: Lead | null };
+
+const STAGES_REQUIRING_NEXT_ACTION = new Set([
+  'engaged',
+  'nda_pending',
+  'nda_signed',
+  'meeting_scheduled',
+  'diligence',
+  'term_sheet',
+]);
 
 const STAGES: { key: string; label: string; accent: string; glow: string }[] = [
   {
@@ -112,7 +134,39 @@ export function PipelineBoard() {
     return map;
   }, [rows]);
 
-  async function transition(leadId: string, nextStage: string) {
+  type Pending = {
+    leadId: string;
+    nextStage: string;
+    investorName: string;
+    kind: StagePromptKind;
+  };
+  const [prompt, setPrompt] = useState<Pending | null>(null);
+
+  function attemptTransition(leadId: string, nextStage: string) {
+    const row = rows.find((r) => r.lead?.id === leadId);
+    if (!row || !row.lead) return;
+    if (row.lead.stage === nextStage) return;
+    const investorName = `${row.investor.firstName} ${row.investor.lastName}`;
+
+    if (nextStage === 'closed_lost') {
+      setPrompt({ leadId, nextStage, investorName, kind: 'closed_lost' });
+      return;
+    }
+    if (nextStage === 'funded') {
+      setPrompt({ leadId, nextStage, investorName, kind: 'funded' });
+      return;
+    }
+    if (
+      STAGES_REQUIRING_NEXT_ACTION.has(nextStage) &&
+      (!row.lead.nextActionOwner || !row.lead.nextActionDue)
+    ) {
+      setPrompt({ leadId, nextStage, investorName, kind: 'next_action' });
+      return;
+    }
+    void runTransition(leadId, nextStage, {});
+  }
+
+  async function runTransition(leadId: string, nextStage: string, extra: Record<string, unknown>) {
     setPendingId(leadId);
     const snapshot = rows;
     setRows((prev) =>
@@ -125,15 +179,39 @@ export function PipelineBoard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ leadId, nextStage, force: true }),
+        body: JSON.stringify({ leadId, nextStage, ...extra }),
       });
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        let detail: string | null = null;
+        try {
+          const j = (await res.json()) as { title?: string; detail?: string };
+          detail = j.title ?? j.detail ?? null;
+        } catch {
+          /* ignore */
+        }
+        throw new Error(detail ?? `${res.status}`);
+      }
     } catch (e) {
       setRows(snapshot);
       setErr(e instanceof Error ? e.message : 'transition_failed');
     } finally {
       setPendingId(null);
     }
+  }
+
+  async function handlePromptSubmit(p: Pending, result: StagePromptResult) {
+    const extra: Record<string, unknown> = {};
+    if (result.kind === 'next_action') {
+      extra.nextActionOwner = result.nextActionOwner;
+      extra.nextActionDue = result.nextActionDue;
+    } else if (result.kind === 'closed_lost') {
+      extra.closedLostReason = result.closedLostReason;
+    } else if (result.kind === 'funded') {
+      extra.fundedAmountUsd = result.fundedAmountUsd;
+      extra.fundedAt = result.fundedAt;
+    }
+    setPrompt(null);
+    await runTransition(p.leadId, p.nextStage, extra);
   }
 
   return (
@@ -192,7 +270,7 @@ export function PipelineBoard() {
                   if (leadId) {
                     const row = rows.find((r) => r.lead?.id === leadId);
                     if (row && row.lead && row.lead.stage !== stage.key) {
-                      transition(leadId, stage.key);
+                      attemptTransition(leadId, stage.key);
                     }
                   }
                   setDragId(null);
@@ -267,11 +345,22 @@ export function PipelineBoard() {
               Tip: drag cards to advance stages.
             </p>
             <p className="text-sm text-slate-600">
-              Every transition is audit-logged. Move with intent.
+              Closed-lost asks for a reason; Funded asks for amount + date; engaged onward asks for
+              a next-action owner & due date. Every transition is audit-logged.
             </p>
           </div>
         </div>
       </div>
+
+      {prompt ? (
+        <StagePromptModal
+          kind={prompt.kind}
+          investorName={prompt.investorName}
+          targetStage={prompt.nextStage}
+          onCancel={() => setPrompt(null)}
+          onSubmit={(result) => handlePromptSubmit(prompt, result)}
+        />
+      ) : null}
     </div>
   );
 }
