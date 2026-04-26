@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUp, Lock, Quote, Sparkles } from 'lucide-react';
+import { ArrowUp, Lock, Quote, Sparkles, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { InvestorGateModal } from '@/components/public/investor-gate-modal';
@@ -15,6 +15,10 @@ type Turn = {
   citations?: Citation[];
   pending?: boolean;
   gate?: Gate;
+  /** Tracks the user's thumbs reaction to this assistant turn. */
+  feedback?: 'up' | 'down';
+  /** Indexed against the user turn just before for question context. */
+  questionAt?: string;
 };
 
 const SUGGESTED = [
@@ -48,6 +52,30 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turns]);
+
+  async function submitFeedback(turnId: string, rating: 'up' | 'down') {
+    setTurns((prev) => prev.map((t) => (t.id === turnId ? { ...t, feedback: rating } : t)));
+    const turn = turns.find((t) => t.id === turnId);
+    if (!turn) return;
+    // Question = the user turn immediately preceding this assistant turn.
+    const idx = turns.findIndex((t) => t.id === turnId);
+    const question = idx > 0 ? (turns[idx - 1]?.text ?? '') : '';
+    try {
+      await fetch('/api/v1/concierge-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          sessionId,
+          rating,
+          question: question.slice(0, 2000),
+          answer: turn.text.slice(0, 8000),
+        }),
+      });
+    } catch {
+      /* swallow — UI is optimistic */
+    }
+  }
 
   async function submit(question: string) {
     const q = question.trim();
@@ -210,6 +238,42 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
                           ? 'Verify email to unlock the numbers'
                           : 'Sign the NDA to see the deeper detail'}
                       </button>
+                    ) : null}
+                    {turn.text && !turn.pending ? (
+                      <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+                        <span className="mr-1">Was this helpful?</span>
+                        <button
+                          type="button"
+                          onClick={() => void submitFeedback(turn.id, 'up')}
+                          disabled={Boolean(turn.feedback)}
+                          className={`rounded-full p-1 transition ${
+                            turn.feedback === 'up'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'hover:bg-slate-100 hover:text-slate-700'
+                          } disabled:cursor-default`}
+                          aria-label="Helpful"
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void submitFeedback(turn.id, 'down')}
+                          disabled={Boolean(turn.feedback)}
+                          className={`rounded-full p-1 transition ${
+                            turn.feedback === 'down'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'hover:bg-slate-100 hover:text-slate-700'
+                          } disabled:cursor-default`}
+                          aria-label="Not helpful"
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                        </button>
+                        {turn.feedback ? (
+                          <span className="ml-1 text-[10px] text-slate-500">
+                            Thanks — the founder reviews flagged answers daily.
+                          </span>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 ) : (

@@ -24,6 +24,8 @@ export type LoungeBundle = {
     filename: string;
     sizeBytes: number;
     viewUrl: string;
+    locked: boolean;
+    minLeadStage: string | null;
   }>;
   suggestedSlots: Array<{ startsAt: string; endsAt: string }>;
   signedAt: string;
@@ -76,6 +78,17 @@ export async function getLoungeBundle(): Promise<LoungeBundle> {
 
   const docs = await documentsRepo.list(workspaceId);
 
+  // Resolve the investor's current lead stage so we can flag locked docs in
+  // the UI (rule #10). The download endpoint enforces the gate again at
+  // fetch time — this only changes presentation, not access control.
+  const [leadStageRow] = await db
+    .select({ stage: leads.stage })
+    .from(leads)
+    .where(eq(leads.id, session.leadId))
+    .limit(1);
+  const currentStage = leadStageRow?.stage ?? 'nda_signed';
+  const { stageMeetsMinimum } = await import('@/lib/auth/investor-context');
+
   // Generate IST-windowed bookable slots (skips breakfast/lunch/dinner breaks
   // and weekends, with 20-hour minimum notice). Show 6 options.
   const taken = await takenMeetingStarts(workspaceId);
@@ -86,13 +99,20 @@ export async function getLoungeBundle(): Promise<LoungeBundle> {
     .map((s) => ({ startsAt: s.startsAt, endsAt: s.endsAt }));
 
   const documents = await Promise.all(
-    docs.map(async (d) => ({
-      id: d.id,
-      kind: d.kind,
-      filename: d.originalFilename,
-      sizeBytes: d.sizeBytes,
-      viewUrl: `/api/v1/document/${d.id}`,
-    })),
+    docs.map(async (d) => {
+      type StageKey = Parameters<typeof stageMeetsMinimum>[0];
+      const minStage = d.minLeadStage as StageKey | null;
+      const locked = Boolean(minStage && !stageMeetsMinimum(currentStage as StageKey, minStage));
+      return {
+        id: d.id,
+        kind: d.kind,
+        filename: d.originalFilename,
+        sizeBytes: d.sizeBytes,
+        viewUrl: `/api/v1/document/${d.id}`,
+        locked,
+        minLeadStage: minStage ?? null,
+      };
+    }),
   );
 
   const investorName =

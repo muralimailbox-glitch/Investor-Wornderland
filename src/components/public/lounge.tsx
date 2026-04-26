@@ -8,7 +8,15 @@ import { InvestorIdentityPill } from '@/components/public/investor-identity-pill
 import { MeetingCalendar } from '@/components/public/meeting-calendar';
 import { WhatsappButton } from '@/components/public/whatsapp-button';
 
-type Document = { id: string; kind: string; filename: string; sizeBytes: number; viewUrl: string };
+type Document = {
+  id: string;
+  kind: string;
+  filename: string;
+  sizeBytes: number;
+  viewUrl: string;
+  locked: boolean;
+  minLeadStage: string | null;
+};
 type Slot = { startsAt: string; endsAt: string };
 
 type Bundle = {
@@ -150,46 +158,79 @@ export function Lounge() {
           {bundle.documents.length === 0 ? (
             <p className="text-sm text-slate-500">The founders are preparing this week&apos;s refresh — check back shortly.</p>
           ) : (
-            bundle.documents.map((doc, i) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="group flex items-start gap-3 rounded-2xl border border-violet-100 bg-white/90 p-4 shadow-[0_18px_40px_-28px_rgba(91,33,182,0.35)] backdrop-blur transition hover:-translate-y-0.5 hover:border-violet-300"
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition group-hover:bg-violet-600 group-hover:text-white">
-                  <FileText className="h-5 w-5" />
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900">{doc.filename}</p>
-                  <p className="text-xs text-slate-500">
-                    {doc.kind} · {formatBytes(doc.sizeBytes)}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <a
-                      href={`/lounge/document/${doc.id}`}
-                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
-                    >
-                      <FileText className="h-3 w-3" /> Open preview
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setRequestOpen({
-                          kind: 'original_document',
-                          documentId: doc.id,
-                          filename: doc.filename,
-                        })
-                      }
-                      className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
-                    >
-                      <Send className="h-3 w-3" /> Request original
-                    </button>
+            bundle.documents.map((doc, i) => {
+              if (doc.locked) {
+                const stageLabel = (doc.minLeadStage ?? '').replace(/_/g, ' ');
+                return (
+                  <motion.div
+                    key={doc.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="group relative flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/60 p-4 backdrop-blur"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-900">
+                        {doc.filename}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {doc.kind} · {formatBytes(doc.sizeBytes)}
+                      </p>
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-800">
+                        Unlocks at: {stageLabel}
+                      </p>
+                      <p className="mt-2 text-[11px] text-slate-600">
+                        Book a 30-min founder call below — once we&apos;ve met, this opens
+                        automatically.
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              }
+              return (
+                <motion.div
+                  key={doc.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="group flex items-start gap-3 rounded-2xl border border-violet-100 bg-white/90 p-4 shadow-[0_18px_40px_-28px_rgba(91,33,182,0.35)] backdrop-blur transition hover:-translate-y-0.5 hover:border-violet-300"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-violet-700 transition group-hover:bg-violet-600 group-hover:text-white">
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-900">{doc.filename}</p>
+                    <p className="text-xs text-slate-500">
+                      {doc.kind} · {formatBytes(doc.sizeBytes)}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <a
+                        href={`/lounge/document/${doc.id}`}
+                        className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                      >
+                        <FileText className="h-3 w-3" /> Open preview
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRequestOpen({
+                            kind: 'original_document',
+                            documentId: doc.id,
+                            filename: doc.filename,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-white px-2.5 py-1 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+                      >
+                        <Send className="h-3 w-3" /> Request original
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </div>
       </section>

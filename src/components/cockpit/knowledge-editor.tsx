@@ -56,12 +56,22 @@ const TEMPLATES: { key: string; label: string; hint: string; sample: string }[] 
   },
 ];
 
+type Freshness = {
+  lastIndexedAt: string | null;
+  ageDays: number | null;
+  latestVersion: string | null;
+  chunkCount: number;
+  stale: boolean;
+  severity: 'ok' | 'warn' | 'critical';
+};
+
 export function KnowledgeEditor() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [freshness, setFreshness] = useState<Freshness | null>(null);
 
   const [activeTemplate, setActiveTemplate] = useState<string>(TEMPLATES[0]?.key ?? 'pitch');
   const [version, setVersion] = useState('1.0.0');
@@ -69,10 +79,16 @@ export function KnowledgeEditor() {
 
   async function load() {
     try {
-      const r = await fetch('/api/v1/admin/knowledge', { credentials: 'include' });
+      const [r, f] = await Promise.all([
+        fetch('/api/v1/admin/knowledge', { credentials: 'include' }),
+        fetch('/api/v1/admin/knowledge/freshness', { credentials: 'include' }),
+      ]);
       if (!r.ok) throw new Error(`${r.status}`);
       const d = (await r.json()) as { sections: Section[] };
       setSections(d.sections);
+      if (f.ok) {
+        setFreshness((await f.json()) as Freshness);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'failed');
     } finally {
@@ -163,6 +179,37 @@ export function KnowledgeEditor() {
           Write in your own words. Priya grounds every investor answer in these sections.
         </p>
       </div>
+
+      {freshness ? (
+        <div
+          className={`flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-2.5 text-xs ${
+            freshness.severity === 'critical'
+              ? 'border-rose-200 bg-rose-50 text-rose-800'
+              : freshness.severity === 'warn'
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+        >
+          <span className="font-semibold">
+            {freshness.lastIndexedAt
+              ? freshness.severity === 'ok'
+                ? 'KB is fresh'
+                : freshness.severity === 'warn'
+                  ? 'KB is getting stale'
+                  : 'KB has not been refreshed in a while'
+              : 'KB has no chunks indexed yet'}
+          </span>
+          <span className="text-slate-600">
+            {freshness.lastIndexedAt
+              ? `${freshness.chunkCount} chunks · last indexed ${
+                  freshness.ageDays === 0
+                    ? 'today'
+                    : `${freshness.ageDays} day${freshness.ageDays === 1 ? '' : 's'} ago`
+                } (${new Date(freshness.lastIndexedAt).toLocaleString()})`
+              : 'Save any section below to seed Priya.'}
+          </span>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {TEMPLATES.map((t) => {
