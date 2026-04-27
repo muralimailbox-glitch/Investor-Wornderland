@@ -1,18 +1,24 @@
 /**
  * Lightweight thumbs-up / thumbs-down feedback on concierge answers.
  * Stored as a `note` interaction with payload.kind = 'concierge_feedback'
- * so it surfaces in the existing timeline + audit pipeline. Public-facing
- * route — gates on the NDA cookie if present, else on the magic-link cookie.
+ * so it surfaces in the existing timeline + audit pipeline.
+ *
+ * Access model mirrors /api/v1/ask: requires an investor magic-link
+ * cookie OR an active NDA session — anonymous callers get 401 (rule C /
+ * business rule #5). When only an NDA session is present, workspaceId is
+ * resolved from the lead row tied to that session.
  */
 import { cookies } from 'next/headers';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
 import { getInvestorContext } from '@/lib/auth/investor-context';
 import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { NDA_SESSION_COOKIE } from '@/lib/auth/nda-session';
+import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
-import { workspacesRepo } from '@/lib/db/repos/workspaces';
+import { leads } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
@@ -35,11 +41,15 @@ export const POST = handle(async (req) => {
   const ctx = await getInvestorContext();
 
   let workspaceId: string | undefined = ctx?.workspaceId;
-  if (!workspaceId) {
-    const ws = await workspacesRepo.default();
-    workspaceId = ws?.id;
+  if (!workspaceId && ndaSession) {
+    const [row] = await db
+      .select({ workspaceId: leads.workspaceId })
+      .from(leads)
+      .where(eq(leads.id, ndaSession.leadId))
+      .limit(1);
+    workspaceId = row?.workspaceId;
   }
-  if (!workspaceId) throw new ApiError(503, 'workspace_not_provisioned');
+  if (!workspaceId) throw new ApiError(401, 'invite_required');
 
   const investorId = ctx?.session?.investorId ?? null;
   const leadId = ctx?.session?.leadId ?? ndaSession?.leadId ?? null;

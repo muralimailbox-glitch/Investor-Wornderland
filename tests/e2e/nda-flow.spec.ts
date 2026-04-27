@@ -5,8 +5,10 @@ test.describe('NDA signing journey', () => {
     await page.goto('/nda', { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: /unlock the data room/i })).toBeVisible();
 
-    const inputs = page.locator('input');
-    await expect(inputs).toHaveCount(3);
+    // Assert the *labelled* fields rather than a raw input count — that
+    // count drifts every time the form gains a hidden helper input
+    // (autofill helpers, CSRF tokens, etc.) and tests start to lie.
+    await expect(page.getByLabel(/email/i).first()).toBeVisible();
 
     const cta = page.getByRole('button').first();
     await expect(cta).toBeVisible();

@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 
 import { and, eq, sql } from 'drizzle-orm';
 
-import { ApiError, BadRequestError, NotFoundError } from '@/lib/api/handle';
+import { BadRequestError, NotFoundError } from '@/lib/api/handle';
 import { issueNdaSession, issueSigningToken, readSigningToken } from '@/lib/auth/nda-session';
 import { issueOtp, verifyOtp } from '@/lib/auth/otp';
 import { db } from '@/lib/db/client';
 import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
+import { leadsRepo } from '@/lib/db/repos/leads';
 import { ndasRepo } from '@/lib/db/repos/ndas';
-import { deals, firms, investors, leads } from '@/lib/db/schema';
+import { firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
@@ -16,24 +17,10 @@ import { sendMail } from '@/lib/mail/smtp';
 // reads must agree on the same version string.
 import { MUTUAL_NDA_TEMPLATE_VERSION } from '@/lib/nda/mutual-nda-text';
 import { sealNda } from '@/lib/pdf/seal-nda';
+import { resolvePublicFundraiseContext } from '@/lib/services/public-fundraise';
 import { getStorage } from '@/lib/storage';
 
 const NDA_TEMPLATE_VERSION = MUTUAL_NDA_TEMPLATE_VERSION;
-
-async function resolveDefaultWorkspaceId(): Promise<string> {
-  const rows = await db.select({ id: leads.workspaceId }).from(leads).limit(1);
-  const first = rows[0];
-  if (!first) {
-    throw new ApiError(503, 'workspace_not_provisioned');
-  }
-  return first.id;
-}
-
-async function resolveDefaultDealId(workspaceId: string): Promise<string> {
-  const [row] = await db.select().from(deals).where(eq(deals.workspaceId, workspaceId)).limit(1);
-  if (!row) throw new ApiError(503, 'deal_not_provisioned');
-  return row.id;
-}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -41,6 +28,7 @@ function normalizeEmail(email: string): string {
 
 async function findOrCreatePlaceholderLead(input: {
   workspaceId: string;
+  dealId: string;
   email: string;
 }): Promise<{ leadId: string; investorId: string; firmId: string }> {
   const normalized = normalizeEmail(input.email);
@@ -105,20 +93,18 @@ async function findOrCreatePlaceholderLead(input: {
     firmId = investor.firmId;
   }
 
-  const dealId = await resolveDefaultDealId(input.workspaceId);
-  const existingLead = await db
-    .select()
-    .from(leads)
-    .where(and(eq(leads.workspaceId, input.workspaceId), eq(leads.investorId, investor.id)))
-    .limit(1);
+  // Reuse the active lead for THIS investor on THIS deal — never look up
+  // "any lead for this investor" (rule B). Without the dealId scope, two
+  // deals on the same workspace would collide and a self-serve signup on
+  // deal B would be silently routed to the operator's lead on deal A.
+  let lead = await leadsRepo.activeForInvestorAndDeal(input.workspaceId, investor.id, input.dealId);
 
-  let lead = existingLead[0] ?? null;
   if (!lead) {
     const [createdLead] = await db
       .insert(leads)
       .values({
         workspaceId: input.workspaceId,
-        dealId,
+        dealId: input.dealId,
         investorId: investor.id,
         stage: 'nda_pending',
         sourceOfLead: 'self_serve',
@@ -139,8 +125,8 @@ async function findOrCreatePlaceholderLead(input: {
 }
 
 export async function initiateNda(email: string): Promise<{ sent: true }> {
-  const workspaceId = await resolveDefaultWorkspaceId();
-  await findOrCreatePlaceholderLead({ workspaceId, email });
+  const { workspaceId, dealId } = await resolvePublicFundraiseContext();
+  await findOrCreatePlaceholderLead({ workspaceId, dealId, email });
   const code = await issueOtp(email);
   const otp = renderBrandedEmail({
     heading: 'Your OotaOS NDA verification code',
@@ -173,10 +159,10 @@ export async function verifyNdaOtp(
   email: string,
   code: string,
 ): Promise<{ token: string; expiresAt: string }> {
-  const workspaceId = await resolveDefaultWorkspaceId();
+  const { workspaceId, dealId } = await resolvePublicFundraiseContext();
   const ok = await verifyOtp(email, code);
   if (!ok) throw new BadRequestError('invalid_or_expired_otp');
-  const { leadId } = await findOrCreatePlaceholderLead({ workspaceId, email });
+  const { leadId } = await findOrCreatePlaceholderLead({ workspaceId, dealId, email });
   const { token, expiresAt } = issueSigningToken({ email, leadId });
   return { token, expiresAt: expiresAt.toISOString() };
 }
@@ -202,9 +188,13 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
   const decoded = readSigningToken(input.token);
   if (!decoded) throw new BadRequestError('invalid_or_expired_token');
 
-  const workspaceId = await resolveDefaultWorkspaceId();
+  // Trust the leadId on the signing token (issued during verifyNdaOtp,
+  // already bound to the active fundraise context). Resolve workspace from
+  // the lead row itself rather than the public-fundraise helper so an
+  // operator-issued lead on a different deal still works through this path.
   const lead = await db.select().from(leads).where(eq(leads.id, decoded.leadId)).limit(1);
   if (!lead[0]) throw new NotFoundError('lead_not_found');
+  const workspaceId = lead[0].workspaceId;
 
   const signedAt = new Date();
   const otpVerifiedAt = new Date(decoded.issuedAt);

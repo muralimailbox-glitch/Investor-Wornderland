@@ -184,11 +184,23 @@ export async function getDocumentForSession(documentId: string): Promise<{
   const raw = await getStorage().get(doc.r2Key);
   const isPdf =
     doc.mimeType === 'application/pdf' || doc.originalFilename.toLowerCase().endsWith('.pdf');
-  const bytes = isPdf
-    ? await watermarkPdf(raw, {
+
+  // Rule #8: watermark behaviour MUST match the stored policy. The upload
+  // route already rejects non-PDF + (per_investor|static), so a non-PDF can
+  // only have policy='none' here — but keep the isPdf guard so an old
+  // pre-rule-#8 row doesn't crash the watermark pipeline.
+  let bytes = raw;
+  if (isPdf) {
+    if (doc.watermarkPolicy === 'per_investor') {
+      bytes = await watermarkPdf(raw, {
         label: `Confidential — ${session.email} — ${new Date().toISOString().slice(0, 10)}`,
-      })
-    : raw;
+      });
+    } else if (doc.watermarkPolicy === 'static') {
+      bytes = await watermarkPdf(raw, {
+        label: 'Confidential — OotaOS Investor Room',
+      });
+    }
+  }
 
   // Side-effect: record a document_viewed interaction.
   const { interactionsRepo } = await import('@/lib/db/repos/interactions');

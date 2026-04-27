@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+// /ask is invite-gated and redirects anonymous visitors to / — it stays
+// a 200 response after the redirect lands, so it's still safe to include
+// here. Public routes that genuinely render anonymously: marketing
+// splash, NDA intake, gated lounge shell, privacy, terms.
 const PUBLIC_ROUTES = ['/', '/ask', '/nda', '/lounge', '/privacy', '/terms'];
 const COCKPIT_ROUTES = ['/cockpit/login'];
 
@@ -36,10 +40,13 @@ test('landing hero is present', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 });
 
-test('ask route shows concierge input', async ({ page }) => {
+test('ask route bounces anonymous visitors to the splash', async ({ page, context }) => {
+  // /ask is invite-gated — anonymous request is redirected to / with a
+  // ?link=expired marker. The previous assertion (anonymous textarea) was
+  // valid before the gate existed and now masks the redirect contract.
+  await context.clearCookies();
   await page.goto('/ask');
-  const textarea = page.locator('textarea').first();
-  await expect(textarea).toBeVisible();
+  expect(page.url()).toMatch(/\/(\?|$)/);
 });
 
 test('cockpit login form renders', async ({ page }) => {

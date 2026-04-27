@@ -13,6 +13,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { ImapFlow } from 'imapflow';
 
 import { db } from '@/lib/db/client';
+import { emailInboxRepo } from '@/lib/db/repos/email-inbox';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { leadsRepo } from '@/lib/db/repos/leads';
 import { investors, leads } from '@/lib/db/schema';
@@ -63,9 +64,12 @@ export async function runInboxSync(): Promise<InboxSyncResult> {
 
       for (const uid of uids) {
         try {
+          // Fetch source so the inbox can show a raw preview even when the
+          // sender doesn't match an investor (rule #7: better to show plain
+          // text in inbox than to silently process replies invisibly).
           const msg = await client.fetchOne(
             String(uid),
-            { uid: true, envelope: true, internalDate: true, flags: true },
+            { uid: true, envelope: true, internalDate: true, flags: true, source: true },
             { uid: true },
           );
           if (!msg) continue;
@@ -96,6 +100,39 @@ export async function runInboxSync(): Promise<InboxSyncResult> {
             continue;
           }
 
+          // Decode message source for inbox preview. imapflow returns either
+          // a string or a Buffer depending on server; coerce to UTF-8 text and
+          // truncate to a sane preview size.
+          const receivedAt =
+            msg.internalDate instanceof Date
+              ? msg.internalDate
+              : typeof msg.internalDate === 'string'
+                ? new Date(msg.internalDate)
+                : new Date();
+          const rawSource =
+            typeof msg.source === 'string'
+              ? msg.source
+              : msg.source
+                ? Buffer.from(msg.source as Uint8Array).toString('utf8')
+                : '';
+          const preview = rawSource.replace(/\r\n/g, '\n').trim().slice(0, 8000) || subject;
+
+          // Application-level dedupe by (workspaceId, imapUid). Re-running
+          // sync — or hitting the same UID after a reconnect — must not
+          // create duplicate inbox rows.
+          const existingInbox = await emailInboxRepo.findByUid(inv.workspaceId, uid);
+          const inboxRow =
+            existingInbox ??
+            (await emailInboxRepo.record({
+              workspaceId: inv.workspaceId,
+              imapUid: uid,
+              fromEmail: fromAddr,
+              subject,
+              bodyText: preview,
+              bodyHtml: null,
+              receivedAt,
+            }));
+
           // Active lead = most recently touched, regardless of stage.
           const [lead] = await db
             .select({ id: leads.id })
@@ -105,6 +142,9 @@ export async function runInboxSync(): Promise<InboxSyncResult> {
             .limit(1);
 
           if (!lead) {
+            // Inbox row exists with the raw preview but no lead match —
+            // leave processedAt null so the cockpit inbox can surface it
+            // for manual triage (rule #6 + #7).
             result.skipped++;
             continue;
           }
@@ -119,16 +159,13 @@ export async function runInboxSync(): Promise<InboxSyncResult> {
               subject,
               messageId,
               inReplyTo,
-              receivedAt:
-                msg.internalDate instanceof Date
-                  ? msg.internalDate.toISOString()
-                  : typeof msg.internalDate === 'string'
-                    ? new Date(msg.internalDate).toISOString()
-                    : new Date().toISOString(),
+              receivedAt: receivedAt.toISOString(),
               imapUid: uid,
+              inboxId: inboxRow.id,
             },
           });
 
+          await emailInboxRepo.markProcessed(inboxRow.id, lead.id);
           await leadsRepo.touchLastContact(inv.workspaceId, lead.id).catch(() => {});
           await autoAdvanceOnEvent(inv.workspaceId, lead.id, 'email_received').catch(() => {});
           // Reply received → halt any in-flight drip cadence so we don't

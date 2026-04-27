@@ -13,6 +13,15 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // Auto-boot Next dev so `pnpm exec playwright test` can run from a clean
+  // shell without a separate dev server in another tab. Reuses an existing
+  // server if the operator already has `pnpm dev` running locally.
+  webServer: {
+    command: 'pnpm dev',
+    url: 'http://localhost:3000',
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
   projects: [
     {
       name: 'chromium',

@@ -3,24 +3,20 @@
  * as a bearer token to force the founder user record to be (re-)created
  * with a fresh argon2 password hash from FOUNDER_EMAIL / FOUNDER_PASSWORD.
  *
- * Use this when the cockpit login fails after a deploy and you can't tell
- * whether bootstrap.ts ran. No subprocesses, no PATH lookups — just a
- * direct DB write inside the running app.
+ * Disabled by default in deployed environments — set
+ * `ENABLE_BOOTSTRAP_ROUTE=true` on the service before invoking. The
+ * default-off posture (rule #9) means an attacker who guesses the URL
+ * can't probe for the route's existence, never mind brute-force the
+ * AUTH_SECRET behind it.
  *
  * Usage from your local terminal:
  *
  *   curl -X POST https://investors.ootaos.com/api/v1/admin/bootstrap \
  *     -H "Authorization: Bearer $AUTH_SECRET"
  *
- * Or from the browser console while on the site:
- *
- *   fetch('/api/v1/admin/bootstrap', {
- *     method: 'POST',
- *     headers: { Authorization: 'Bearer <your AUTH_SECRET>' },
- *   }).then(r => r.json()).then(console.log)
- *
  * Returns { ok: true, userId, rotated } on success, or { ok: false, error }
- * with a 4xx/5xx code otherwise.
+ * with a 4xx/5xx code otherwise. When the env flag is off, returns 404 to
+ * leak no information about the route's presence.
  */
 import { eq } from 'drizzle-orm';
 
@@ -35,6 +31,12 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export const POST = handle(async (req: Request) => {
+  // Fail-closed in normal deployments — refuse to even acknowledge the
+  // route exists unless the operator has explicitly opted in.
+  if (!env.ENABLE_BOOTSTRAP_ROUTE) {
+    return Response.json({ ok: false, error: 'not_found' }, { status: 404 });
+  }
+
   await rateLimit(req, { key: 'admin:bootstrap', perMinute: 5 });
 
   const auth = req.headers.get('authorization') ?? '';

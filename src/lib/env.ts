@@ -75,6 +75,13 @@ const EnvSchema = z.object({
    * a Bearer header to drive inbox sync, reminder dispatch, daily digest, etc. */
   CRON_SECRET: optionalString,
 
+  /**
+   * Emergency founder re-provisioner gate. Off by default in deployed
+   * environments — flip to true only when you need to re-seed the founder
+   * record after a deploy and have AUTH_SECRET ready as the bearer.
+   */
+  ENABLE_BOOTSTRAP_ROUTE: boolish.default(false),
+
   SENTRY_DSN: optionalUrl,
 });
 
@@ -122,6 +129,8 @@ const BUILD_PHASE_FALLBACKS: Env = {
   GOOGLE_CLIENT_ID: undefined,
   GOOGLE_CLIENT_SECRET: undefined,
   GOOGLE_REDIRECT_URI: undefined,
+  CRON_SECRET: undefined,
+  ENABLE_BOOTSTRAP_ROUTE: false,
   SENTRY_DSN: undefined,
 };
 

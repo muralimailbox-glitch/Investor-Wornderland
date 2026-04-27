@@ -4,13 +4,12 @@ import { z } from 'zod';
 
 import { runConcierge, type InvestorContext } from '@/lib/ai/agents/concierge';
 import { CapExceededError } from '@/lib/ai/cap';
-import { handle } from '@/lib/api/handle';
+import { ApiError, handle } from '@/lib/api/handle';
 import { getInvestorContext } from '@/lib/auth/investor-context';
 import { getActiveNdaSession } from '@/lib/auth/nda-active';
 import { NDA_SESSION_COOKIE } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
-import { workspacesRepo } from '@/lib/db/repos/workspaces';
-import { interactions, investors } from '@/lib/db/schema';
+import { interactions, investors, leads } from '@/lib/db/schema';
 import { rateLimit } from '@/lib/security/rate-limit';
 
 export const runtime = 'nodejs';
@@ -34,34 +33,35 @@ const STATIC_FALLBACK =
   "I'm getting set up for visitors right now — the founders are reachable at info@ootaos.com and respond within a few hours. Want a private link to the lounge with the data room? Reply with your name + firm.";
 
 export const POST = handle(async (req) => {
-  // Tighter limit for anonymous so a curious visitor can't burn AI budget.
-  // Authenticated investors get the higher 20/min ceiling.
+  // /ask is invite-gated UX (the page redirects anonymous visitors to /).
+  // The API mirrors that contract: an investor magic-link cookie OR an
+  // active NDA session is required. No "default workspace" fallback —
+  // anonymous callers get 401 (rule C / business rule #5).
   const ctx = await getInvestorContext();
-  await rateLimit(req, {
-    key: ctx ? 'ask:auth' : 'ask:anon',
-    perMinute: ctx ? 20 : 6,
-  });
+  const cookieStore = await cookies();
+  const ndaSession = await getActiveNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
+
+  let workspaceId: string | undefined = ctx?.workspaceId;
+  if (!workspaceId && ndaSession) {
+    // NDA cookie carries leadId; resolve the workspace from the lead row.
+    const [row] = await db
+      .select({ workspaceId: leads.workspaceId })
+      .from(leads)
+      .where(eq(leads.id, ndaSession.leadId))
+      .limit(1);
+    workspaceId = row?.workspaceId;
+  }
+  if (!workspaceId) throw new ApiError(401, 'invite_required');
+
+  await rateLimit(req, { key: 'ask:auth', perMinute: 20 });
   const raw = await req.json().catch(() => ({}));
   const body = Body.parse(raw);
 
-  const cookieStore = await cookies();
-  const ndaSession = await getActiveNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
   const signedNda = Boolean(ndaSession);
-
-  // Anonymous teaser: when there's no magic-link cookie, fall back to the
-  // default workspace so the concierge can still answer surface-level
-  // questions about OotaOS. The concierge's depth-classifier will gate any
-  // sensitive topic (cap table, financials, runway) by setting gate.needsNda
-  // — the client renders the email-verify + NDA CTA off that flag.
-  let workspaceId: string | undefined = ctx?.workspaceId;
-  if (!workspaceId) {
-    const ws = await workspacesRepo.default();
-    workspaceId = ws?.id;
-  }
 
   const linkSession = ctx?.session ?? null;
   let investor: InvestorContext | null = null;
-  if (linkSession && workspaceId) {
+  if (linkSession) {
     const rows = await db
       .select({ emailVerifiedAt: investors.emailVerifiedAt })
       .from(investors)
@@ -84,7 +84,7 @@ export const POST = handle(async (req) => {
       };
 
       try {
-        if (!workspaceId || !process.env.ANTHROPIC_API_KEY) {
+        if (!process.env.ANTHROPIC_API_KEY) {
           send('meta', {
             model: 'fallback',
             citations: [],
@@ -123,7 +123,7 @@ export const POST = handle(async (req) => {
         }
         send('done', { ok: true });
 
-        if (investor && workspaceId) {
+        if (investor) {
           await db
             .insert(interactions)
             .values({

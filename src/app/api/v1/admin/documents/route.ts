@@ -96,6 +96,15 @@ export const POST = handle(async (req) => {
         : null,
   });
   const { kind, title, watermarkPolicy, minLeadStage } = meta;
+
+  // Rule #8: watermark policy must be truthful. The watermark pipeline only
+  // knows how to stamp PDFs — non-PDF files cannot honor per_investor or
+  // static policies, so reject the upload here rather than silently
+  // delivering bare bytes to investors.
+  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isPdf && watermarkPolicy !== 'none') {
+    throw new BadRequestError('watermark_requires_pdf');
+  }
   const expiresAt =
     meta.expiresInDays != null
       ? new Date(Date.now() + meta.expiresInDays * 24 * 60 * 60 * 1000)
