@@ -57,7 +57,17 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
           ...(templateKey ? { templateKey } : {}),
         }),
       });
-      if (!createRes.ok) throw new Error(`create failed: HTTP ${createRes.status}`);
+      if (!createRes.ok) {
+        const j = (await createRes.json().catch(() => null)) as {
+          title?: string;
+          detail?: string;
+          stackHead?: string;
+        } | null;
+        const tail = j?.detail ? ` — ${j.detail}` : '';
+        throw new Error(
+          `create failed: HTTP ${createRes.status}${tail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
+        );
+      }
       const { batchId } = (await createRes.json()) as { batchId: string };
 
       // Step 2: dispatch the batch — this is the human-approved send action
@@ -66,7 +76,17 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
         method: 'POST',
         credentials: 'include',
       });
-      if (!dispatchRes.ok) throw new Error(`dispatch failed: HTTP ${dispatchRes.status}`);
+      if (!dispatchRes.ok) {
+        const j = (await dispatchRes.json().catch(() => null)) as {
+          title?: string;
+          detail?: string;
+          stackHead?: string;
+        } | null;
+        const tail = j?.detail ? ` — ${j.detail}` : '';
+        throw new Error(
+          `dispatch failed: HTTP ${dispatchRes.status}${tail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
+        );
+      }
       const r = (await dispatchRes.json()) as { sent: number; failed: number };
       setResult(r);
       setPhase('done');
@@ -209,7 +229,9 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
         ) : phase === 'error' ? (
           <div className="mt-4 flex flex-col gap-3">
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-              {error}
+              <pre className="whitespace-pre-wrap font-mono text-[12px] leading-relaxed">
+                {error}
+              </pre>
             </div>
             <div className="flex justify-end gap-2">
               <button

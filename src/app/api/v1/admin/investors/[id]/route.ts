@@ -53,6 +53,9 @@ const PatchBody = z.object({
   stageInterests: z.array(z.string().max(40)).max(20).nullable().optional(),
   bioSummary: z.string().max(2000).nullable().optional(),
   warmthScore: z.number().int().min(0).max(100).nullable().optional(),
+  priorCompany: z.string().max(160).nullable().optional(),
+  preferredMeetingHours: z.string().max(120).nullable().optional(),
+  mutualConnections: z.array(z.string().max(160)).max(30).nullable().optional(),
   sourceOfLead: z.enum(LEAD_SOURCES).optional(),
   referrerName: z.string().max(160).nullable().optional(),
 });

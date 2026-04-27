@@ -610,6 +610,120 @@ function Empty({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+type CreateForm = {
+  firmName: string;
+  firmType: string;
+  firstName: string;
+  lastName: string;
+  title: string;
+  decisionAuthority: string;
+  email: string;
+  mobileE164: string;
+  photoUrl: string;
+  timezone: string;
+  city: string;
+  country: string;
+  linkedinUrl: string;
+  twitterHandle: string;
+  websiteUrl: string;
+  crunchbaseUrl: string;
+  tracxnUrl: string;
+  angellistUrl: string;
+  checkSizeMinUsd: string;
+  checkSizeMaxUsd: string;
+  sectorInterests: string;
+  stageInterests: string;
+  warmthScore: string;
+  introPath: string;
+  priorCompany: string;
+  preferredMeetingHours: string;
+  mutualConnections: string;
+  bioSummary: string;
+  personalThesisNotes: string;
+};
+
+const EMPTY_CREATE_FORM: CreateForm = {
+  firmName: '',
+  firmType: 'vc',
+  firstName: '',
+  lastName: '',
+  title: 'Partner',
+  decisionAuthority: 'full',
+  email: '',
+  mobileE164: '',
+  photoUrl: '',
+  timezone: 'Asia/Kolkata',
+  city: '',
+  country: '',
+  linkedinUrl: '',
+  twitterHandle: '',
+  websiteUrl: '',
+  crunchbaseUrl: '',
+  tracxnUrl: '',
+  angellistUrl: '',
+  checkSizeMinUsd: '',
+  checkSizeMaxUsd: '',
+  sectorInterests: '',
+  stageInterests: '',
+  warmthScore: '',
+  introPath: '',
+  priorCompany: '',
+  preferredMeetingHours: '',
+  mutualConnections: '',
+  bioSummary: '',
+  personalThesisNotes: '',
+};
+
+function buildCreatePayload(f: CreateForm): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    firmName: f.firmName.trim(),
+    firmType: f.firmType,
+    firstName: f.firstName.trim(),
+    lastName: f.lastName.trim(),
+    title: f.title.trim(),
+    decisionAuthority: f.decisionAuthority.trim(),
+    email: f.email.trim(),
+    timezone: f.timezone.trim(),
+  };
+  const s = (k: keyof CreateForm) => {
+    const v = (f[k] as string).trim();
+    if (v) out[k] = v;
+  };
+  const n = (k: keyof CreateForm) => {
+    const v = (f[k] as string).trim();
+    if (v && !Number.isNaN(Number(v))) out[k] = Number(v);
+  };
+  const a = (k: keyof CreateForm) => {
+    const arr = (f[k] as string)
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (arr.length > 0) out[k] = arr;
+  };
+  s('mobileE164');
+  s('photoUrl');
+  s('city');
+  s('country');
+  s('linkedinUrl');
+  s('twitterHandle');
+  s('websiteUrl');
+  s('crunchbaseUrl');
+  s('tracxnUrl');
+  s('angellistUrl');
+  n('checkSizeMinUsd');
+  n('checkSizeMaxUsd');
+  a('sectorInterests');
+  a('stageInterests');
+  n('warmthScore');
+  s('introPath');
+  s('priorCompany');
+  s('preferredMeetingHours');
+  a('mutualConnections');
+  s('bioSummary');
+  s('personalThesisNotes');
+  return out;
+}
+
 function CreateInvestorModal({
   onClose,
   onCreated,
@@ -617,16 +731,13 @@ function CreateInvestorModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [firmName, setFirmName] = useState('');
-  const [firmTypeVal, setFirmTypeVal] = useState('vc');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [title, setTitle] = useState('Partner');
-  const [decisionAuthority, setDecisionAuthority] = useState('full');
-  const [email, setEmail] = useState('');
-  const [timezone, setTimezone] = useState('Asia/Kolkata');
+  const [form, setForm] = useState<CreateForm>(EMPTY_CREATE_FORM);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  function set<K extends keyof CreateForm>(key: K, value: CreateForm[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -637,16 +748,7 @@ function CreateInvestorModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          firmName,
-          firmType: firmTypeVal,
-          firstName,
-          lastName,
-          title,
-          decisionAuthority,
-          email,
-          timezone,
-        }),
+        body: JSON.stringify(buildCreatePayload(form)),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => null)) as { title?: string } | null;
@@ -665,7 +767,7 @@ function CreateInvestorModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -673,10 +775,10 @@ function CreateInvestorModal({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.98 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/40 bg-white p-6 shadow-[0_40px_100px_-30px_rgba(91,33,182,0.3)]"
+        className="relative flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl border border-white/40 bg-white shadow-[0_40px_100px_-30px_rgba(91,33,182,0.3)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-6 py-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">
               New investor
@@ -687,76 +789,280 @@ function CreateInvestorModal({
             ✕
           </button>
         </div>
-        <form onSubmit={submit} className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
-            <TextField label="First name" value={firstName} onChange={setFirstName} required />
-            <TextField label="Last name" value={lastName} onChange={setLastName} required />
-          </div>
-          <TextField label="Email" value={email} onChange={setEmail} type="email" required />
-          <div className="grid grid-cols-2 gap-3">
-            <TextField label="Title" value={title} onChange={setTitle} required />
-            <TextField
-              label="Decision authority"
-              value={decisionAuthority}
-              onChange={setDecisionAuthority}
-              required
+        <form onSubmit={submit} className="flex flex-1 flex-col overflow-y-auto px-6 py-5">
+          {err ? (
+            <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {err}
+            </div>
+          ) : null}
+
+          <CreateGroup title="Firm">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CreateField
+                label="Firm name"
+                value={form.firmName}
+                onChange={(v) => set('firmName', v)}
+                required
+              />
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-slate-700">Firm type</span>
+                <select
+                  value={form.firmType}
+                  onChange={(e) => set('firmType', e.target.value)}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+                >
+                  {FIRM_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t.replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </CreateGroup>
+
+          <CreateGroup title="Identity">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CreateField
+                label="First name"
+                value={form.firstName}
+                onChange={(v) => set('firstName', v)}
+                required
+              />
+              <CreateField
+                label="Last name"
+                value={form.lastName}
+                onChange={(v) => set('lastName', v)}
+                required
+              />
+              <CreateField
+                label="Title"
+                value={form.title}
+                onChange={(v) => set('title', v)}
+                required
+              />
+              <CreateField
+                label="Decision authority"
+                value={form.decisionAuthority}
+                onChange={(v) => set('decisionAuthority', v)}
+                required
+              />
+              <CreateField
+                label="Email"
+                value={form.email}
+                onChange={(v) => set('email', v)}
+                type="email"
+                required
+              />
+              <CreateField
+                label="Mobile (E.164)"
+                value={form.mobileE164}
+                onChange={(v) => set('mobileE164', v)}
+              />
+              <CreateField
+                label="Photo URL"
+                value={form.photoUrl}
+                onChange={(v) => set('photoUrl', v)}
+              />
+              <CreateField
+                label="Timezone"
+                value={form.timezone}
+                onChange={(v) => set('timezone', v)}
+                required
+              />
+            </div>
+          </CreateGroup>
+
+          <CreateGroup title="Location">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CreateField label="City" value={form.city} onChange={(v) => set('city', v)} />
+              <CreateField
+                label="Country"
+                value={form.country}
+                onChange={(v) => set('country', v)}
+              />
+            </div>
+          </CreateGroup>
+
+          <CreateGroup title="Social / external">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CreateField
+                label="LinkedIn URL"
+                value={form.linkedinUrl}
+                onChange={(v) => set('linkedinUrl', v)}
+              />
+              <CreateField
+                label="Twitter handle"
+                value={form.twitterHandle}
+                onChange={(v) => set('twitterHandle', v)}
+              />
+              <CreateField
+                label="Website"
+                value={form.websiteUrl}
+                onChange={(v) => set('websiteUrl', v)}
+              />
+              <CreateField
+                label="Crunchbase URL"
+                value={form.crunchbaseUrl}
+                onChange={(v) => set('crunchbaseUrl', v)}
+              />
+              <CreateField
+                label="Tracxn URL"
+                value={form.tracxnUrl}
+                onChange={(v) => set('tracxnUrl', v)}
+              />
+              <CreateField
+                label="AngelList URL"
+                value={form.angellistUrl}
+                onChange={(v) => set('angellistUrl', v)}
+              />
+            </div>
+          </CreateGroup>
+
+          <CreateGroup title="Investment signals">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CreateField
+                label="Check size min (USD)"
+                type="number"
+                value={form.checkSizeMinUsd}
+                onChange={(v) => set('checkSizeMinUsd', v)}
+              />
+              <CreateField
+                label="Check size max (USD)"
+                type="number"
+                value={form.checkSizeMaxUsd}
+                onChange={(v) => set('checkSizeMaxUsd', v)}
+              />
+              <CreateField
+                label="Sector interests (comma-sep)"
+                value={form.sectorInterests}
+                onChange={(v) => set('sectorInterests', v)}
+              />
+              <CreateField
+                label="Stage interests (comma-sep)"
+                value={form.stageInterests}
+                onChange={(v) => set('stageInterests', v)}
+              />
+              <CreateField
+                label="Warmth score (0-100)"
+                type="number"
+                value={form.warmthScore}
+                onChange={(v) => set('warmthScore', v)}
+              />
+              <CreateField
+                label="Intro path"
+                value={form.introPath}
+                onChange={(v) => set('introPath', v)}
+              />
+              <CreateField
+                label="Prior company"
+                value={form.priorCompany}
+                onChange={(v) => set('priorCompany', v)}
+              />
+              <CreateField
+                label="Preferred meeting hours"
+                value={form.preferredMeetingHours}
+                onChange={(v) => set('preferredMeetingHours', v)}
+              />
+              <CreateField
+                label="Mutual connections (comma-sep)"
+                value={form.mutualConnections}
+                onChange={(v) => set('mutualConnections', v)}
+              />
+            </div>
+          </CreateGroup>
+
+          <CreateGroup title="Notes">
+            <CreateTextarea
+              label="Bio summary"
+              value={form.bioSummary}
+              onChange={(v) => set('bioSummary', v)}
             />
+            <CreateTextarea
+              label="Personal thesis notes (private)"
+              value={form.personalThesisNotes}
+              onChange={(v) => set('personalThesisNotes', v)}
+            />
+          </CreateGroup>
+
+          <div className="mt-4 flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-2.5 text-sm font-medium text-white shadow-lg shadow-violet-500/40 transition hover:-translate-y-px disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Save investor
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <TextField label="Firm name" value={firmName} onChange={setFirmName} required />
-            <label className="flex flex-col gap-1">
-              <span className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-                Firm type
-              </span>
-              <select
-                value={firmTypeVal}
-                onChange={(e) => setFirmTypeVal(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
-              >
-                {FIRM_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <TextField label="Timezone" value={timezone} onChange={setTimezone} required />
-          {err ? <p className="text-sm text-rose-600">{err}</p> : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-violet-500/40 transition hover:-translate-y-px disabled:opacity-60"
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Save investor
-          </button>
         </form>
       </motion.div>
     </motion.div>
   );
 }
 
-function TextField({
+function CreateGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="mb-5">
+      <p className="mb-2 text-xs font-medium uppercase tracking-[0.14em] text-violet-700">
+        {title}
+      </p>
+      <div className="flex flex-col gap-3">{children}</div>
+    </section>
+  );
+}
+
+function CreateField({
   label,
   value,
   onChange,
-  ...rest
+  type = 'text',
+  required = false,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  type?: string;
+  required?: boolean;
+}) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
-        {label}
-      </span>
+      <span className="text-xs font-medium text-slate-700">{label}</span>
       <input
+        type={type}
         value={value}
+        required={required}
         onChange={(e) => onChange(e.target.value)}
         className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
-        {...rest}
+      />
+    </label>
+  );
+}
+
+function CreateTextarea({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="text-xs font-medium text-slate-700">{label}</span>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={3}
+        className="resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
       />
     </label>
   );

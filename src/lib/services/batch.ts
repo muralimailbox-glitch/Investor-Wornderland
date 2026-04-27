@@ -9,6 +9,7 @@ import { db } from '@/lib/db/client';
 import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
 import { auditEvents, emailOutbox, firms, investors, leads, users } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { renderByKey, type TemplateKey } from '@/lib/mail/templates';
 
@@ -34,6 +35,13 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
   if (input.leadIds.length === 0) throw new BadRequestError('empty_batch');
   if (input.leadIds.length > MAX_BATCH_SIZE) throw new BadRequestError('batch_too_large');
 
+  // Per-step logging so a 500 in prod names the exact stage that failed
+  // (lead lookup vs. founder lookup vs. signing vs. enqueue vs. audit).
+  const trace = (step: string, extra?: Record<string, unknown>) =>
+    console.warn('[batch.create]', step, { workspaceId: input.workspaceId, ...extra });
+
+  trace('start', { leadCount: input.leadIds.length, templateKey: input.templateKey ?? null });
+
   const rows = await db
     .select({
       leadId: leads.id,
@@ -50,6 +58,7 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     .leftJoin(firms, eq(firms.id, investors.firmId))
     .where(and(eq(leads.workspaceId, input.workspaceId), inArray(leads.id, input.leadIds)));
 
+  trace('leads_loaded', { matched: rows.length, expected: input.leadIds.length });
   if (rows.length !== input.leadIds.length) {
     throw new NotFoundError('lead_missing');
   }
@@ -79,20 +88,38 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     companyAddress: null,
   };
 
+  trace('founder_loaded', { hasFounder: founderRow.length > 0 });
+
   const siteBase = env.NEXT_PUBLIC_SITE_URL;
   const batchId = randomUUID();
   const outboxIds: string[] = [];
   for (const r of rows) {
-    const link = signInvestorLink({
-      investorId: r.investorId,
-      workspaceId: input.workspaceId,
-      dealId: r.dealId,
-      leadId: r.leadId,
-      firmId: r.firmId ?? null,
-      firstName: r.firstName ?? '',
-      lastName: r.lastName ?? null,
-      firmName: r.firmName ?? null,
-    });
+    // Wrap the per-recipient pipeline so a single bad row reports *which*
+    // recipient broke (instead of dragging the whole batch into a generic
+    // 500) and *which* stage of personalization tripped.
+    const tag = (stage: string) =>
+      `[batch.create] recipient ${r.email} (lead ${r.leadId}) failed at ${stage}`;
+
+    let link;
+    try {
+      link = signInvestorLink({
+        investorId: r.investorId,
+        workspaceId: input.workspaceId,
+        dealId: r.dealId,
+        leadId: r.leadId,
+        firmId: r.firmId ?? null,
+        firstName: r.firstName ?? '',
+        lastName: r.lastName ?? null,
+        firmName: r.firmName ?? null,
+      });
+    } catch (err) {
+      console.error(tag('sign'), err);
+      throw new ApiError(
+        500,
+        'sign_failed',
+        `${tag('sign')}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
     const investorLink = `${siteBase}/i/${link.token}`;
 
     let subject = input.subject;
@@ -108,23 +135,50 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
       : undefined;
 
     if (input.templateKey) {
-      const rendered = renderByKey(input.templateKey, {
-        firstName: r.firstName,
-        lastName: r.lastName,
-        founder,
-        companyName: founder.companyName,
-        physicalAddress: founder.companyAddress,
-        extras: {
-          subject: input.subject,
-          heading: '',
-          body: input.bodyText,
-          investorLink,
-          firmName: r.firmName ?? '',
-        },
-      });
-      subject = rendered.subject;
-      personalizedText = rendered.text;
-      personalizedHtml = rendered.html;
+      try {
+        const rendered = renderByKey(input.templateKey, {
+          firstName: r.firstName,
+          lastName: r.lastName,
+          founder,
+          companyName: founder.companyName,
+          physicalAddress: founder.companyAddress,
+          extras: {
+            subject: input.subject,
+            heading: '',
+            body: input.bodyText,
+            investorLink,
+            firmName: r.firmName ?? '',
+          },
+        });
+        subject = rendered.subject;
+        personalizedText = rendered.text;
+        personalizedHtml = rendered.html;
+      } catch (err) {
+        console.error(tag(`render(${input.templateKey})`), err);
+        throw new ApiError(
+          500,
+          'render_failed',
+          `${tag(`render(${input.templateKey})`)}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    } else if (!personalizedHtml) {
+      // Custom mode without an explicit HTML body: wrap the personalized text
+      // in the OotaOS branded shell so the dispatched email is not plain-text.
+      try {
+        const branded = renderBrandedEmail({
+          heading: subject,
+          body: personalizedText,
+          cta: [{ label: 'Open your Wonderland', href: investorLink }],
+        });
+        personalizedHtml = branded.html;
+      } catch (err) {
+        console.error(tag('brand'), err);
+        throw new ApiError(
+          500,
+          'brand_failed',
+          `${tag('brand')}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
     }
 
     const payload: typeof emailOutbox.$inferInsert = {
@@ -137,9 +191,19 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
     };
     if (personalizedHtml) payload.bodyHtml = personalizedHtml;
 
-    const created = await emailOutboxRepo.enqueue(payload);
+    let created;
+    try {
+      created = await emailOutboxRepo.enqueue(payload);
+    } catch (err) {
+      trace('enqueue_failed', {
+        leadId: r.leadId,
+        message: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
     outboxIds.push(created.id);
   }
+  trace('enqueued_all', { count: outboxIds.length });
 
   await audit({
     workspaceId: input.workspaceId,

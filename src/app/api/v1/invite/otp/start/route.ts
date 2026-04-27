@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { ApiError, handle } from '@/lib/api/handle';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 import { issueOtp } from '@/lib/auth/otp';
+import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
 
@@ -27,26 +28,18 @@ export const POST = handle(async (req: Request) => {
 
   const code = await issueOtp(email);
 
+  const branded = renderBrandedEmail({
+    heading: `Hi ${linkSession.firstName} — your verification code`,
+    body: `Enter this code to unlock deeper details about the round. It expires in 10 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
+    facts: [['Code', code]],
+    preFooter: 'For your security, OotaOS will never ask you to share this code.',
+  });
+
   await sendMail({
     to: email,
     subject: `Your OotaOS verification code: ${code}`,
-    text: [
-      `Hi ${linkSession.firstName},`,
-      '',
-      `Your OotaOS verification code is: ${code}`,
-      '',
-      'Enter this code to unlock deeper details about the round. It expires in 10 minutes.',
-      'If you did not request this, you can safely ignore this email.',
-      '',
-      '— OotaOS',
-    ].join('\n'),
-    html: `<!doctype html>
-<html><body style="font-family: -apple-system, Inter, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; color: #111">
-  <h1 style="font-size: 18px; letter-spacing: -0.01em; margin: 0 0 16px">Hi ${linkSession.firstName} — your verification code</h1>
-  <p style="font-size: 14px; line-height: 1.6; color: #333">Enter this code to unlock deeper details. It expires in 10 minutes.</p>
-  <p style="font-size: 32px; font-weight: 700; letter-spacing: 0.2em; background: linear-gradient(135deg,#8b5cf6,#ec4899); -webkit-background-clip: text; color: transparent; margin: 24px 0">${code}</p>
-  <p style="font-size: 12px; color: #666">If you did not request this, ignore this email.</p>
-</body></html>`,
+    text: branded.text,
+    html: branded.html,
   });
 
   return Response.json({ sent: true });

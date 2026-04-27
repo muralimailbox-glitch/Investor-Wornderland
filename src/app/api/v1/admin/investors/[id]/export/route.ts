@@ -48,7 +48,9 @@ export const GET = handle(async (req) => {
   const leadRows = await db
     .select()
     .from(leads)
-    .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.investorId, investorId)));
+    .where(and(eq(leads.workspaceId, user.workspaceId), eq(leads.investorId, investorId)))
+    .orderBy(desc(leads.stageEnteredAt));
+  const activeLead = leadRows[0] ?? null;
 
   const interactionRows = await db
     .select()
@@ -106,6 +108,10 @@ export const GET = handle(async (req) => {
         workspaceId: user.workspaceId,
         investor: inv.investor,
         firm: inv.firm,
+        // Surface the active lead's source/referrer alongside the investor
+        // so a downstream import can recreate full provenance.
+        sourceOfLead: activeLead?.sourceOfLead ?? null,
+        referrerName: activeLead?.referrerName ?? null,
         leads: leadRows,
         interactions: interactionRows.map((r) => ({
           id: r.id,

@@ -30,6 +30,9 @@ type InvestorFull = {
   stageInterests: string[] | null;
   bioSummary: string | null;
   warmthScore: number | null;
+  priorCompany: string | null;
+  preferredMeetingHours: string | null;
+  mutualConnections: string[] | null;
   sourceOfLead?: string | null;
   referrerName?: string | null;
 };
@@ -41,11 +44,12 @@ type Props = {
 };
 
 type Form = Record<
-  keyof Omit<InvestorFull, 'id' | 'sectorInterests' | 'stageInterests'>,
+  keyof Omit<InvestorFull, 'id' | 'sectorInterests' | 'stageInterests' | 'mutualConnections'>,
   string
 > & {
   sectorInterests: string;
   stageInterests: string;
+  mutualConnections: string;
 };
 
 const EMPTY_FORM: Form = {
@@ -73,6 +77,9 @@ const EMPTY_FORM: Form = {
   stageInterests: '',
   bioSummary: '',
   warmthScore: '',
+  priorCompany: '',
+  preferredMeetingHours: '',
+  mutualConnections: '',
   sourceOfLead: '',
   referrerName: '',
 };
@@ -103,6 +110,9 @@ function fromInvestor(inv: InvestorFull): Form {
     stageInterests: (inv.stageInterests ?? []).join(', '),
     bioSummary: inv.bioSummary ?? '',
     warmthScore: inv.warmthScore == null ? '' : String(inv.warmthScore),
+    priorCompany: inv.priorCompany ?? '',
+    preferredMeetingHours: inv.preferredMeetingHours ?? '',
+    mutualConnections: (inv.mutualConnections ?? []).join(', '),
     sourceOfLead: inv.sourceOfLead ?? '',
     referrerName: inv.referrerName ?? '',
   };
@@ -139,6 +149,12 @@ function toPatch(f: Form): Record<string, unknown> {
     .map((s2) => s2.trim())
     .filter(Boolean);
   patch.stageInterests = f.stageInterests
+    .split(',')
+    .map((s2) => s2.trim())
+    .filter(Boolean);
+  patch.priorCompany = s(f.priorCompany);
+  patch.preferredMeetingHours = s(f.preferredMeetingHours);
+  patch.mutualConnections = f.mutualConnections
     .split(',')
     .map((s2) => s2.trim())
     .filter(Boolean);
@@ -390,6 +406,21 @@ export function InvestorEditModal({ investorId, onClose, onSaved }: Props) {
                     label="Referrer name (if warm)"
                     value={form.referrerName}
                     onChange={(v) => setForm((f) => ({ ...f, referrerName: v }))}
+                  />
+                  <F
+                    label="Prior company"
+                    value={form.priorCompany}
+                    onChange={(v) => setForm((f) => ({ ...f, priorCompany: v }))}
+                  />
+                  <F
+                    label="Preferred meeting hours"
+                    value={form.preferredMeetingHours}
+                    onChange={(v) => setForm((f) => ({ ...f, preferredMeetingHours: v }))}
+                  />
+                  <F
+                    label="Mutual connections (comma-sep)"
+                    value={form.mutualConnections}
+                    onChange={(v) => setForm((f) => ({ ...f, mutualConnections: v }))}
                   />
                 </div>
               </Group>

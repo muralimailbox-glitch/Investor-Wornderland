@@ -275,10 +275,10 @@ export function InviteLinkModal({
                   <button
                     type="button"
                     onClick={async () => {
-                      const reason = prompt('Reason for deletion (optional):') ?? '';
+                      const reason = prompt('Reason for anonymise (optional):') ?? '';
                       if (
                         !confirm(
-                          `Anonymise this investor permanently? PII (name, email, mobile) is replaced with redacted markers; aggregate metrics survive for compliance. This cannot be undone via the UI.`,
+                          `Anonymise this investor? PII (name, email, mobile) is replaced with redacted markers; aggregate metrics + history survive for compliance. The row stays in the list as "redacted —".`,
                         )
                       )
                         return;
@@ -288,17 +288,63 @@ export function InviteLinkModal({
                         credentials: 'include',
                         body: JSON.stringify({
                           confirm: true,
+                          mode: 'anonymise',
                           ...(reason.trim() ? { reason: reason.trim() } : {}),
                         }),
                       });
                       if (res.ok) {
                         alert('Investor anonymised.');
                         onClose();
-                      } else alert('Delete failed.');
+                      } else {
+                        const j = (await res.json().catch(() => null)) as {
+                          title?: string;
+                        } | null;
+                        alert(`Anonymise failed: ${j?.title ?? res.status}`);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 transition hover:bg-amber-100"
+                  >
+                    <Trash2 className="h-3 w-3" /> Anonymise (GDPR)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const reason = prompt('Reason for permanent deletion (optional):') ?? '';
+                      if (
+                        !confirm(
+                          `Permanently delete this investor and ALL their leads, interactions, and pipeline history? This cannot be undone.`,
+                        )
+                      )
+                        return;
+                      if (
+                        !confirm(
+                          `Final confirmation: this will remove the investor row entirely and cascade-delete every related record. Continue?`,
+                        )
+                      )
+                        return;
+                      const res = await fetch(`/api/v1/admin/investors/${investorId}/delete`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          confirm: true,
+                          mode: 'hard',
+                          ...(reason.trim() ? { reason: reason.trim() } : {}),
+                        }),
+                      });
+                      if (res.ok) {
+                        alert('Investor permanently deleted.');
+                        onClose();
+                      } else {
+                        const j = (await res.json().catch(() => null)) as {
+                          title?: string;
+                        } | null;
+                        alert(`Delete failed: ${j?.title ?? res.status}`);
+                      }
                     }}
                     className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100"
                   >
-                    <Trash2 className="h-3 w-3" /> GDPR delete
+                    <Trash2 className="h-3 w-3" /> Delete permanently
                   </button>
                 </div>
               </details>

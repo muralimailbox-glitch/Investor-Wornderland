@@ -1,11 +1,20 @@
 /**
- * GDPR delete (right to erasure). Anonymises the investor row in place
- * rather than hard-deleting so foreign-key references in audit_events,
- * email_outbox, and interactions stay intact for compliance. Replaces PII
- * (name, email, mobile, linkedin) with redacted markers; keeps internal
- * IDs and aggregate metrics. NDA artifacts in storage are left alone — they
- * carry corporate signatures and have their own retention rules per the
- * privacy policy.
+ * Two-mode delete.
+ *
+ * - mode='anonymise' (default, GDPR right-to-erasure): the row stays so
+ *   foreign-key references in audit_events, email_outbox, and interactions
+ *   keep working. PII (name, email, mobile, social) is overwritten with
+ *   redacted markers; aggregate metrics + internal IDs survive for
+ *   compliance.
+ *
+ * - mode='hard': the investor row is removed outright. All FKs into the
+ *   investor (leads, interactions, calendar bindings, NDAs via leads) are
+ *   declared `onDelete: 'cascade'` in schema, so they vacate cleanly.
+ *   Used when the founder wants the record fully gone (e.g. duplicate
+ *   imports, test rows, GDPR-plus-deletion requests).
+ *
+ * NDA artifacts in object storage are left alone — they carry corporate
+ * signatures and have their own retention rules per the privacy policy.
  */
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -25,6 +34,7 @@ const Body = z
   .object({
     confirm: z.literal(true),
     reason: z.string().max(500).optional(),
+    mode: z.enum(['anonymise', 'hard']).optional(),
   })
   .strict();
 
@@ -46,6 +56,28 @@ export const POST = handle(async (req) => {
     .where(and(eq(investors.workspaceId, user.workspaceId), eq(investors.id, investorId)))
     .limit(1);
   if (!existing) throw new NotFoundError('investor_not_found');
+
+  const mode = input.mode ?? 'anonymise';
+
+  if (mode === 'hard') {
+    await db
+      .delete(investors)
+      .where(and(eq(investors.workspaceId, user.workspaceId), eq(investors.id, investorId)));
+
+    await audit({
+      workspaceId: user.workspaceId,
+      actorUserId: user.id,
+      action: 'investor.hard_delete',
+      targetType: 'investor',
+      targetId: investorId,
+      payload: {
+        reason: input.reason ?? null,
+        originalEmail: existing.email,
+      },
+    });
+
+    return Response.json({ ok: true, investorId, mode: 'hard' });
+  }
 
   // Replace PII columns with deterministic redacted markers — keep a hash
   // of the original email so re-imports from the same address are blocked
@@ -91,6 +123,7 @@ export const POST = handle(async (req) => {
   return Response.json({
     ok: true,
     investorId,
+    mode: 'anonymise',
     redactedEmail,
   });
 });

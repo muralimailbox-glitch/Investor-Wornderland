@@ -96,8 +96,22 @@ export function toErrorResponse(err: unknown): Response {
     return problemJson(400, 'validation_failed', { errors: err.flatten() });
   }
   if (err instanceof ApiError) {
+    // When DEBUG_API_ERRORS=1, surface the contextual message so callers see
+    // *which* recipient or stage broke instead of just the bare error code.
+    if (process.env.DEBUG_API_ERRORS === '1' && err.message && err.message !== err.code) {
+      return problemJson(err.status, err.code, { detail: err.message });
+    }
     return problemJson(err.status, err.code);
   }
   console.error('[api] unhandled error:', err);
+  // When DEBUG_API_ERRORS=1, echo the real message + stack hint into the
+  // 500 response so the founder cockpit can render the failure inline
+  // instead of forcing a Railway-logs round-trip. Off by default.
+  if (process.env.DEBUG_API_ERRORS === '1' && err instanceof Error) {
+    return problemJson(500, 'internal_error', {
+      detail: err.message,
+      stackHead: err.stack?.split('\n').slice(0, 4).join('\n') ?? null,
+    });
+  }
   return problemJson(500, 'internal_error');
 }
