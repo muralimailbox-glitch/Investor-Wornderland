@@ -63,9 +63,13 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
           detail?: string;
           stackHead?: string;
         } | null;
-        const tail = j?.detail ? ` — ${j.detail}` : '';
+        // problemJson writes the error code into `title` and (under
+        // DEBUG_API_ERRORS) writes a contextual message into `detail`.
+        // Surface both so the founder sees the failing stage immediately.
+        const codeTail = j?.title ? ` — ${j.title}` : '';
+        const detailTail = j?.detail ? `\n${j.detail}` : '';
         throw new Error(
-          `create failed: HTTP ${createRes.status}${tail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
+          `create failed: HTTP ${createRes.status}${codeTail}${detailTail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
         );
       }
       const { batchId } = (await createRes.json()) as { batchId: string };
@@ -82,9 +86,10 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
           detail?: string;
           stackHead?: string;
         } | null;
-        const tail = j?.detail ? ` — ${j.detail}` : '';
+        const codeTail = j?.title ? ` — ${j.title}` : '';
+        const detailTail = j?.detail ? `\n${j.detail}` : '';
         throw new Error(
-          `dispatch failed: HTTP ${dispatchRes.status}${tail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
+          `dispatch failed: HTTP ${dispatchRes.status}${codeTail}${detailTail}${j?.stackHead ? `\n${j.stackHead}` : ''}`,
         );
       }
       const r = (await dispatchRes.json()) as { sent: number; failed: number };
