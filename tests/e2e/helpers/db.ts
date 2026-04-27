@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../../src/lib/db/client';
 import { auditEvents, interactions, investors, leads, ndas } from '../../../src/lib/db/schema';
@@ -64,4 +64,22 @@ export async function getLatestNdaForLead(leadId: string) {
     .orderBy(desc(ndas.signedAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Moves the rate_limits OTP row's expiry into the past so the next
+ * verifyOtp call treats it as expired. Safe to call when no OTP exists.
+ */
+export async function expireOtpForEmail(email: string): Promise<void> {
+  const normalized = email.toLowerCase();
+  await db.execute(
+    sql`UPDATE rate_limits SET refilled_at = now() - interval '1 minute' WHERE key LIKE ${`nda-otp:${normalized}|%`}`,
+  );
+}
+
+/** Moves a document's expiresAt into the past so it is treated as expired. */
+export async function setDocumentExpired(documentId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE documents SET expires_at = now() - interval '1 minute' WHERE id = ${documentId}`,
+  );
 }

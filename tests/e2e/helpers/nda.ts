@@ -1,5 +1,7 @@
 import { expect, type APIRequestContext } from '@playwright/test';
 
+import { extractSixDigitCode, waitForOutboxEmail } from './mail';
+
 export async function startNda(api: APIRequestContext, email: string) {
   const res = await api.post('/api/v1/nda/initiate', { data: { email } });
   expect(res.ok()).toBeTruthy();
@@ -50,6 +52,35 @@ export async function completeNda(
 ) {
   await startNda(api, input.email);
   const verified = await verifyNdaOtp(api, input.email, input.otp);
+  return signNda(api, {
+    token: verified.token,
+    name: input.name,
+    title: input.title,
+    firm: input.firm,
+  });
+}
+
+/**
+ * Issues an NDA OTP and reads the code directly from the emailOutbox row
+ * (initiateNda writes it synchronously). No polling needed in practice, but
+ * waitForOutboxEmail retries for up to 15 s as a safety net.
+ */
+export async function startAndReadNdaOtp(api: APIRequestContext, email: string): Promise<string> {
+  await startNda(api, email);
+  const row = await waitForOutboxEmail(email, 'NDA verification code');
+  return extractSixDigitCode(row.subject);
+}
+
+/**
+ * Full NDA flow using the real outbox-backed OTP.
+ * Does NOT call startNda a second time (unlike completeNda which does).
+ */
+export async function completeNdaWithRealOtp(
+  api: APIRequestContext,
+  input: { email: string; name?: string; title?: string; firm?: string },
+) {
+  const otp = await startAndReadNdaOtp(api, input.email);
+  const verified = await verifyNdaOtp(api, input.email, otp);
   return signNda(api, {
     token: verified.token,
     name: input.name,

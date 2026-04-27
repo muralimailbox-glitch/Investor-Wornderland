@@ -1,5 +1,7 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
+import { extractSixDigitCode, waitForOutboxEmail } from './mail';
+
 function asApi(client: APIRequestContext | Page): APIRequestContext {
   return 'goto' in client ? client.context().request : client;
 }
@@ -50,6 +52,37 @@ export async function openLounge(page: Page) {
  * Uses /api/v1/concierge-feedback which calls getInvestorContext() internally.
  * Returns true if the session is active, false if rejected (missing/revoked).
  */
+/** POST /api/v1/invite/otp/start — requires investor session cookie. Returns raw Response. */
+export async function startInvestorEmailOtp(client: APIRequestContext | Page, email: string) {
+  const api = asApi(client);
+  return api.post('/api/v1/invite/otp/start', { data: { email } });
+}
+
+/** POST /api/v1/invite/otp/verify — requires investor session cookie. Returns raw Response. */
+export async function verifyInvestorEmail(
+  client: APIRequestContext | Page,
+  email: string,
+  code: string,
+) {
+  const api = asApi(client);
+  return api.post('/api/v1/invite/otp/verify', { data: { email, code } });
+}
+
+/**
+ * Issues an investor email OTP and reads the code from the email_outbox row.
+ * Requires the investor session cookie to be set in `client`.
+ */
+export async function startAndReadInvestorEmailOtp(
+  client: APIRequestContext | Page,
+  email: string,
+): Promise<string> {
+  const api = asApi(client);
+  const res = await api.post('/api/v1/invite/otp/start', { data: { email } });
+  expect(res.ok()).toBeTruthy();
+  const row = await waitForOutboxEmail(email, 'verification code');
+  return extractSixDigitCode(row.subject);
+}
+
 export async function probeInvestorDataAccess(page: Page): Promise<boolean> {
   const res = await page.context().request.post('/api/v1/concierge-feedback', {
     data: { sessionId: 'probe-e2e', question: 'probe', answer: 'probe', rating: 'up' },

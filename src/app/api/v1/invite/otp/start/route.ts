@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { ApiError, handle } from '@/lib/api/handle';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 import { issueOtp } from '@/lib/auth/otp';
+import { emailOutboxRepo } from '@/lib/db/repos/email-outbox';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -40,6 +41,16 @@ export const POST = handle(async (req: Request) => {
     subject: `Your OotaOS verification code: ${code}`,
     text: branded.text,
     html: branded.html,
+  });
+
+  // Write to outbox so E2E tests can read the code without IMAP.
+  await emailOutboxRepo.enqueue({
+    workspaceId: linkSession.workspaceId,
+    toEmail: email,
+    subject: `Your OotaOS verification code: ${code}`,
+    bodyText: `OTP issued ${new Date().toISOString()}`,
+    status: 'sent',
+    sentAt: new Date(),
   });
 
   return Response.json({ sent: true });
