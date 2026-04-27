@@ -109,7 +109,16 @@ export function toErrorResponse(err: unknown): Response {
   // round-trip on every 500. Stack head is gated on DEBUG_API_ERRORS=1
   // since it can be noisier.
   if (err instanceof Error) {
-    const body: Record<string, unknown> = { detail: err.message };
+    // Drizzle wraps the underlying postgres error on `err.cause` and
+    // stuffs only `Failed query: ... params: ...` into `err.message`.
+    // Pull the cause message to the front so the *actual* reason
+    // ("duplicate key", "value too long", "column does not exist") is
+    // visible without having to dig into Railway logs.
+    const cause = (err as { cause?: unknown }).cause;
+    const causeMessage =
+      cause instanceof Error ? cause.message : typeof cause === 'string' ? cause : null;
+    const detail = causeMessage ? `${causeMessage}\n${err.message}` : err.message;
+    const body: Record<string, unknown> = { detail };
     if (process.env.DEBUG_API_ERRORS === '1') {
       body.stackHead = err.stack?.split('\n').slice(0, 4).join('\n') ?? null;
     }

@@ -41,6 +41,10 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
     vars.physicalAddress ?? vars.founder.companyName ?? 'OotaOS, Perth WA, Australia';
   const unsubscribe = vars.unsubscribeUrl ?? `${env.NEXT_PUBLIC_SITE_URL}/unsubscribe`;
   const preheader = vars.preheader ?? '';
+  // Absolute URL to the OotaOS logo asset shipped under /public/brand. Email
+  // clients must fetch over https and cannot resolve relative paths.
+  const siteBase = env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
+  const logoUrl = `${siteBase}/brand/oota-light.png`;
 
   const ctaHtml = body.cta
     ? `<p style="margin:28px 0 8px 0;">
@@ -65,8 +69,13 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
               <td style="padding:28px 36px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});color:#fff;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
-                    <td style="font-size:20px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(company)}</td>
-                    <td align="right" style="font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.2em;opacity:0.85;">Investor Wonderland</td>
+                    <td style="vertical-align:middle;">
+                      <a href="${siteBase}" style="text-decoration:none;color:#fff;display:inline-flex;align-items:center;gap:10px;">
+                        <img src="${logoUrl}" alt="${escapeHtml(company)}" width="36" height="36" style="display:inline-block;width:36px;height:36px;border-radius:8px;background:#fff;padding:4px;vertical-align:middle;" />
+                        <span style="font-size:20px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(company)}</span>
+                      </a>
+                    </td>
+                    <td align="right" style="vertical-align:middle;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.2em;opacity:0.85;">Investor Wonderland</td>
                   </tr>
                 </table>
               </td>

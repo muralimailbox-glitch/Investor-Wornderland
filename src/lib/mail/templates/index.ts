@@ -35,13 +35,13 @@ function investorCtaHref(vars: TemplateVars & { extras?: Record<string, string> 
 const outreach: Builder = (vars) => {
   const name = vars.firstName ?? 'there';
   const firmLine = vars.extras?.firmName
-    ? ` given your work at ${vars.extras.firmName}`
-    : ' based on your past work with hospitality and early-stage SaaS';
+    ? `Given your work at ${vars.extras.firmName}, I thought this might be interesting to you.`
+    : 'Based on your past work with hospitality and early-stage SaaS, I thought this might be interesting to you.';
   const heading = `Hi ${name} — should we talk about OotaOS?`;
   const bodyText = personalize(
     `Hi {{firstName}},
 
-I am building OotaOS — an AI-native operating system for the restaurant and hospitality industry.${firmLine}, I thought this might be interesting to you.
+I am building OotaOS — an AI-native operating system for the restaurant and hospitality industry. ${firmLine}
 
 We are raising our seed round and I would love to show you the 30-second demo and the data room. Your personalized walkthrough is at the link below — it takes less than 15 minutes to skim and no login is required.
 
