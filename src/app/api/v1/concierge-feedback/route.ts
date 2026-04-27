@@ -14,8 +14,9 @@ import { z } from 'zod';
 
 import { ApiError, handle } from '@/lib/api/handle';
 import { getInvestorContext } from '@/lib/auth/investor-context';
+import { INVESTOR_COOKIE } from '@/lib/auth/investor-link';
 import { getActiveNdaSession } from '@/lib/auth/nda-active';
-import { NDA_SESSION_COOKIE } from '@/lib/auth/nda-session';
+import { NDA_SESSION_COOKIE, readNdaSession } from '@/lib/auth/nda-session';
 import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { leads } from '@/lib/db/schema';
@@ -33,10 +34,16 @@ const Body = z.object({
 });
 
 export const POST = handle(async (req) => {
+  // Stateless cookie presence check — avoids rate-limit DB query for callers
+  // who have neither a valid NDA session nor an investor magic-link cookie.
+  const cookieStore = await cookies();
+  const hasNda = !!readNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
+  const hasInvestor = !!cookieStore.get(INVESTOR_COOKIE)?.value;
+  if (!hasNda && !hasInvestor) throw new ApiError(401, 'invite_required');
+
   await rateLimit(req, { key: 'concierge:feedback', perMinute: 30 });
   const input = Body.parse(await req.json());
 
-  const cookieStore = await cookies();
   const ndaSession = await getActiveNdaSession(cookieStore.get(NDA_SESSION_COOKIE)?.value);
   const ctx = await getInvestorContext();
 

@@ -12,8 +12,9 @@ const Body = z.object({
 });
 
 export const POST = handle(async (req) => {
-  await rateLimit(req, { key: 'nda:initiate', perMinute: 6 });
+  // Validate body before the rate-limit DB query so bad input returns 400 cheaply
   const { email } = Body.parse(await req.json());
+  await rateLimit(req, { key: 'nda:initiate', perMinute: 6 });
   const result = await initiateNda(email);
   return Response.json(result);
 });
