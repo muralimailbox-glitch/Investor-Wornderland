@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+
+// Load .env.local so db.ts helpers (which import src/lib/env.ts) work outside Next.js
+loadEnv({ path: '.env.local' });
 
 export default defineConfig({
   testDir: './tests/e2e',

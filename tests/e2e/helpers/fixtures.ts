@@ -26,7 +26,7 @@ export const test = base.extend<Fixtures>({
     await use(page);
   },
 
-  makeEmail: async (_, use) => {
+  makeEmail: async ({}, use) => {
     await use((tag = 'e2e') => randomEmail(tag));
   },
 });

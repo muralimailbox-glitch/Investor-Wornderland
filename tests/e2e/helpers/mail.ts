@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 
 import { db } from '../../../src/lib/db/client';
 import { emailInbox, emailOutbox } from '../../../src/lib/db/schema';
@@ -42,6 +42,15 @@ export async function waitForInboxEmail(
     },
     { timeoutMs, label: `inbox:${fromEmail}` },
   );
+}
+
+/** Returns the number of emailOutbox rows addressed to `toEmail`. */
+export async function countOutboxEmails(toEmail: string): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(emailOutbox)
+    .where(eq(emailOutbox.toEmail, toEmail));
+  return row?.n ?? 0;
 }
 
 export function extractSixDigitCode(text: string): string {
