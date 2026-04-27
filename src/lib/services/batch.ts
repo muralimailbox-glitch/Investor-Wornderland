@@ -42,41 +42,61 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
 
   trace('start', { leadCount: input.leadIds.length, templateKey: input.templateKey ?? null });
 
-  const rows = await db
-    .select({
-      leadId: leads.id,
-      dealId: leads.dealId,
-      investorId: investors.id,
-      email: investors.email,
-      firstName: investors.firstName,
-      lastName: investors.lastName,
-      firmId: firms.id,
-      firmName: firms.name,
-    })
-    .from(leads)
-    .innerJoin(investors, eq(investors.id, leads.investorId))
-    .leftJoin(firms, eq(firms.id, investors.firmId))
-    .where(and(eq(leads.workspaceId, input.workspaceId), inArray(leads.id, input.leadIds)));
+  let rows;
+  try {
+    rows = await db
+      .select({
+        leadId: leads.id,
+        dealId: leads.dealId,
+        investorId: investors.id,
+        email: investors.email,
+        firstName: investors.firstName,
+        lastName: investors.lastName,
+        firmId: firms.id,
+        firmName: firms.name,
+      })
+      .from(leads)
+      .innerJoin(investors, eq(investors.id, leads.investorId))
+      .leftJoin(firms, eq(firms.id, investors.firmId))
+      .where(and(eq(leads.workspaceId, input.workspaceId), inArray(leads.id, input.leadIds)));
+  } catch (err) {
+    console.error('[batch.create] leads_query_failed', err);
+    throw new ApiError(
+      500,
+      'leads_query_failed',
+      `[batch.create] leads_query_failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   trace('leads_loaded', { matched: rows.length, expected: input.leadIds.length });
   if (rows.length !== input.leadIds.length) {
     throw new NotFoundError('lead_missing');
   }
 
-  const founderRow = await db
-    .select({
-      displayName: users.displayName,
-      email: users.email,
-      publicEmail: users.publicEmail,
-      whatsappE164: users.whatsappE164,
-      signatureMarkdown: users.signatureMarkdown,
-      companyName: users.companyName,
-      companyWebsite: users.companyWebsite,
-      companyAddress: users.companyAddress,
-    })
-    .from(users)
-    .where(and(eq(users.workspaceId, input.workspaceId), eq(users.role, 'founder')))
-    .limit(1);
+  let founderRow;
+  try {
+    founderRow = await db
+      .select({
+        displayName: users.displayName,
+        email: users.email,
+        publicEmail: users.publicEmail,
+        whatsappE164: users.whatsappE164,
+        signatureMarkdown: users.signatureMarkdown,
+        companyName: users.companyName,
+        companyWebsite: users.companyWebsite,
+        companyAddress: users.companyAddress,
+      })
+      .from(users)
+      .where(and(eq(users.workspaceId, input.workspaceId), eq(users.role, 'founder')))
+      .limit(1);
+  } catch (err) {
+    console.error('[batch.create] founder_query_failed', err);
+    throw new ApiError(
+      500,
+      'founder_query_failed',
+      `[batch.create] founder_query_failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
   const founder = founderRow[0] ?? {
     displayName: null,
     email: null,
@@ -205,19 +225,28 @@ export async function createBatch(input: CreateBatchInput): Promise<BatchSummary
   }
   trace('enqueued_all', { count: outboxIds.length });
 
-  await audit({
-    workspaceId: input.workspaceId,
-    actorUserId: input.actorUserId,
-    action: 'batch.created',
-    targetType: 'batch',
-    targetId: batchId,
-    payload: {
-      outboxIds,
-      leadIds: input.leadIds,
-      subject: input.subject,
-      templateKey: input.templateKey ?? null,
-    },
-  });
+  try {
+    await audit({
+      workspaceId: input.workspaceId,
+      actorUserId: input.actorUserId,
+      action: 'batch.created',
+      targetType: 'batch',
+      targetId: batchId,
+      payload: {
+        outboxIds,
+        leadIds: input.leadIds,
+        subject: input.subject,
+        templateKey: input.templateKey ?? null,
+      },
+    });
+  } catch (err) {
+    console.error('[batch.create] audit_failed', err);
+    throw new ApiError(
+      500,
+      'audit_failed',
+      `[batch.create] audit_failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
 
   return {
     batchId,

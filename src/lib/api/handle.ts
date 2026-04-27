@@ -104,14 +104,16 @@ export function toErrorResponse(err: unknown): Response {
     return problemJson(err.status, err.code);
   }
   console.error('[api] unhandled error:', err);
-  // When DEBUG_API_ERRORS=1, echo the real message + stack hint into the
-  // 500 response so the founder cockpit can render the failure inline
-  // instead of forcing a Railway-logs round-trip. Off by default.
-  if (process.env.DEBUG_API_ERRORS === '1' && err instanceof Error) {
-    return problemJson(500, 'internal_error', {
-      detail: err.message,
-      stackHead: err.stack?.split('\n').slice(0, 4).join('\n') ?? null,
-    });
+  // Admin routes always require an authenticated founder; surfacing the
+  // real error message to the caller is fine and saves the Railway-logs
+  // round-trip on every 500. Stack head is gated on DEBUG_API_ERRORS=1
+  // since it can be noisier.
+  if (err instanceof Error) {
+    const body: Record<string, unknown> = { detail: err.message };
+    if (process.env.DEBUG_API_ERRORS === '1') {
+      body.stackHead = err.stack?.split('\n').slice(0, 4).join('\n') ?? null;
+    }
+    return problemJson(500, 'internal_error', body);
   }
   return problemJson(500, 'internal_error');
 }
