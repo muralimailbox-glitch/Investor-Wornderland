@@ -20,6 +20,14 @@ type Props = {
 
 const DAY_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_SLOTS = 5;
+/**
+ * Default view shows only this many curated slots, never the full calendar
+ * grid. Spreading "your calendar is wide open" across seven columns reads as
+ * low-signal availability; the founder explicitly asked for a tighter view
+ * that protects perceived priority. Investors can click "See more times" if
+ * none of the offered picks work — at which point the full grid is revealed.
+ */
+const CURATED_SLOT_COUNT = 4;
 
 function shortTz(tz: string): string {
   const parts = tz.split('/');
@@ -90,6 +98,12 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [agenda, setAgenda] = useState('');
   const [bookedKeys, setBookedKeys] = useState<Set<string>>(() => new Set());
+  // Default to the curated 4-slot strip; full grid revealed on demand only.
+  const [showAllSlots, setShowAllSlots] = useState(false);
+  // Stable mount-time "now" for filtering past slots — bare Date.now() in a
+  // useMemo trips react-hooks/purity. Mount-stable is fine here since we
+  // re-fetch slots whenever the visible week changes.
+  const [nowMs] = useState(() => Date.now());
 
   useEffect(() => {
     let alive = true;
@@ -134,6 +148,36 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
     }
     return map;
   }, [slots, founderTimezone]);
+
+  /**
+   * Pick CURATED_SLOT_COUNT slots that look "intentionally offered to you"
+   * rather than "the founder is free all week". Strategy: walk the
+   * available (untaken, future) slots in chronological order, take at most
+   * one slot per day, and stop once we have CURATED_SLOT_COUNT. That
+   * spreads the picks across distinct days so the investor sees variety
+   * without exposing the underlying density.
+   */
+  const curatedSlots = useMemo<Slot[]>(() => {
+    if (!slots) return [];
+    const seenDays = new Set<string>();
+    const picks: Slot[] = [];
+    for (const s of slots) {
+      if (s.taken) continue;
+      if (bookedKeys.has(s.startsAt)) continue;
+      if (new Date(s.startsAt).getTime() < nowMs) continue;
+      const dayKey = new Intl.DateTimeFormat('en-CA', {
+        timeZone: founderTimezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date(s.startsAt));
+      if (seenDays.has(dayKey)) continue;
+      seenDays.add(dayKey);
+      picks.push(s);
+      if (picks.length >= CURATED_SLOT_COUNT) break;
+    }
+    return picks;
+  }, [slots, founderTimezone, bookedKeys, nowMs]);
 
   const dayColumns = useMemo(() => {
     const cols: Array<{ key: string; date: Date }> = [];
@@ -212,40 +256,53 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-orange-50 via-rose-50 to-fuchsia-50 px-5 py-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-orange-700">
-            Founder calendar
+            {showAllSlots ? 'Founder calendar' : 'Held for you'}
           </p>
-          <p className="text-sm font-semibold text-slate-900">{monthLabel}</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {showAllSlots ? monthLabel : 'A few times we can prioritise for you'}
+          </p>
           <p className="text-[11px] text-slate-500">
-            Slots in your time ({shortTz(investorTimezone)}). Founder is in IST. Mon–Sat,
-            9–12 and 1:30–7 IST. Pick up to {MAX_SLOTS} options.
+            {showAllSlots
+              ? `Slots in your time (${shortTz(investorTimezone)}). Founder time in IST. Pick up to ${MAX_SLOTS} options.`
+              : `Times in your zone (${shortTz(investorTimezone)}). Investor calls are the priority Krish's week is built around.`}
           </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setWeekStart((w) => addDays(w, -7))}
-            disabled={!canGoBack}
-            className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Previous week"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekStart(startOfWeekUtc(new Date()))}
-            className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-50"
-          >
-            This week
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekStart((w) => addDays(w, 7))}
-            className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-50"
-            aria-label="Next week"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        {showAllSlots ? (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setShowAllSlots(false)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+              title="Back to the suggested picks"
+            >
+              ← Picks
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekStart((w) => addDays(w, -7))}
+              disabled={!canGoBack}
+              className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Previous week"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekStart(startOfWeekUtc(new Date()))}
+              className="rounded-full border border-orange-200 bg-white px-3 py-1.5 text-xs font-medium text-orange-700 transition hover:bg-orange-50"
+            >
+              This week
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekStart((w) => addDays(w, 7))}
+              className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-600 transition hover:bg-slate-50"
+              aria-label="Next week"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
       </header>
 
       {error ? (
@@ -264,6 +321,81 @@ export function MeetingCalendar({ investorTimezone, founderTimezone, onBooked }:
       {slots === null ? (
         <div className="flex h-48 items-center justify-center text-sm text-slate-500">
           <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading slots…
+        </div>
+      ) : !showAllSlots ? (
+        <div className="px-5 py-5">
+          {curatedSlots.length === 0 ? (
+            <div className="rounded-2xl border border-orange-100 bg-orange-50/50 px-4 py-5 text-center text-sm text-slate-600">
+              <p className="font-medium text-slate-800">
+                No held slots in this window.
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Open the full view below or reply to your invite email — we&apos;ll make a
+                custom slot for you.
+              </p>
+            </div>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {curatedSlots.map((s) => {
+                const isSelected = selected.has(s.startsAt);
+                const booked = bookedKeys.has(s.startsAt);
+                return (
+                  <li key={s.startsAt}>
+                    <button
+                      type="button"
+                      onClick={() => toggleSlot(s)}
+                      disabled={booked}
+                      className={`flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                        booked
+                          ? 'cursor-default border-emerald-300 bg-emerald-50 text-emerald-800'
+                          : isSelected
+                            ? 'border-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 text-white shadow-md'
+                            : 'border-orange-200 bg-white text-slate-900 hover:-translate-y-px hover:border-orange-400 hover:shadow-md'
+                      }`}
+                    >
+                      <div>
+                        <p
+                          className={`text-xs font-semibold uppercase tracking-[0.12em] ${
+                            isSelected ? 'text-white/80' : 'text-orange-700'
+                          }`}
+                        >
+                          {formatDateLong(s.startsAt, investorTimezone)}
+                        </p>
+                        <p className="mt-0.5 text-base font-semibold">
+                          {formatTime(s.startsAt, investorTimezone)}
+                        </p>
+                        <p
+                          className={`text-[11px] ${
+                            isSelected ? 'text-white/80' : 'text-slate-500'
+                          }`}
+                        >
+                          Founder time: {s.istLabel} IST
+                        </p>
+                      </div>
+                      {booked ? (
+                        <CalendarCheck className="h-5 w-5 flex-none" />
+                      ) : isSelected ? (
+                        <Sparkles className="h-5 w-5 flex-none" />
+                      ) : (
+                        <span className="rounded-full bg-orange-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-700 group-hover:bg-orange-100">
+                          Pick
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <div className="mt-4 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => setShowAllSlots(true)}
+              className="text-[12px] font-medium text-slate-500 underline-offset-4 transition hover:text-orange-700 hover:underline"
+            >
+              None of these work? See more times.
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-7 divide-x divide-slate-100">

@@ -71,7 +71,7 @@ async function seedInProcess(): Promise<void> {
 
   const founderEmail = process.env.FOUNDER_EMAIL;
   const founderPassword = process.env.FOUNDER_PASSWORD;
-  const founderFirstName = process.env.FOUNDER_FIRST_NAME ?? 'Murali';
+  const founderFirstName = process.env.FOUNDER_FIRST_NAME ?? 'Krish';
 
   if (!founderEmail || !founderPassword) {
     throw new Error('FOUNDER_EMAIL / FOUNDER_PASSWORD not set on the app service');

@@ -17,13 +17,13 @@ describe('investor magic link URL', () => {
       investorId: 'inv-1',
       workspaceId: 'ws-1',
       firmId: null,
-      firstName: 'Murali',
+      firstName: 'Krish',
       lastName: null,
       firmName: null,
     });
     const session = verifyInvestorLink(token);
     expect(session?.investorId).toBe('inv-1');
-    expect(session?.firstName).toBe('Murali');
+    expect(session?.firstName).toBe('Krish');
   });
 
   it('rejects a tampered token', () => {

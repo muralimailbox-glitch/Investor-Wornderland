@@ -18,7 +18,7 @@ type Props = {
 export function WhatsappButton({ message, variant = 'pill', className = '' }: Props) {
   const text = message
     ? `?text=${encodeURIComponent(message)}`
-    : `?text=${encodeURIComponent("Hi Murali — I'd like to chat about OotaOS.")}`;
+    : `?text=${encodeURIComponent("Hi Krish — I'd like to chat about OotaOS.")}`;
   const href = `https://wa.me/${FOUNDER_WA_E164}${text}`;
 
   if (variant === 'compact') {

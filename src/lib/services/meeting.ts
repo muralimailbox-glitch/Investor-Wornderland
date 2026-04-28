@@ -63,7 +63,7 @@ function generateMeetLink(): string {
 }
 
 const MEET_DISCLAIMER =
-  'The Google Meet link below is just a placeholder. Murali is on IST (+5:30) and is happy to adapt to whatever tool you usually use — Google Calendar, Outlook, Calendly, Zoom, Teams, anything. Just reply to this email with your own invite for the same slot and that becomes the source of truth.';
+  'You are our highest priority — Krish (IST, +5:30) is happy to adapt to whichever calendar tool you usually use. The Google Meet link is only a placeholder; reply with your own invite for the same slot and that becomes the source of truth.';
 
 /**
  * Trailing buffer applied to every booked meeting. If meeting A is at
@@ -267,8 +267,8 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
 
     const investorBody =
       created.length === 1
-        ? `Confirmed — the slot below is yours. We've also blocked the hour after it on our side, so there's no risk of running into another meeting if our conversation goes long.\n\nThe Google Meet link is just a placeholder. Murali sits on IST (+5:30) and is happy to fit your tooling — Google Calendar, Outlook, Calendly, Zoom, Teams, anything you normally use. Just reply to this email with your own invite for the same slot and that becomes the working meeting; the placeholder will be ignored.\n\nIf anything changes on your end, reply here and we'll re-book.`
-        : `Confirmed. We've reserved all ${created.length} slots you picked, with a 60-minute buffer after each one so they can't run into each other.\n\nThe Google Meet links are placeholders. Murali is on IST (+5:30) and happy to use whichever tool you prefer — just reply with your own invite for the slot you want to lock in, and we'll release the others.`;
+        ? `Confirmed — the slot below is yours, and you have our full attention for it. Investor conversations sit at the top of Krish's week; everything else flexes around them.\n\nThe Google Meet link is just a placeholder. Krish sits on IST (+5:30) and is happy to fit your usual tooling — Google Calendar, Outlook, Calendly, Zoom, Teams, anything you prefer. Just reply to this email with your own invite for the same slot and that becomes the working meeting.\n\nIf anything changes on your end, reply here and we'll re-book.`
+        : `Confirmed. All ${created.length} slots you picked are held for you, and you have our full attention across them — investor conversations are the priority that everything else flexes around.\n\nThe Google Meet links are placeholders. Krish is on IST (+5:30) and happy to use whichever tool you prefer — just reply with your own invite for the slot you want to lock in, and we'll release the others.`;
 
     const investorEmail = renderBrandedEmail({
       heading:
@@ -479,10 +479,10 @@ export async function rescheduleMeeting(input: {
       heading: 'Your OotaOS meeting was moved',
       body:
         (input.triggeredBy === 'founder'
-          ? `Hi ${r.investorFirstName} — we had to move our slot. The new time is below, with a 60-minute buffer after it on our side so we won't run into another meeting.`
-          : `Confirmed — we've moved your slot. The hour after the new time is reserved as a buffer too.`) +
+          ? `Hi ${r.investorFirstName} — apologies for the move. The new time is below, and you have our full attention for it; investor conversations are the priority Krish's week is built around.`
+          : `Confirmed — we've moved your slot. You have our full attention for the new time.`) +
         (input.reason ? `\n\nReason: ${input.reason}` : '') +
-        `\n\nA fresh Google Meet link is below as a placeholder. Murali is on IST (+5:30) and happy to use whichever calendar tool you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
+        `\n\nA fresh Google Meet link is below as a placeholder. Krish is on IST (+5:30) and happy to use whichever calendar tool you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
       facts: [
         ['Was', oldLocal],
         ['Now', `${newLocal} (${shortTz(investorTimezone)})`],

@@ -33,7 +33,7 @@ if (!process.env.FOUNDER_EMAIL || !process.env.FOUNDER_PASSWORD) {
 }
 const founderEmail: string = process.env.FOUNDER_EMAIL;
 const founderPassword: string = process.env.FOUNDER_PASSWORD;
-const founderFirstName: string = process.env.FOUNDER_FIRST_NAME ?? 'Murali';
+const founderFirstName: string = process.env.FOUNDER_FIRST_NAME ?? 'Krish';
 
 const sql = postgres(databaseUrl, { max: 2, prepare: false });
 const db = drizzle(sql, { schema });

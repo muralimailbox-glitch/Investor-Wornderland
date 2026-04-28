@@ -328,7 +328,7 @@ export function InvestorsBoard() {
       body.fundedAmountUsd = Math.floor(amtN);
       body.fundedAt = new Date().toISOString();
     } else if (STAGES_NEEDING_NEXT_ACTION.includes(nextStage)) {
-      const owner = window.prompt('Next-action owner (your name):', 'Murali');
+      const owner = window.prompt('Next-action owner (your name):', 'Krish');
       if (!owner) return;
       body.nextActionOwner = owner.trim();
       body.nextActionDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();

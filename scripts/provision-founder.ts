@@ -18,7 +18,7 @@ loadEnv({ path: '.env' });
 
 const FOUNDER_EMAIL = process.env.FOUNDER_EMAIL;
 const FOUNDER_PASSWORD = process.env.FOUNDER_PASSWORD;
-const FOUNDER_FIRST_NAME = process.env.FOUNDER_FIRST_NAME ?? 'Murali';
+const FOUNDER_FIRST_NAME = process.env.FOUNDER_FIRST_NAME ?? 'Krish';
 
 if (!FOUNDER_EMAIL || !FOUNDER_PASSWORD) {
   console.error(

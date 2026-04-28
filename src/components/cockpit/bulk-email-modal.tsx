@@ -57,7 +57,7 @@ I'd love to share an update on OotaOS — we're a restaurant operating system ra
 {{investorLink}}
 
 Best,
-Murali`;
+Krish`;
 
 export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
   const [templateKey, setTemplateKey] = useState<string>('outreach');

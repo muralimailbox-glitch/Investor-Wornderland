@@ -274,7 +274,7 @@ export const POST = handle(async (req) => {
     .limit(1);
   const signatureBlock =
     founder?.signatureMarkdown ??
-    `${founder?.displayName ?? 'Murali'}\n${founder?.companyName ?? 'OotaOS'}\n${founder?.email ?? ''}`;
+    `${founder?.displayName ?? 'Krish'}\n${founder?.companyName ?? 'OotaOS'}\n${founder?.email ?? ''}`;
 
   const prompt = loadPrompt('drafter');
   const model = getModel('drafter');

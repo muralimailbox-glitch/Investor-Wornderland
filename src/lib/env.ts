@@ -65,7 +65,7 @@ const EnvSchema = z.object({
 
   FOUNDER_EMAIL: z.string().email(),
   FOUNDER_PASSWORD: z.string().min(8),
-  FOUNDER_FIRST_NAME: z.string().min(1).default('Murali'),
+  FOUNDER_FIRST_NAME: z.string().min(1).default('Krish'),
 
   GOOGLE_CLIENT_ID: optionalString,
   GOOGLE_CLIENT_SECRET: optionalString,
@@ -125,7 +125,7 @@ const BUILD_PHASE_FALLBACKS: Env = {
   SESSION_COOKIE_NAME: 'ootaos_session',
   FOUNDER_EMAIL: 'build@placeholder.invalid',
   FOUNDER_PASSWORD: 'build-placeholder-password',
-  FOUNDER_FIRST_NAME: 'Murali',
+  FOUNDER_FIRST_NAME: 'Krish',
   GOOGLE_CLIENT_ID: undefined,
   GOOGLE_CLIENT_SECRET: undefined,
   GOOGLE_REDIRECT_URI: undefined,

@@ -120,7 +120,7 @@ export const POST = handle(async (req) => {
     .limit(1);
   const signatureBlock =
     founder?.signatureMarkdown ??
-    `${founder?.displayName ?? 'Murali'}\n${founder?.companyName ?? 'OotaOS'}\n${founder?.email ?? ''}`;
+    `${founder?.displayName ?? 'Krish'}\n${founder?.companyName ?? 'OotaOS'}\n${founder?.email ?? ''}`;
 
   // KB retrieval — same two-pass shape as the concierge so the reply stays
   // grounded even when the topic is novel.

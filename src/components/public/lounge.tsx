@@ -279,7 +279,7 @@ export function Lounge() {
         </p>
         <div className="mt-3">
           <WhatsappButton
-            message={`Hi Murali — investor question from the OotaOS lounge.${
+            message={`Hi Krish — investor question from the OotaOS lounge.${
               bundle.investorName ? ` (${bundle.investorName})` : ''
             }`}
           />

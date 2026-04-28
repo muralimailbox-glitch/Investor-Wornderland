@@ -48,7 +48,7 @@ async function main() {
   console.log(`[invite-otp-test] issued code (DB write OK): ${code}`);
 
   // --- 2. Send email (same body as /api/v1/invite/otp/start) ---
-  const firstName = 'Murali';
+  const firstName = 'Krish';
   const { messageId } = await sendMail({
     to: recipient,
     subject: `Your OotaOS verification code: ${code}`,

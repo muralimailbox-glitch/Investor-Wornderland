@@ -41,7 +41,7 @@ export default async function LandingPage() {
         </Link>
         <nav className="flex items-center gap-2 text-sm text-slate-700">
           <WhatsappButton
-            message="Hi Murali — I'm an investor interested in OotaOS and would like a personal link."
+            message="Hi Krish — I'm an investor interested in OotaOS and would like a personal link."
             variant="pill"
           />
           <a
@@ -83,7 +83,7 @@ export default async function LandingPage() {
             name, your firm, and the deal context already wired in.
           </p>
           <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-            <WhatsappButton message="Hi Murali — I'd like a personal investor link for OotaOS." />
+            <WhatsappButton message="Hi Krish — I'd like a personal investor link for OotaOS." />
             <a
               href="mailto:info@ootaos.com?subject=Investor%20access%20request"
               className="inline-flex items-center gap-2 rounded-full border border-orange-200 bg-white px-5 py-2.5 text-sm font-medium text-orange-800 transition hover:-translate-y-px hover:bg-orange-50"

@@ -44,7 +44,7 @@ export default async function AskPage() {
             firmName={session.firmName}
           />
           <WhatsappButton
-            message={`Hi Murali — investor question from ${session.firstName} ${session.lastName}${
+            message={`Hi Krish — investor question from ${session.firstName} ${session.lastName}${
               session.firmName ? ` (${session.firmName})` : ''
             }.`}
             variant="pill"
