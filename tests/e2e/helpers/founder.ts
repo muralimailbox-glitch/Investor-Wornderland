@@ -114,6 +114,65 @@ export async function getCurrentDeal(api: APIRequestContext) {
   return (await res.json()) as null | { id: string; roundLabel: string };
 }
 
+export async function revokeNda(api: APIRequestContext, ndaId: string) {
+  const res = await api.post(`/api/v1/admin/ndas/${ndaId}/revoke`, { data: {} });
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()) as { ok: boolean; ndaId: string; revokedAt: string | null };
+}
+
+export type UploadDocumentInput = {
+  filename?: string;
+  content?: Buffer;
+  mimeType?: string;
+  kind?: string;
+  watermarkPolicy?: 'per_investor' | 'static' | 'none';
+  minLeadStage?: string | null;
+  expiresInDays?: number | null;
+};
+
+export async function uploadDocument(api: APIRequestContext, opts: UploadDocumentInput = {}) {
+  const filename = opts.filename ?? 'test.pdf';
+  const content = opts.content ?? Buffer.from('%PDF-1.4 test document content');
+  const mimeType = opts.mimeType ?? 'application/pdf';
+  const fields: Record<string, string | { name: string; mimeType: string; buffer: Buffer }> = {
+    file: { name: filename, mimeType, buffer: content },
+    kind: opts.kind ?? 'other',
+    watermarkPolicy: opts.watermarkPolicy ?? 'none',
+  };
+  if (opts.minLeadStage != null) fields.minLeadStage = opts.minLeadStage;
+  if (opts.expiresInDays != null) fields.expiresInDays = String(opts.expiresInDays);
+  const res = await api.post('/api/v1/admin/documents', { multipart: fields });
+  expect(res.ok()).toBeTruthy();
+  const body = (await res.json()) as {
+    document: { id: string; kind: string; originalFilename?: string };
+  };
+  return body.document;
+}
+
+export async function deleteDocument(api: APIRequestContext, docId: string) {
+  const res = await api.delete(`/api/v1/admin/documents/${docId}`);
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()) as { ok: boolean };
+}
+
+export async function replaceDocument(
+  api: APIRequestContext,
+  docId: string,
+  opts: { filename?: string; content?: Buffer; mimeType?: string } = {},
+) {
+  const filename = opts.filename ?? 'replacement.pdf';
+  const content = opts.content ?? Buffer.from('%PDF-1.4 replacement content');
+  const mimeType = opts.mimeType ?? 'application/pdf';
+  const res = await api.put(`/api/v1/admin/documents/${docId}`, {
+    multipart: { file: { name: filename, mimeType, buffer: content } },
+  });
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()) as {
+    document: { id: string; sha256: string };
+    archivedVersion: number;
+  };
+}
+
 /** Import investors from a CSV string (text/csv body). */
 export async function importInvestorsCsv(api: APIRequestContext, csvText: string) {
   const res = await api.post('/api/v1/admin/investors/import', {
