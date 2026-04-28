@@ -23,14 +23,46 @@ import { logoUrl, MARKETING_SITE_URL, OOTAOS_BRAND, siteUrl } from '@/lib/mail/b
 
 export type BrandedEmailInput = {
   heading: string;
-  /** Plain-text body. Paragraphs separated by blank lines. */
+  /**
+   * Plain-text body. Paragraphs separated by blank lines. Used for the
+   * HTML render (each paragraph is escaped + wrapped in <p>) AND for the
+   * plain-text fallback. For outreach mails that have pre-rendered
+   * HTML (templates with lists, links, formatting), pass `bodyHtml`
+   * instead — `body` then only drives the plain-text fallback.
+   */
   body: string;
+  /**
+   * Optional pre-rendered HTML body. When set, the HTML block is dropped
+   * verbatim into the shell instead of escaping the plain `body` text.
+   * Outreach templates use this so their stored HTML keeps formatting.
+   */
+  bodyHtml?: string;
   /** Optional list of (label, value) rows displayed as a table. */
   facts?: Array<[string, string]>;
   /** Optional list of additional CTA buttons. */
   cta?: Array<{ label: string; href: string }> | undefined;
   /** Footer subline above the main footer. Use for context/disclaimers. */
   preFooter?: string;
+  /**
+   * Founder signature block — rendered below the body and above the
+   * pre-footer for outreach emails. HTML is taken verbatim and inserted
+   * inside a <td>; text version goes into the plain-text fallback. The
+   * content is built by `@/lib/mail/signature` and already escaped.
+   */
+  signature?: { html: string; text: string };
+  /**
+   * Outreach emails (CAN-SPAM compliant) need a one-click unsubscribe.
+   * When provided, an "Unsubscribe" link is rendered in the footer.
+   * Transactional emails (OTP, meeting confirmations, NDA codes) leave
+   * this undefined and the footer hides the unsubscribe row.
+   */
+  unsubscribeUrl?: string;
+  /**
+   * Override the rendered company name — defaults to "OotaOS". Used by
+   * the templated outreach path to surface the workspace's display name
+   * if the founder customised it in cockpit settings.
+   */
+  companyName?: string;
 };
 
 const SITE = siteUrl();
@@ -133,7 +165,7 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
           </tr>
           <tr>
             <td style="padding: 0 32px 8px 32px;">
-              ${paragraphsToHtml(input.body)}
+              ${input.bodyHtml ?? paragraphsToHtml(input.body)}
             </td>
           </tr>
           ${
@@ -149,6 +181,11 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
           }
           ${ctaButtons ? `<tr><td style="padding: 8px 32px 8px 32px;">${ctaButtons}</td></tr>` : ''}
           ${
+            input.signature
+              ? `<tr><td style="padding: 16px 32px 0 32px;">${input.signature.html}</td></tr>`
+              : ''
+          }
+          ${
             input.preFooter
               ? `<tr><td style="padding: 16px 32px 0 32px;"><p style="margin: 0; font-size: 12px; color: ${PALETTE.inkSoft}; line-height: 1.5;">${escapeHtml(input.preFooter)}</p></td></tr>`
               : ''
@@ -157,13 +194,18 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
             <td style="padding: 24px 32px 28px 32px;">
               <hr style="border: none; border-top: 1px solid ${PALETTE.border}; margin: 0 0 16px;"/>
               <p style="margin: 0 0 4px; font-size: 12px; color: ${PALETTE.inkSoft};">
-                <a href="${MARKETING_SITE_URL}" style="color: ${PALETTE.inkSoft}; text-decoration: none; font-weight: 600;">OotaOS</a>
+                <a href="${MARKETING_SITE_URL}" style="color: ${PALETTE.inkSoft}; text-decoration: none; font-weight: 600;">${escapeHtml(input.companyName ?? 'OotaOS')}</a>
                 · Sydney, Australia · Restaurant operating system
               </p>
               <p style="margin: 0; font-size: 11px; color: ${PALETTE.inkSoft};">
                 <a href="${SITE}" style="color: ${PALETTE.inkSoft}; text-decoration: underline;">investors.ootaos.com</a>
                 · <a href="${SITE}/privacy" style="color: ${PALETTE.inkSoft}; text-decoration: underline;">Privacy</a>
-                · <a href="mailto:info@ootaos.com" style="color: ${PALETTE.inkSoft}; text-decoration: underline;">info@ootaos.com</a>
+                · <a href="mailto:info@ootaos.com" style="color: ${PALETTE.inkSoft}; text-decoration: underline;">info@ootaos.com</a>${
+                  input.unsubscribeUrl
+                    ? `
+                · <a href="${escapeHtml(input.unsubscribeUrl)}" style="color: ${PALETTE.inkSoft}; text-decoration: underline;">Unsubscribe</a>`
+                    : ''
+                }
               </p>
             </td>
           </tr>
@@ -186,12 +228,19 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
     textParts.push('');
     for (const c of cta) textParts.push(`${c.label}: ${c.href}`);
   }
+  if (input.signature?.text) {
+    textParts.push('');
+    textParts.push(input.signature.text);
+  }
   if (input.preFooter) {
     textParts.push('');
     textParts.push(input.preFooter);
   }
   textParts.push('');
-  textParts.push('— OotaOS · Sydney · investors.ootaos.com');
+  textParts.push(`— ${input.companyName ?? 'OotaOS'} · Sydney · investors.ootaos.com`);
+  if (input.unsubscribeUrl) {
+    textParts.push(`Unsubscribe: ${input.unsubscribeUrl}`);
+  }
 
   return { html, text: textParts.join('\n') };
 }

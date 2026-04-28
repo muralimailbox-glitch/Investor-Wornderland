@@ -223,8 +223,115 @@ export function SettingsForm() {
 
       <GoogleCalendarSection />
 
+      <EmailTemplateTester />
+
       <SecuritySection />
     </div>
+  );
+}
+
+/**
+ * Founder-only QA panel: fires one of every email kind in the app to a
+ * single recipient (defaults to krish.c@snapsitebuild.com) so all
+ * templates can be reviewed in one inbox without walking the live
+ * workflows. Backed by POST /api/v1/admin/email-test/send-all.
+ */
+function EmailTemplateTester() {
+  const [target, setTarget] = useState('krish.c@snapsitebuild.com');
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{
+    sent?: number;
+    total?: number;
+    errors?: Array<{ id: string; error: string }>;
+    error?: string;
+  } | null>(null);
+
+  async function fire() {
+    setSending(true);
+    setResult(null);
+    try {
+      const r = await fetch('/api/v1/admin/email-test/send-all', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to: target.trim() || undefined }),
+      });
+      const j = (await r.json().catch(() => ({}))) as {
+        sent?: number;
+        total?: number;
+        errors?: Array<{ id: string; error: string }>;
+        title?: string;
+        error?: string;
+      };
+      if (!r.ok) {
+        setResult({ error: j.title ?? j.error ?? `HTTP ${r.status}` });
+      } else {
+        setResult({
+          sent: j.sent ?? 0,
+          total: j.total ?? 0,
+          errors: j.errors ?? [],
+        });
+      }
+    } catch (e) {
+      setResult({ error: e instanceof Error ? e.message : 'unknown' });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <Section title="Email QA" icon={<Save className="h-4 w-4" />}>
+      <p className="text-sm text-slate-600">
+        Fire one of every email kind in the app to a single inbox so you can review every template
+        at once without walking through OTPs, bookings, NDAs, etc. ~17 emails go out; each is
+        prefixed with{' '}
+        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px]">[SAMPLE n/N]</code> so the
+        inbox stays grouped.
+      </p>
+      <TextField
+        label="Send all sample emails to"
+        value={target}
+        onChange={setTarget}
+        placeholder="krish.c@snapsitebuild.com"
+        hint="Defaults to krish.c@snapsitebuild.com if blank."
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => void fire()}
+          disabled={sending}
+          className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 px-5 py-2.5 text-sm font-medium text-white shadow-md shadow-rose-500/30 transition hover:-translate-y-px disabled:opacity-60"
+        >
+          {sending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Firing samples…
+            </>
+          ) : (
+            <>Send all sample emails</>
+          )}
+        </button>
+        {result && !result.error ? (
+          <span className="inline-flex items-center gap-1 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4" />
+            {result.sent}/{result.total} delivered
+            {result.errors && result.errors.length > 0 ? ` · ${result.errors.length} failed` : ''}
+          </span>
+        ) : null}
+        {result?.error ? (
+          <span className="text-sm text-rose-700">Failed: {result.error}</span>
+        ) : null}
+      </div>
+      {result?.errors && result.errors.length > 0 ? (
+        <ul className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+          {result.errors.map((e) => (
+            <li key={e.id} className="flex flex-wrap items-baseline gap-2">
+              <span className="font-mono font-semibold">{e.id}</span>
+              <span>{e.error}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Section>
   );
 }
 
