@@ -139,21 +139,14 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; background: ${PALETTE.bgCard}; border: 1px solid ${PALETTE.border}; border-radius: 24px; box-shadow: 0 20px 60px -30px rgba(234, 88, 12, 0.18); overflow: hidden;">
           <tr>
             <td style="padding: 28px 32px 0 32px;">
-              <!-- Image-free brand mark: Gmail/Outlook proxy + ad-blockers
-                   were stripping the hot-linked PNG. CSS gradient on text
-                   renders in every modern client; bgcolor fallback covers
-                   the few that don't. Logo URL kept as fallback img tag
-                   below so corporate clients that whitelist the domain
-                   still get the full mark. -->
+              <!-- Real OotaOS rectangle-with-tagline logo. The image is
+                   served from investors.ootaos.com/brand/ which Gmail's
+                   image proxy caches once per recipient; alt text is the
+                   wordmark so clients that block images still see "OotaOS".
+                   The header link points at the public marketing site
+                   (www.ootaos.com), not the investor app. -->
               <a href="${MARKETING_SITE_URL}" style="display: inline-block; text-decoration: none;">
-                <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
-                  <tr>
-                    <td bgcolor="${PALETTE.accentVia}" style="padding: 8px 14px; border-radius: 10px; background: ${PALETTE.gradient};">
-                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; color: #ffffff; text-decoration: none;">OotaOS</span>
-                    </td>
-                  </tr>
-                </table>
-                <img src="${LOGO_URL}" alt="" width="0" height="0" style="display: none; max-height: 0; max-width: 0; overflow: hidden;"/>
+                <img src="${LOGO_URL}" alt="OotaOS — Powering Restaurants to Win" width="220" style="display: block; max-width: 220px; height: auto; border: 0; outline: none; text-decoration: none;"/>
               </a>
             </td>
           </tr>

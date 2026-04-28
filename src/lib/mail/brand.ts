@@ -34,10 +34,17 @@ export const OOTAOS_BRAND = {
   gradient: 'linear-gradient(135deg, #F97316 0%, #E11D48 50%, #C026D3 100%)',
 } as const;
 
-/** Absolute URL to the canonical OotaOS logo asset, computed from env. */
+/**
+ * Absolute URL to the canonical OotaOS logo asset for emails. Uses the
+ * rectangular logo with tagline ("Powering Restaurants to Win") because
+ * its 3:1 aspect ratio sits naturally in the email header band — the
+ * square light-background variant looked oversized and the wordmark
+ * alone (oota-rect.png) lacks the product context investors get on the
+ * marketing site.
+ */
 export function logoUrl(): string {
   const siteBase = env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
-  return `${siteBase}/brand/oota-light.png`;
+  return `${siteBase}/brand/oota-rect-tagline.png`;
 }
 
 /** Absolute URL to the public marketing site (clickable from the header). */
