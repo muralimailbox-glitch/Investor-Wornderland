@@ -44,6 +44,10 @@ type Investor = {
   decisionAuthority: string;
   timezone: string;
   updatedAt: string;
+  warmthScore: number | null;
+  lastContactAt: string | null;
+  sectorInterests: string[] | null;
+  stageInterests: string[] | null;
 };
 
 type Lead = {
@@ -77,6 +81,13 @@ export function InvestorsBoard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [firmType, setFirmType] = useState<string>('');
+  const [stage, setStage] = useState<string>('');
+  // Saved smart segments — quick filters that compose on top of search/firmType.
+  // 'all' is no extra filter; the others narrow down to specific work-states.
+  type Segment = 'all' | 'hot' | 'partner_pending' | 'stale' | 'awaiting_reply';
+  const [segment, setSegment] = useState<Segment>('all');
+  type SortKey = 'warmth' | 'last_contact' | 'firm_name' | 'updated';
+  const [sortKey, setSortKey] = useState<SortKey>('warmth');
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -102,9 +113,9 @@ export function InvestorsBoard() {
     setSelectedLeadIds(new Set());
   }
   function selectAllVisible() {
-    const allLeadIds = (data?.rows ?? [])
-      .map((r) => r.lead?.id)
-      .filter((id): id is string => Boolean(id));
+    // Select-all respects the current segment+sort filter so the founder
+    // can fire bulk-email at exactly the visible cohort.
+    const allLeadIds = visibleRows.map((r) => r.lead?.id).filter((id): id is string => Boolean(id));
     if (allLeadIds.length === 0) return;
     setSelectedLeadIds(new Set(allLeadIds));
   }
@@ -113,9 +124,76 @@ export function InvestorsBoard() {
     const p = new URLSearchParams();
     if (search.trim()) p.set('search', search.trim());
     if (firmType) p.set('firmType', firmType);
-    p.set('pageSize', '200');
+    if (stage) p.set('stage', stage);
+    p.set('pageSize', '500');
     return p.toString();
-  }, [search, firmType]);
+  }, [search, firmType, stage]);
+
+  // Stable "now" snapshot via useState init — purity-safe (state, not a
+  // bare Date.now() inside a hook) and a valid useMemo dependency.
+  const STALE_DAYS = 30;
+  const [staleCutoff] = useState(() => Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000);
+
+  // Client-side segment + sort over the fetched rows. The API already does
+  // search/firmType/stage; segments are derived from columns the API returns
+  // (warmthScore, lastContactAt) so we can filter without another round trip.
+  // React Compiler memoizes this automatically — manual useMemo here trips
+  // its preserve-manual-memoization rule because of the staleCutoff dep.
+  const visibleRows = (() => {
+    const rows = data?.rows ?? [];
+    const filtered = rows.filter((r) => {
+      if (segment === 'all') return true;
+      if (segment === 'partner_pending') return r.partnerPending;
+      if (segment === 'hot') return (r.investor?.warmthScore ?? 0) >= 80;
+      if (segment === 'stale') {
+        if (!r.investor) return false;
+        const last = r.investor.lastContactAt ? new Date(r.investor.lastContactAt).getTime() : 0;
+        return last < staleCutoff;
+      }
+      if (segment === 'awaiting_reply') {
+        // Heuristic: meeting_scheduled + diligence + term_sheet stages where
+        // we're typically waiting on the investor. Refine with interaction
+        // direction once the API surfaces it.
+        return Boolean(r.lead && ['nda_pending', 'diligence', 'term_sheet'].includes(r.lead.stage));
+      }
+      return true;
+    });
+    return [...filtered].sort((a, b) => {
+      if (sortKey === 'warmth') {
+        return (b.investor?.warmthScore ?? -1) - (a.investor?.warmthScore ?? -1);
+      }
+      if (sortKey === 'last_contact') {
+        const at = a.investor?.lastContactAt ? new Date(a.investor.lastContactAt).getTime() : 0;
+        const bt = b.investor?.lastContactAt ? new Date(b.investor.lastContactAt).getTime() : 0;
+        return bt - at;
+      }
+      if (sortKey === 'firm_name') {
+        return a.firm.name.localeCompare(b.firm.name);
+      }
+      // 'updated' — most-recently-touched first
+      const at = a.investor?.updatedAt ? new Date(a.investor.updatedAt).getTime() : 0;
+      const bt = b.investor?.updatedAt ? new Date(b.investor.updatedAt).getTime() : 0;
+      return bt - at;
+    });
+  })();
+
+  // Quick counts for segment-chip badges, derived from the same dataset.
+  const segmentCounts = (() => {
+    const rows = data?.rows ?? [];
+    const counts = { all: rows.length, hot: 0, partner_pending: 0, stale: 0, awaiting_reply: 0 };
+    for (const r of rows) {
+      if (r.partnerPending) counts.partner_pending++;
+      if ((r.investor?.warmthScore ?? 0) >= 80) counts.hot++;
+      if (r.investor) {
+        const last = r.investor.lastContactAt ? new Date(r.investor.lastContactAt).getTime() : 0;
+        if (last < staleCutoff) counts.stale++;
+      }
+      if (r.lead && ['nda_pending', 'diligence', 'term_sheet'].includes(r.lead.stage)) {
+        counts.awaiting_reply++;
+      }
+    }
+    return counts;
+  })();
 
   useEffect(() => {
     let alive = true;
@@ -222,6 +300,49 @@ export function InvestorsBoard() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        {(
+          [
+            { key: 'all' as const, label: 'All', n: segmentCounts.all },
+            { key: 'hot' as const, label: 'Hot ≥80', n: segmentCounts.hot },
+            {
+              key: 'partner_pending' as const,
+              label: 'Partner pending',
+              n: segmentCounts.partner_pending,
+            },
+            { key: 'stale' as const, label: 'No contact 30d+', n: segmentCounts.stale },
+            {
+              key: 'awaiting_reply' as const,
+              label: 'Awaiting reply',
+              n: segmentCounts.awaiting_reply,
+            },
+          ] as const
+        ).map((s) => {
+          const active = segment === s.key;
+          return (
+            <button
+              key={s.key}
+              type="button"
+              onClick={() => setSegment(s.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                active
+                  ? 'border-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 text-white shadow-sm'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {s.label}
+              <span
+                className={`rounded-full px-1.5 py-0 text-[10px] font-semibold ${
+                  active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {s.n}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
         <label className="relative flex flex-1 items-center">
           <Search className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400" />
@@ -238,6 +359,7 @@ export function InvestorsBoard() {
             value={firmType}
             onChange={(e) => setFirmType(e.target.value)}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+            aria-label="Filter by firm type"
           >
             <option value="">All firm types</option>
             {FIRM_TYPES.map((t) => (
@@ -245,6 +367,42 @@ export function InvestorsBoard() {
                 {t.replace(/_/g, ' ')}
               </option>
             ))}
+          </select>
+          <select
+            value={stage}
+            onChange={(e) => setStage(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+            aria-label="Filter by lead stage"
+          >
+            <option value="">All stages</option>
+            {[
+              'prospect',
+              'contacted',
+              'engaged',
+              'nda_pending',
+              'nda_signed',
+              'meeting_scheduled',
+              'diligence',
+              'term_sheet',
+              'funded',
+              'closed_lost',
+            ].map((st) => (
+              <option key={st} value={st}>
+                {st.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+            aria-label="Sort"
+            title="Sort"
+          >
+            <option value="warmth">Sort: warmth ↓</option>
+            <option value="last_contact">Sort: last contact ↓</option>
+            <option value="firm_name">Sort: firm name</option>
+            <option value="updated">Sort: recently updated</option>
           </select>
         </div>
       </div>
@@ -268,8 +426,8 @@ export function InvestorsBoard() {
               type="checkbox"
               aria-label="Select all"
               checked={
-                (data?.rows.filter((r) => r.lead).length ?? 0) > 0 &&
-                selectedLeadIds.size === (data?.rows.filter((r) => r.lead).length ?? 0)
+                visibleRows.filter((r) => r.lead).length > 0 &&
+                selectedLeadIds.size === visibleRows.filter((r) => r.lead).length
               }
               onChange={(e) => {
                 if (e.target.checked) selectAllVisible();
@@ -278,7 +436,9 @@ export function InvestorsBoard() {
               className="h-4 w-4 cursor-pointer rounded border-slate-300 text-violet-600 focus:ring-violet-400"
             />
             <span className="uppercase tracking-[0.12em]">
-              {selectedLeadIds.size > 0 ? `${selectedLeadIds.size} selected` : 'Select all'}
+              {selectedLeadIds.size > 0
+                ? `${selectedLeadIds.size} selected`
+                : `Select all (${visibleRows.length})`}
             </span>
           </label>
           <div className="flex items-center gap-2">
@@ -312,9 +472,25 @@ export function InvestorsBoard() {
           </div>
         ) : data && data.rows.length === 0 ? (
           <Empty onAdd={() => setCreateOpen(true)} />
+        ) : visibleRows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center text-sm text-slate-500">
+            <p>No investors match the current filters.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSegment('all');
+                setSearch('');
+                setFirmType('');
+                setStage('');
+              }}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50"
+            >
+              Clear filters
+            </button>
+          </div>
         ) : (
           <div>
-            {data?.rows.map((row, idx) => (
+            {visibleRows.map((row, idx) => (
               <motion.div
                 key={row.investor?.id ?? `pending-${row.firm.id}`}
                 initial={{ opacity: 0, y: 4 }}
