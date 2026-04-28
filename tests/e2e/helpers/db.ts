@@ -1,7 +1,14 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../../src/lib/db/client';
-import { auditEvents, interactions, investors, leads, ndas } from '../../../src/lib/db/schema';
+import {
+  auditEvents,
+  firms,
+  interactions,
+  investors,
+  leads,
+  ndas,
+} from '../../../src/lib/db/schema';
 
 export async function getInvestorByEmail(email: string) {
   const rows = await db
@@ -87,4 +94,9 @@ export async function setDocumentExpired(documentId: string): Promise<void> {
 /** Deletes a rate_limits bucket row so the next request starts with a full token bucket. */
 export async function resetRateLimitKey(key: string): Promise<void> {
   await db.execute(sql`DELETE FROM rate_limits WHERE key = ${key}`);
+}
+
+export async function getFirmById(firmId: string) {
+  const rows = await db.select().from(firms).where(eq(firms.id, firmId)).limit(1);
+  return rows[0] ?? null;
 }

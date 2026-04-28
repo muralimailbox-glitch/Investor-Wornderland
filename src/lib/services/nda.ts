@@ -322,6 +322,7 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
   const session = issueNdaSession({ leadId: decoded.leadId, ndaId: nda.id, email: decoded.email });
 
   // Founder notification stays — operator wants to know an NDA was signed.
+  const founderSubject = `NDA signed — ${input.name} (${input.firm})`;
   try {
     const founderEmail = renderBrandedEmail({
       heading: `NDA signed — ${input.name}`,
@@ -343,13 +344,22 @@ export async function signNda(input: NdaSignInput): Promise<NdaSignResult> {
     });
     await sendMail({
       to: env.SMTP_FROM,
-      subject: `NDA signed — ${input.name} (${input.firm})`,
+      subject: founderSubject,
       text: founderEmail.text,
       html: founderEmail.html,
     });
   } catch (err) {
     console.warn('[nda] founder notification failed', err);
   }
+  // Durable outbox record for the founder notification — same pattern as initiate.
+  await emailOutboxRepo.enqueue({
+    workspaceId,
+    toEmail: env.SMTP_FROM,
+    subject: founderSubject,
+    bodyText: `NDA signed by ${input.name} from ${input.firm} at ${signedAt.toISOString()}`,
+    status: 'sent',
+    sentAt: signedAt,
+  });
   const downloadUrl = '';
 
   return {

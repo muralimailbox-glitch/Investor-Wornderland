@@ -1,6 +1,30 @@
+import { createHmac, randomBytes } from 'node:crypto';
+
 import { expect, type APIRequestContext } from '@playwright/test';
 
 import { extractSixDigitCode, waitForOutboxEmail } from './mail';
+
+/**
+ * Creates a cryptographically valid but already-expired signing token.
+ * Replicates the server-side signing logic with a past expiresAt so
+ * readSigningToken() rejects it via the expiry check, not the HMAC check.
+ */
+export function createExpiredSigningToken(email: string, leadId: string): string {
+  const secret = process.env.AUTH_SECRET!;
+  const b64url = (buf: Buffer) =>
+    buf.toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  const now = Date.now();
+  const payload = {
+    email: email.toLowerCase(),
+    leadId,
+    issuedAt: now - 20 * 60 * 1000,
+    expiresAt: now - 10 * 60 * 1000,
+    nonce: b64url(randomBytes(16)),
+  };
+  const body = b64url(Buffer.from(JSON.stringify(payload), 'utf8'));
+  const mac = b64url(createHmac('sha256', secret).update(body).digest());
+  return `${body}.${mac}`;
+}
 
 export async function startNda(api: APIRequestContext, email: string) {
   const res = await api.post('/api/v1/nda/initiate', { data: { email } });
