@@ -1,4 +1,5 @@
 import { env } from '@/lib/env';
+import { OOTAOS_BRAND } from '@/lib/mail/brand';
 import { buildSignature, escapeHtml, type FounderSignatureInput } from '@/lib/mail/signature';
 
 export type TemplateVars = {
@@ -24,14 +25,18 @@ export type TemplateBody = {
 
 export type RenderedEmail = { subject: string; html: string; text: string };
 
+// Single source of truth lives in @/lib/mail/brand. Local alias keeps
+// the existing template code readable and pulls the same hex values
+// branded-email.ts uses, so transactional and outreach emails match.
 const BRAND = {
-  primary: '#7c3aed',
-  accent: '#d946ef',
-  ink: '#0f172a',
-  muted: '#475569',
-  surface: '#ffffff',
-  page: '#f5f3ff',
-  border: '#ece9f7',
+  primary: OOTAOS_BRAND.accentFrom,
+  accent: OOTAOS_BRAND.accentTo,
+  gradient: OOTAOS_BRAND.gradient,
+  ink: OOTAOS_BRAND.ink,
+  muted: OOTAOS_BRAND.inkSoft,
+  surface: OOTAOS_BRAND.bgCard,
+  page: OOTAOS_BRAND.bgPage,
+  border: OOTAOS_BRAND.border,
 } as const;
 
 function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
@@ -48,7 +53,7 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
 
   const ctaHtml = body.cta
     ? `<p style="margin:28px 0 8px 0;">
-         <a href="${body.cta.href}" style="display:inline-block;padding:12px 24px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;box-shadow:0 10px 26px -14px rgba(124,58,237,0.6);">${escapeHtml(body.cta.label)}</a>
+         <a href="${body.cta.href}" style="display:inline-block;padding:12px 24px;background:${BRAND.gradient};color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;box-shadow:0 10px 26px -14px rgba(225,29,72,0.55);">${escapeHtml(body.cta.label)}</a>
        </p>`
     : '';
 
@@ -66,7 +71,7 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
         <td align="center" style="padding:32px 16px;">
           <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:${BRAND.surface};border-radius:20px;overflow:hidden;box-shadow:0 20px 60px -30px rgba(91,33,182,0.35);">
             <tr>
-              <td style="padding:28px 36px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});color:#fff;">
+              <td style="padding:28px 36px;background:${BRAND.gradient};color:#fff;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="vertical-align:middle;">

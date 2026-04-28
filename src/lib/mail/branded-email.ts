@@ -19,7 +19,7 @@
  *
  *   await sendMail({ to: "...", subject: "...", html, text });
  */
-import { env } from '@/lib/env';
+import { logoUrl, OOTAOS_BRAND, siteUrl } from '@/lib/mail/brand';
 
 export type BrandedEmailInput = {
   heading: string;
@@ -33,24 +33,20 @@ export type BrandedEmailInput = {
   preFooter?: string;
 };
 
-const SITE = (() => {
-  try {
-    return env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
-  } catch {
-    return 'https://investors.ootaos.com';
-  }
-})();
-const LOGO_URL = `${SITE}/brand/oota-light.png`;
+const SITE = siteUrl();
+const LOGO_URL = logoUrl();
 
+// Local alias so the existing render code reads cleanly. Single source of
+// truth lives in @/lib/mail/brand.
 const PALETTE = {
-  bgPage: '#FFF8F1',
-  bgCard: '#FFFFFF',
-  border: '#FFE4D1',
-  ink: '#0F172A',
-  inkSoft: '#475569',
-  accentFrom: '#F97316', // orange-500
-  accentTo: '#DB2777', // pink-600
-  ctaBg: 'linear-gradient(135deg, #F97316 0%, #E11D48 50%, #C026D3 100%)',
+  bgPage: OOTAOS_BRAND.bgPage,
+  bgCard: OOTAOS_BRAND.bgCard,
+  border: OOTAOS_BRAND.border,
+  ink: OOTAOS_BRAND.ink,
+  inkSoft: OOTAOS_BRAND.inkSoft,
+  accentFrom: OOTAOS_BRAND.accentFrom,
+  accentTo: OOTAOS_BRAND.accentTo,
+  ctaBg: OOTAOS_BRAND.gradient,
 };
 
 function escapeHtml(s: string): string {
