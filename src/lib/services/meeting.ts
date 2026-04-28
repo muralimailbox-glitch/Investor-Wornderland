@@ -63,7 +63,22 @@ function generateMeetLink(): string {
 }
 
 const MEET_DISCLAIMER =
-  'Google Meet is just our default starter — feel free to send your own invite from Google Calendar, Outlook, Calendly, Zoom, or whatever you prefer.';
+  'The Google Meet link below is just a placeholder. Murali is on IST (+5:30) and is happy to adapt to whatever tool you usually use — Google Calendar, Outlook, Calendly, Zoom, Teams, anything. Just reply to this email with your own invite for the same slot and that becomes the source of truth.';
+
+/**
+ * Trailing buffer applied to every booked meeting. If meeting A is at
+ * 4:00–4:30 PM IST, no new meeting can start before 5:30 PM IST. This
+ * prevents the back-to-back disaster where a 30-min slot runs 10 minutes
+ * long and the next investor walks into the previous conversation.
+ *
+ * The buffer is enforced on conflict-check only — the meeting's stored
+ * `ends_at` is the real end. We pad the conflict range to `ends_at + 60m`
+ * so two booked meetings (A's stored end + 60m) cannot overlap (B's
+ * stored start - 60m). Symmetric padding on both sides of the comparison
+ * gives the founder a guaranteed 60-min gap regardless of which slot was
+ * booked first.
+ */
+const MEETING_BUFFER_MINUTES = 60;
 
 export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingResult> {
   const cookieStore = await cookies();
@@ -113,12 +128,25 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
     .limit(1);
   const founderTimezone: string = founderRow[0]?.tz ?? FOUNDER_TZ ?? DEFAULT_FOUNDER_TZ;
 
-  // Conflict-check every slot against existing meetings up front.
+  // Conflict-check every slot against existing meetings up front. Each
+  // existing meeting is padded by MEETING_BUFFER_MINUTES on its trailing
+  // edge so the next slot can't start within an hour of a previous end —
+  // i.e. a 4:00–4:30 booking blocks the room until 5:30. Likewise the
+  // candidate slot is padded so the founder still gets 60 min of
+  // post-buffer recovery if it goes long.
+  const bufferMs = MEETING_BUFFER_MINUTES * 60_000;
   for (const p of parsed) {
+    const candStartMs = p.startsAt.getTime();
+    const candEndMs = p.endsAt.getTime() + bufferMs;
     const conflict = await db.execute<{ count: number }>(sql`
       SELECT COUNT(*)::int AS count FROM meetings
       WHERE workspace_id = ${lead.workspaceId}
-        AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${p.startsAt.toISOString()}::timestamptz, ${p.endsAt.toISOString()}::timestamptz, '[)')
+        AND tstzrange(starts_at, ends_at + interval '${sql.raw(String(MEETING_BUFFER_MINUTES))} minutes', '[)')
+            && tstzrange(
+              ${new Date(candStartMs).toISOString()}::timestamptz,
+              ${new Date(candEndMs).toISOString()}::timestamptz,
+              '[)'
+            )
     `);
     if ((conflict[0]?.count ?? 0) > 0) {
       throw new ApiError(409, 'slot_taken');
@@ -239,8 +267,8 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
 
     const investorBody =
       created.length === 1
-        ? `Confirmed. We're locked in for the time below. The Google Meet link is included — feel free to send your own calendar invite or use a different meeting tool if that's easier on your end.\n\nIf anything changes, just reply to this email and we'll re-book.`
-        : `Confirmed. We've reserved all ${created.length} slots you picked so we have flexibility. We'll lock in one and release the others a day before — just reply if you want to choose now.`;
+        ? `Confirmed — the slot below is yours. We've also blocked the hour after it on our side, so there's no risk of running into another meeting if our conversation goes long.\n\nThe Google Meet link is just a placeholder. Murali sits on IST (+5:30) and is happy to fit your tooling — Google Calendar, Outlook, Calendly, Zoom, Teams, anything you normally use. Just reply to this email with your own invite for the same slot and that becomes the working meeting; the placeholder will be ignored.\n\nIf anything changes on your end, reply here and we'll re-book.`
+        : `Confirmed. We've reserved all ${created.length} slots you picked, with a 60-minute buffer after each one so they can't run into each other.\n\nThe Google Meet links are placeholders. Murali is on IST (+5:30) and happy to use whichever tool you prefer — just reply with your own invite for the slot you want to lock in, and we'll release the others.`;
 
     const investorEmail = renderBrandedEmail({
       heading:
@@ -378,12 +406,19 @@ export async function rescheduleMeeting(input: {
   const availability = checkAvailability(newStart, durationMinutes);
   if (!availability.ok) throw new ApiError(400, availability.reason);
 
-  // Conflict-check excluding the slot we're moving from.
+  // Conflict-check excluding the slot we're moving from. Same 60-min
+  // trailing buffer as the booking path — see MEETING_BUFFER_MINUTES.
+  const newCandEndMs = newEnd.getTime() + MEETING_BUFFER_MINUTES * 60_000;
   const conflict = await db.execute<{ count: number }>(sql`
     SELECT COUNT(*)::int AS count FROM meetings
     WHERE workspace_id = ${input.workspaceId}
       AND id != ${input.meetingId}
-      AND tstzrange(starts_at, ends_at, '[)') && tstzrange(${newStart.toISOString()}::timestamptz, ${newEnd.toISOString()}::timestamptz, '[)')
+      AND tstzrange(starts_at, ends_at + interval '${sql.raw(String(MEETING_BUFFER_MINUTES))} minutes', '[)')
+          && tstzrange(
+            ${newStart.toISOString()}::timestamptz,
+            ${new Date(newCandEndMs).toISOString()}::timestamptz,
+            '[)'
+          )
   `);
   if ((conflict[0]?.count ?? 0) > 0) {
     throw new ApiError(409, 'slot_taken');
@@ -444,10 +479,10 @@ export async function rescheduleMeeting(input: {
       heading: 'Your OotaOS meeting was moved',
       body:
         (input.triggeredBy === 'founder'
-          ? `Hi ${r.investorFirstName} — we had to move our slot. The new time below.`
-          : `Confirmed — we've moved your slot.`) +
+          ? `Hi ${r.investorFirstName} — we had to move our slot. The new time is below, with a 60-minute buffer after it on our side so we won't run into another meeting.`
+          : `Confirmed — we've moved your slot. The hour after the new time is reserved as a buffer too.`) +
         (input.reason ? `\n\nReason: ${input.reason}` : '') +
-        `\n\nA fresh Google Meet link is below; feel free to send your own invite from any meeting tool too.`,
+        `\n\nA fresh Google Meet link is below as a placeholder. Murali is on IST (+5:30) and happy to use whichever calendar tool you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
       facts: [
         ['Was', oldLocal],
         ['Now', `${newLocal} (${shortTz(investorTimezone)})`],
