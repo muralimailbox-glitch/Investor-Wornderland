@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Activity,
@@ -518,9 +519,13 @@ export function InvestorsBoard() {
                   <div className="min-w-0">
                     {row.investor ? (
                       <>
-                        <p className="truncate text-sm font-semibold text-slate-900">
+                        <Link
+                          href={`/cockpit/investors/${row.investor.id}`}
+                          className="truncate text-sm font-semibold text-slate-900 hover:underline"
+                          title="Open full profile"
+                        >
                           {row.investor.firstName} {row.investor.lastName}
-                        </p>
+                        </Link>
                         <p className="flex items-center gap-1 truncate text-xs text-slate-500">
                           <Mail className="h-3 w-3" /> {row.investor.email}
                         </p>
