@@ -83,3 +83,8 @@ export async function setDocumentExpired(documentId: string): Promise<void> {
     sql`UPDATE documents SET expires_at = now() - interval '1 minute' WHERE id = ${documentId}`,
   );
 }
+
+/** Deletes a rate_limits bucket row so the next request starts with a full token bucket. */
+export async function resetRateLimitKey(key: string): Promise<void> {
+  await db.execute(sql`DELETE FROM rate_limits WHERE key = ${key}`);
+}
