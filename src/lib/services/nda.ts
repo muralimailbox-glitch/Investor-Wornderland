@@ -138,12 +138,13 @@ export async function initiateNda(email: string): Promise<{ sent: true }> {
     preFooter:
       'If you did not request this, you can safely ignore this email — the code expires automatically.',
   });
-  await sendMail({
+  // Fire-and-forget — SMTP is best-effort; the outbox row below is the durable record.
+  sendMail({
     to: email,
     subject: `Your OotaOS NDA verification code: ${code}`,
     text: otp.text,
     html: otp.html,
-  });
+  }).catch((err) => console.warn('[nda/initiate] smtp failed', err));
   await emailOutboxRepo.enqueue({
     workspaceId,
     toEmail: email,

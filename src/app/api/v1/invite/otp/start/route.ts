@@ -36,12 +36,13 @@ export const POST = handle(async (req: Request) => {
     preFooter: 'For your security, OotaOS will never ask you to share this code.',
   });
 
-  await sendMail({
+  // Fire-and-forget — SMTP is best-effort; the outbox row below is the durable record.
+  sendMail({
     to: email,
     subject: `Your OotaOS verification code: ${code}`,
     text: branded.text,
     html: branded.html,
-  });
+  }).catch((err) => console.warn('[invite/otp/start] smtp failed', err));
 
   // Write to outbox so E2E tests can read the code without IMAP.
   await emailOutboxRepo.enqueue({
