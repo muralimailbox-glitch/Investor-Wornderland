@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2, Mail, Send, Sparkles, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { AlertCircle, AlertTriangle, Info, Loader2, Mail, Send, Sparkles, X } from 'lucide-react';
 
 type Recipient = { leadId: string; investorId: string; name: string; email: string };
 
@@ -78,6 +78,56 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
   const [aiTone, setAiTone] = useState<ComposeTone>('warm');
   const [aiContext, setAiContext] = useState('');
   const [aiProvenance, setAiProvenance] = useState<ComposeDraft['provenance'] | null>(null);
+
+  // Real-time critique. Debounced 1.2s after the founder stops typing in
+  // body or subject; results render as pills above the body textarea.
+  type Issue = { kind: string; severity: 'info' | 'warn' | 'error'; message: string };
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [critiqueBusy, setCritiqueBusy] = useState(false);
+  const critiqueAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (phase !== 'compose' || body.trim().length < 50) {
+      // Don't refetch; the conditional render below already hides pills
+      // when the body is too short, so we avoid the set-state-in-effect
+      // lint while still keeping the UI quiet for short drafts.
+      return;
+    }
+    const handle = setTimeout(() => {
+      // Cancel any in-flight critique before firing the next one — only the
+      // latest call's result wins, so a fast typist doesn't see stale pills.
+      critiqueAbortRef.current?.abort();
+      const controller = new AbortController();
+      critiqueAbortRef.current = controller;
+      setCritiqueBusy(true);
+      fetch('/api/v1/admin/draft/critique', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          subject,
+          body,
+          ...(recipients[0]?.leadId ? { leadId: recipients[0].leadId } : {}),
+        }),
+      })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return (await r.json()) as { issues: Issue[] };
+        })
+        .then((j) => {
+          if (controller.signal.aborted) return;
+          setIssues(j.issues ?? []);
+        })
+        .catch(() => {
+          // Silent — critique is advisory, never blocking.
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setCritiqueBusy(false);
+        });
+    }, 1200);
+    return () => clearTimeout(handle);
+  }, [phase, subject, body, recipients]);
 
   async function composeWithAI() {
     setAiBusy(true);
@@ -309,6 +359,38 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
                 className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
               />
             </label>
+
+            {issues.length > 0 && body.trim().length >= 50 ? (
+              <div className="flex flex-col gap-1.5">
+                {issues.map((i, idx) => {
+                  const Icon =
+                    i.severity === 'error'
+                      ? AlertCircle
+                      : i.severity === 'warn'
+                        ? AlertTriangle
+                        : Info;
+                  const tone =
+                    i.severity === 'error'
+                      ? 'border-rose-200 bg-rose-50 text-rose-800'
+                      : i.severity === 'warn'
+                        ? 'border-amber-200 bg-amber-50 text-amber-800'
+                        : 'border-slate-200 bg-slate-50 text-slate-700';
+                  return (
+                    <div
+                      key={`${i.kind}-${idx}`}
+                      className={`flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] ${tone}`}
+                    >
+                      <Icon className="mt-0.5 h-3 w-3 flex-none" />
+                      <span>{i.message}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : critiqueBusy ? (
+              <p className="inline-flex items-center gap-1 text-[10px] text-slate-400">
+                <Loader2 className="h-3 w-3 animate-spin" /> Reviewing draft…
+              </p>
+            ) : null}
 
             <label className="flex flex-col gap-1 text-xs text-slate-600">
               Body

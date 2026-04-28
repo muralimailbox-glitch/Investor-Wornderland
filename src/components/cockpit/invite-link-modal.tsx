@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Copy, Download, Loader2, Mail, ShieldOff, Sparkles, Trash2, X } from 'lucide-react';
+import { Copy, Download, Loader2, Mail, ShieldOff, Sparkles, Trash2, Wand2, X } from 'lucide-react';
 
 type Props = {
   investorId: string;
@@ -20,6 +20,7 @@ export function InviteLinkModal({ investorId, investorName, investorEmail, onClo
   const [emailed, setEmailed] = useState(false);
   const [introLine, setIntroLine] = useState('');
   const [copied, setCopied] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
 
   // Issue a link on open. Idempotent — server signs a fresh JWT each call.
   useEffect(() => {
@@ -166,9 +167,65 @@ export function InviteLinkModal({ investorId, investorName, investorEmail, onClo
                 </button>
               </div>
 
-              <details className="text-xs text-slate-500">
-                <summary className="cursor-pointer font-medium text-slate-700">
-                  Customise the email intro line (optional)
+              <details className="text-xs text-slate-500" open={Boolean(introLine)}>
+                <summary className="flex cursor-pointer items-center justify-between font-medium text-slate-700">
+                  <span>Customise the email intro line (optional)</span>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setAiBusy(true);
+                      setError(null);
+                      try {
+                        const res = await fetch('/api/v1/admin/draft/compose', {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            investorIds: [investorId],
+                            intent: 'intro',
+                            tone: 'warm',
+                          }),
+                        });
+                        if (!res.ok) {
+                          const j = (await res.json().catch(() => null)) as {
+                            title?: string;
+                          } | null;
+                          throw new Error(j?.title ?? `HTTP ${res.status}`);
+                        }
+                        const { drafts } = (await res.json()) as {
+                          drafts: Array<{ body?: string; firstName?: string }>;
+                        };
+                        const first = drafts[0];
+                        const draft = first?.body?.trim();
+                        if (draft) {
+                          // Strip the AI's opener salutation if present — the
+                          // server already prepends "Hi {firstName}". Keep
+                          // body short (≤500 chars) for an intro line.
+                          const trimmed = draft
+                            .replace(/^hi\s+\S+,?\s*/i, '')
+                            .trim()
+                            .slice(0, 500);
+                          setIntroLine(trimmed);
+                        }
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : 'compose failed');
+                      } finally {
+                        setAiBusy(false);
+                      }
+                    }}
+                    disabled={aiBusy}
+                    className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+                    title="Draft a personalised intro line with AI"
+                  >
+                    {aiBusy ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3 w-3" />
+                    )}
+                    Draft with AI
+                  </button>
                 </summary>
                 <textarea
                   value={introLine}

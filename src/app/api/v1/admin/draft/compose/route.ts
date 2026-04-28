@@ -42,22 +42,31 @@ import { rateLimit } from '@/lib/security/rate-limit';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const Body = z.object({
-  leadIds: z.array(z.string().uuid()).min(1).max(20),
-  intent: z
-    .enum([
-      'intro',
-      'follow_up',
-      'share_doc',
-      'schedule_meeting',
-      'nudge_after_silence',
-      'thank_you',
-      'custom',
-    ])
-    .default('intro'),
-  tone: z.enum(['warm', 'formal', 'concise']).default('warm'),
-  operatorContext: z.string().max(2000).optional(),
-});
+// Accept either leadIds (when the caller already has them — bulk-email-modal)
+// or investorIds (when the caller only has the investor — invite-link-modal,
+// individual cockpit screens). Server resolves the active lead per investor.
+const Body = z
+  .object({
+    leadIds: z.array(z.string().uuid()).max(20).optional(),
+    investorIds: z.array(z.string().uuid()).max(20).optional(),
+    intent: z
+      .enum([
+        'intro',
+        'follow_up',
+        'share_doc',
+        'schedule_meeting',
+        'nudge_after_silence',
+        'thank_you',
+        'custom',
+      ])
+      .default('intro'),
+    tone: z.enum(['warm', 'formal', 'concise']).default('warm'),
+    operatorContext: z.string().max(2000).optional(),
+  })
+  .refine(
+    (b) => (b.leadIds && b.leadIds.length > 0) || (b.investorIds && b.investorIds.length > 0),
+    { message: 'leadIds or investorIds required' },
+  );
 
 type DraftOutput = {
   leadId: string;
@@ -160,6 +169,36 @@ export const POST = handle(async (req) => {
     throw err;
   });
 
+  // Resolve the active lead per investor when the caller passed investorIds.
+  // "Active" = most-recently-touched lead per investor. The compose draft
+  // attaches to that lead so downstream interaction logging stays coherent.
+  let resolvedLeadIds: string[];
+  if (body.leadIds && body.leadIds.length > 0) {
+    resolvedLeadIds = body.leadIds;
+  } else if (body.investorIds && body.investorIds.length > 0) {
+    const leadsForInvestors = await db
+      .select({
+        id: leads.id,
+        investorId: leads.investorId,
+        stageEnteredAt: leads.stageEnteredAt,
+      })
+      .from(leads)
+      .where(
+        and(eq(leads.workspaceId, user.workspaceId), inArray(leads.investorId, body.investorIds)),
+      )
+      .orderBy(desc(leads.stageEnteredAt));
+    const seen = new Set<string>();
+    resolvedLeadIds = [];
+    for (const l of leadsForInvestors) {
+      if (seen.has(l.investorId)) continue;
+      seen.add(l.investorId);
+      resolvedLeadIds.push(l.id);
+    }
+    if (resolvedLeadIds.length === 0) throw new ApiError(404, 'no_active_lead_for_investor');
+  } else {
+    throw new ApiError(400, 'no_targets');
+  }
+
   // Load every lead + investor + firm in one shot.
   const rows = await db
     .select({
@@ -185,7 +224,7 @@ export const POST = handle(async (req) => {
     .from(leads)
     .innerJoin(investors, eq(investors.id, leads.investorId))
     .leftJoin(firms, eq(firms.id, investors.firmId))
-    .where(and(eq(leads.workspaceId, user.workspaceId), inArray(leads.id, body.leadIds)));
+    .where(and(eq(leads.workspaceId, user.workspaceId), inArray(leads.id, resolvedLeadIds)));
 
   if (rows.length === 0) throw new ApiError(404, 'no_matching_leads');
 
