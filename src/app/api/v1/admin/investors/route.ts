@@ -26,7 +26,12 @@ const ListQuery = z.object({
     .optional(),
   firmType: z.enum(['vc', 'cvc', 'angel', 'family_office', 'accelerator', 'syndicate']).optional(),
   page: z.coerce.number().int().positive().max(10_000).optional(),
-  pageSize: z.coerce.number().int().positive().max(200).optional(),
+  // Bumped from 200 → 1000 to fit single-tenant cockpits whose investor
+  // list + partner-pending firms exceed 200 (we have ~430 today: 84 named
+  // partners + 346 firm-only Tracxn imports). Client-side board fetches
+  // pageSize=500 to render the full list without paginating, so the API
+  // cap must cover that.
+  pageSize: z.coerce.number().int().positive().max(1000).optional(),
 });
 
 const CreateBody = z.object({

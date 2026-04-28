@@ -124,6 +124,14 @@ export const POST = handle(async (req) => {
         send('done', { ok: true });
 
         if (investor) {
+          // Persist a 600-char answer preview alongside the question so the
+          // founder's "Activity intelligence" view can audit what the
+          // concierge actually returned. Full answers are streamed-only and
+          // not stored to keep the interactions table small; 600 chars is
+          // enough to judge accuracy and tone in the cockpit.
+          const ANSWER_PREVIEW_MAX = 600;
+          const answerPreview = (result.answer ?? '').slice(0, ANSWER_PREVIEW_MAX);
+          const answerTruncated = (result.answer ?? '').length > ANSWER_PREVIEW_MAX;
           await db
             .insert(interactions)
             .values({
@@ -132,6 +140,9 @@ export const POST = handle(async (req) => {
               kind: 'question_asked',
               payload: {
                 question: body.question.slice(0, 1000),
+                answerPreview,
+                answerTruncated,
+                answerLength: (result.answer ?? '').length,
                 depthTopics: result.depthTopics,
                 citations: result.citations.map((c) => c.section),
                 trust: signedNda
@@ -140,7 +151,10 @@ export const POST = handle(async (req) => {
                     ? 'email_verified'
                     : 'casual',
                 refused: result.refused,
+                refusalReason: result.refusalReason ?? null,
+                model: result.model,
                 sessionId: body.sessionId,
+                gate: result.gate,
               },
             })
             .catch((e) => {
