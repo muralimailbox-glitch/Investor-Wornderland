@@ -31,6 +31,7 @@ import {
 
 import { AiEmailComposer } from '@/components/cockpit/ai-email-composer';
 import { InvestorEditModal } from '@/components/cockpit/investor-edit-modal';
+import { InvestorIntelligence } from '@/components/cockpit/investor-intelligence';
 import { InviteLinkModal } from '@/components/cockpit/invite-link-modal';
 import { getInvestorActivity, type InvestorActivity } from '@/lib/api/investor-activity';
 
@@ -268,22 +269,22 @@ export function InvestorDetail({ investorId }: { investorId: string }) {
         </div>
       </header>
 
-      {/* Communications: AI composer + timeline */}
-      <section className="grid gap-6 lg:grid-cols-[1.25fr_1fr]">
-        <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-              Compose
-            </p>
-            <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
-              Draft & send to {investor.firstName}
-            </h2>
-            <p className="mt-1 text-xs text-slate-500">
-              The AI uses {activity?.summary?.questionsAsked ?? 0} prior questions, this
-              investor&apos;s warmth + sector focus, their portfolio companies, and your last voice
-              samples.
-            </p>
-          </div>
+      {/* Compose */}
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+            Compose
+          </p>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
+            Draft & send to {investor.firstName}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            The AI uses {activity?.summary?.questionsAsked ?? 0} prior questions, this
+            investor&apos;s warmth + sector focus, their portfolio companies, and your last voice
+            samples.
+          </p>
+        </div>
+        <div className="mt-4">
           <AiEmailComposer
             investorId={investor.id}
             investorEmail={investor.email}
@@ -292,53 +293,31 @@ export function InvestorDetail({ investorId }: { investorId: string }) {
             onSent={() => setRefreshTick((t) => t + 1)}
           />
         </div>
+      </section>
 
-        <div className="flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
-                Timeline
-              </p>
-              <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
-                Recent activity
-              </h2>
-            </div>
-            {activity?.summary?.lastQuestionAt ? (
-              <span className="text-[11px] text-slate-400">
-                last Q {new Date(activity.summary.lastQuestionAt).toLocaleDateString()}
-              </span>
-            ) : null}
+      {/* Activity intelligence — rich audit of what the investor asked,
+          what AI returned, what docs they viewed, every touch point. */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-700">
+              Activity intelligence
+            </p>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
+              What {investor.firstName} did, what Priya returned
+            </h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Audit the conversation: every question, every AI answer, every document fetch. Use it
+              to tune the prompt, the doc set, and the gating rules.
+            </p>
           </div>
-          {!activity || activity.interactions.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-rose-200 bg-rose-50/40 px-4 py-10 text-center">
-              <Sparkles className="h-5 w-5 text-rose-500" />
-              <p className="text-sm font-medium text-slate-700">No interactions yet</p>
-              <p className="max-w-xs text-xs text-slate-500">
-                Once you send a first email, log a phone call, or {investor.firstName} signs the NDA
-                and asks Priya a question, every touch lands here.
-              </p>
-              <p className="mt-2 text-[11px] text-slate-400">
-                Use the AI composer on the left to draft the first email.
-              </p>
-            </div>
-          ) : (
-            <ul className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto text-xs">
-              {activity.interactions.slice(0, 30).map((it) => (
-                <li
-                  key={it.id}
-                  className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-                >
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-700">
-                    {it.kind.replace(/_/g, ' ')}
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    {new Date(it.createdAt).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
+          {activity?.summary?.lastQuestionAt ? (
+            <span className="text-[11px] text-slate-400">
+              last Q {new Date(activity.summary.lastQuestionAt).toLocaleDateString()}
+            </span>
+          ) : null}
         </div>
+        <InvestorIntelligence activity={activity} />
       </section>
 
       {/* Profile */}
