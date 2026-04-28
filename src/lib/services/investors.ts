@@ -36,8 +36,9 @@ export type InvestorRow = {
 
 export async function listInvestors(workspaceId: string, query: InvestorListQuery) {
   const page = Math.max(1, query.page ?? 1);
-  // Allow up to 200 per page so the cockpit can show all firms in one fetch
-  const pageSize = Math.min(200, Math.max(1, query.pageSize ?? 25));
+  // Allow up to 1000 per page so the cockpit can show all firms (~430 today)
+  // in one fetch without paginating. Route-level Zod cap also enforces 1000.
+  const pageSize = Math.min(1000, Math.max(1, query.pageSize ?? 25));
   const offset = (page - 1) * pageSize;
 
   // ── Named investors ────────────────────────────────────────────────────

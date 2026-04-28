@@ -15,6 +15,7 @@ import {
   Plus,
   Search,
   Sparkles,
+  Trash2,
   Upload,
   UserCircle2,
   Wrench,
@@ -255,6 +256,103 @@ export function InvestorsBoard() {
 
   const [repairing, setRepairing] = useState(false);
   const [repairNote, setRepairNote] = useState<string | null>(null);
+  const [rowActionId, setRowActionId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
+  /**
+   * Single-row deletion. Uses mode='hard' so the row + its leads/interactions
+   * cascade out — the founder asked for true delete, not GDPR anonymise.
+   * Confirms via window.confirm to make the action reversible-by-cancel.
+   */
+  async function deleteInvestor(investor: Investor) {
+    const ok = window.confirm(
+      `Delete ${investor.firstName} ${investor.lastName} (${investor.email})?\n\n` +
+        `This permanently removes the investor, their pipeline lead, and all activity history. This cannot be undone.`,
+    );
+    if (!ok) return;
+    setRowActionId(investor.id);
+    setRowError(null);
+    try {
+      const r = await fetch(`/api/v1/admin/investors/${investor.id}/delete`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ confirm: true, mode: 'hard' }),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { title?: string; error?: string };
+        throw new Error(j.title || j.error || `HTTP ${r.status}`);
+      }
+      await refresh();
+    } catch (e) {
+      setRowError(`Delete failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setRowActionId(null);
+    }
+  }
+
+  /**
+   * Single-row stage move. Uses force=true so the founder isn't blocked by
+   * the strict prospect→contacted→engaged ladder — they often need to jump
+   * (e.g. straight to nda_signed after a hallway intro). Stage rules that
+   * the service still enforces (closed_lost reason, funded amount, next-
+   * action owner/due) are collected via window.prompt with sane defaults.
+   */
+  async function moveStage(row: Row, nextStage: string) {
+    if (!row.lead || !row.investor) return;
+    const STAGES_NEEDING_NEXT_ACTION = [
+      'engaged',
+      'nda_pending',
+      'nda_signed',
+      'meeting_scheduled',
+      'diligence',
+      'term_sheet',
+    ];
+    const body: Record<string, unknown> = {
+      leadId: row.lead.id,
+      nextStage,
+      force: true,
+    };
+    if (nextStage === 'closed_lost') {
+      const reason = window.prompt('Closed-lost reason (min 3 chars):');
+      if (!reason || reason.trim().length < 3) return;
+      body.closedLostReason = reason.trim();
+    } else if (nextStage === 'funded') {
+      const amt = window.prompt('Funded amount in USD (whole number, no commas):');
+      if (amt === null) return;
+      const amtN = Number(amt);
+      if (!Number.isFinite(amtN) || amtN <= 0) {
+        setRowError('Funded amount must be a positive integer.');
+        return;
+      }
+      body.fundedAmountUsd = Math.floor(amtN);
+      body.fundedAt = new Date().toISOString();
+    } else if (STAGES_NEEDING_NEXT_ACTION.includes(nextStage)) {
+      const owner = window.prompt('Next-action owner (your name):', 'Murali');
+      if (!owner) return;
+      body.nextActionOwner = owner.trim();
+      body.nextActionDue = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    setRowActionId(row.investor.id);
+    setRowError(null);
+    try {
+      const r = await fetch('/api/v1/admin/pipeline/transition', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const j = (await r.json().catch(() => ({}))) as { title?: string; error?: string };
+        throw new Error(j.title || j.error || `HTTP ${r.status}`);
+      }
+      await refresh();
+    } catch (e) {
+      setRowError(`Move failed: ${e instanceof Error ? e.message : 'unknown'}`);
+    } finally {
+      setRowActionId(null);
+    }
+  }
   async function repairPipeline() {
     setRepairing(true);
     setRepairNote(null);
@@ -460,6 +558,19 @@ export function InvestorsBoard() {
         </div>
       ) : null}
 
+      {rowError ? (
+        <div className="flex items-center justify-between rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <span>{rowError}</span>
+          <button
+            type="button"
+            onClick={() => setRowError(null)}
+            className="rounded-md px-2 py-0.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
       {repairNote ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           {repairNote}
@@ -505,7 +616,7 @@ export function InvestorsBoard() {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-[24px_1.4fr_1.2fr_1fr_0.9fr_0.6fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
+        <div className="grid grid-cols-[24px_1.3fr_1.1fr_0.9fr_0.8fr_1.4fr] gap-4 border-b border-slate-100 bg-slate-50 px-6 py-3 text-xs font-medium uppercase tracking-[0.12em] text-slate-500">
           <span aria-label="Select" />
           <span>Investor</span>
           <span>Firm</span>
@@ -543,7 +654,7 @@ export function InvestorsBoard() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(0.02 * idx, 0.3) }}
-                className="grid grid-cols-[24px_1.4fr_1.2fr_1fr_0.9fr_0.6fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
+                className="grid grid-cols-[24px_1.3fr_1.1fr_0.9fr_0.8fr_1.4fr] items-center gap-4 border-b border-slate-100 px-6 py-4 transition hover:bg-violet-50/40 last:border-b-0"
               >
                 <div>
                   {row.lead ? (
@@ -567,7 +678,7 @@ export function InvestorsBoard() {
                       <>
                         <Link
                           href={`/cockpit/investors/${row.investor.id}`}
-                          className="truncate text-sm font-semibold text-slate-900 hover:underline"
+                          className="block truncate text-sm font-semibold text-slate-900 hover:underline"
                           title="Open full profile"
                         >
                           {row.investor.firstName} {row.investor.lastName}
@@ -690,6 +801,50 @@ export function InvestorsBoard() {
                       >
                         <Eye className="h-3.5 w-3.5" />
                         View as
+                      </button>
+                      {row.lead ? (
+                        <select
+                          aria-label="Move to stage"
+                          title="Move this investor to a different pipeline stage"
+                          disabled={rowActionId === row.investor!.id}
+                          value={row.lead.stage}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            if (next && next !== row.lead!.stage) void moveStage(row, next);
+                          }}
+                          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 outline-none transition hover:border-violet-300 focus:border-violet-400 focus:ring-2 focus:ring-violet-200 disabled:opacity-50"
+                        >
+                          {[
+                            'prospect',
+                            'contacted',
+                            'engaged',
+                            'nda_pending',
+                            'nda_signed',
+                            'meeting_scheduled',
+                            'diligence',
+                            'term_sheet',
+                            'funded',
+                            'closed_lost',
+                          ].map((st) => (
+                            <option key={st} value={st}>
+                              → {st.replace(/_/g, ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                      <button
+                        type="button"
+                        title="Delete investor (permanent)"
+                        disabled={rowActionId === row.investor!.id}
+                        onClick={() => void deleteInvestor(row.investor!)}
+                        className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        {rowActionId === row.investor!.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        Delete
                       </button>
                     </>
                   )}
