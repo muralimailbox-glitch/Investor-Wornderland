@@ -1,14 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChevronRight, Loader2, TrendingUp } from 'lucide-react';
+import { ChevronRight, Loader2, Mail, TrendingUp } from 'lucide-react';
 
+import { BulkEmailModal } from '@/components/cockpit/bulk-email-modal';
 import {
   StagePromptModal,
   type StagePromptKind,
   type StagePromptResult,
 } from '@/components/cockpit/stage-prompt-modal';
+
+// Server caps batch creation at 50; mirror so the pipeline button label is honest.
+const PIPELINE_COHORT_CAP = 50;
+// Terminal stages — no point firing outbound at funded/closed_lost.
+const TERMINAL_STAGES = new Set(['funded', 'closed_lost']);
 
 type Investor = { id: string; firstName: string; lastName: string; email: string };
 type Firm = { id: string; name: string; firmType: string };
@@ -143,6 +150,29 @@ export function PipelineBoard() {
     kind: StagePromptKind;
   };
   const [prompt, setPrompt] = useState<Pending | null>(null);
+
+  // Bulk-email state: which stage's cohort the founder is about to email.
+  // Null = modal closed. The recipients array is derived at open-time from
+  // the visible group so a transition mid-modal doesn't cause drift.
+  type BulkRecipient = { leadId: string; investorId: string; name: string; email: string };
+  const [bulkRecipients, setBulkRecipients] = useState<BulkRecipient[] | null>(null);
+  const [bulkStageLabel, setBulkStageLabel] = useState<string>('');
+
+  function emailStageCohort(stageKey: string, stageLabel: string) {
+    const items = grouped[stageKey] ?? [];
+    const recipients: BulkRecipient[] = items
+      .filter((r) => r.lead && r.investor)
+      .slice(0, PIPELINE_COHORT_CAP)
+      .map((r) => ({
+        leadId: r.lead!.id,
+        investorId: r.investor.id,
+        name: `${r.investor.firstName} ${r.investor.lastName}`.trim(),
+        email: r.investor.email,
+      }));
+    if (recipients.length === 0) return;
+    setBulkRecipients(recipients);
+    setBulkStageLabel(stageLabel);
+  }
 
   function attemptTransition(leadId: string, nextStage: string) {
     const row = rows.find((r) => r.lead?.id === leadId);
@@ -296,13 +326,33 @@ export function PipelineBoard() {
                     setDragId(null);
                   }}
                 >
-                  <div className="flex items-center justify-between px-2 py-1">
+                  <div className="flex items-center justify-between gap-2 px-2 py-1">
                     <div
                       className={`inline-flex items-center gap-2 rounded-full bg-gradient-to-r ${stage.accent} px-3 py-1 text-xs font-semibold text-white shadow ${stage.glow}`}
                     >
                       {stage.label}
+                      <span className="rounded-full bg-white/20 px-1.5 text-[10px]">
+                        {items.length}
+                      </span>
                     </div>
-                    <span className="text-xs font-medium text-slate-500">{items.length}</span>
+                    {!TERMINAL_STAGES.has(stage.key) && items.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          emailStageCohort(stage.key, stage.label);
+                        }}
+                        title={
+                          items.length > PIPELINE_COHORT_CAP
+                            ? `${items.length} in stage — emailing first ${PIPELINE_COHORT_CAP}`
+                            : `Email ${items.length} ${stage.label.toLowerCase()} lead${items.length === 1 ? '' : 's'} with AI`
+                        }
+                        className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2 py-0.5 text-[10px] font-semibold text-rose-700 transition hover:bg-rose-100"
+                      >
+                        <Mail className="h-3 w-3" />
+                        Email{items.length > PIPELINE_COHORT_CAP ? ` ${PIPELINE_COHORT_CAP}` : ''}
+                      </button>
+                    ) : null}
                   </div>
                   <div className="flex min-h-[60px] flex-col gap-2">
                     {items.length === 0 ? (
@@ -332,9 +382,14 @@ export function PipelineBoard() {
                               pendingId === row.lead!.id ? 'opacity-60' : ''
                             } ${dragId === row.lead!.id ? 'rotate-1 cursor-grabbing' : ''}`}
                           >
-                            <p className="truncate text-sm font-semibold text-slate-900">
+                            <Link
+                              href={`/cockpit/investors/${row.investor.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="block truncate text-sm font-semibold text-slate-900 hover:underline"
+                              title="Open full profile + AI composer"
+                            >
                               {row.investor.firstName} {row.investor.lastName}
-                            </p>
+                            </Link>
                             <p className="truncate text-xs text-slate-500">{row.firm.name}</p>
                             <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
                               <span>{new Date(row.lead!.updatedAt).toLocaleDateString()}</span>
@@ -381,6 +436,26 @@ export function PipelineBoard() {
           onCancel={() => setPrompt(null)}
           onSubmit={(result) => handlePromptSubmit(prompt, result)}
         />
+      ) : null}
+
+      {bulkRecipients ? (
+        <BulkEmailModal
+          recipients={bulkRecipients}
+          onClose={() => setBulkRecipients(null)}
+          onSent={() => {
+            setBulkRecipients(null);
+            // Re-fetch so the cards reflect any auto-stage-advances triggered
+            // by the dispatched batch (prospect → contacted etc.).
+            void load();
+          }}
+        />
+      ) : null}
+
+      {bulkRecipients ? (
+        // a11y: announce the cohort label for screen readers when the modal opens.
+        <span className="sr-only" role="status" aria-live="polite">
+          Bulk email modal for {bulkStageLabel} stage open with {bulkRecipients.length} recipients.
+        </span>
       ) : null}
     </div>
   );
