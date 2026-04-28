@@ -113,13 +113,31 @@ export function InvestorsBoard() {
   function clearSelection() {
     setSelectedLeadIds(new Set());
   }
+  // Server caps batch creation at MAX_BATCH_SIZE (50). Going higher
+  // 4xxes the create-batch route, so we mirror the cap client-side.
+  const MAX_COHORT_SIZE = 50;
+
   function selectAllVisible() {
     // Select-all respects the current segment+sort filter so the founder
     // can fire bulk-email at exactly the visible cohort.
     const allLeadIds = visibleRows.map((r) => r.lead?.id).filter((id): id is string => Boolean(id));
     if (allLeadIds.length === 0) return;
-    setSelectedLeadIds(new Set(allLeadIds));
+    // Cap at MAX_COHORT_SIZE — visible rows are sorted by the active
+    // sort key, so the cap keeps the top N (by warmth, last contact,
+    // etc.) rather than the trailing tail.
+    setSelectedLeadIds(new Set(allLeadIds.slice(0, MAX_COHORT_SIZE)));
   }
+
+  /**
+   * Cohort outreach: select all visible leads (capped) and open the bulk
+   * email modal. Wired to the segment chips so the founder can click
+   * "Hot ≥80 → Email this cohort" in two interactions.
+   */
+  function emailCohort() {
+    selectAllVisible();
+    setBulkOpen(true);
+  }
+  // visibleEmailableCount is computed below visibleRows is declared.
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -177,6 +195,11 @@ export function InvestorsBoard() {
       return bt - at;
     });
   })();
+
+  // Count of leads-with-investors actually emailable in the current view.
+  // Used by the "Email cohort" button to decide whether to render and how
+  // to label the count vs the MAX_COHORT_SIZE cap.
+  const visibleEmailableCount = visibleRows.filter((r) => r.lead && r.investor).length;
 
   // Quick counts for segment-chip badges, derived from the same dataset.
   const segmentCounts = (() => {
@@ -301,47 +324,70 @@ export function InvestorsBoard() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-        {(
-          [
-            { key: 'all' as const, label: 'All', n: segmentCounts.all },
-            { key: 'hot' as const, label: 'Hot ≥80', n: segmentCounts.hot },
-            {
-              key: 'partner_pending' as const,
-              label: 'Partner pending',
-              n: segmentCounts.partner_pending,
-            },
-            { key: 'stale' as const, label: 'No contact 30d+', n: segmentCounts.stale },
-            {
-              key: 'awaiting_reply' as const,
-              label: 'Awaiting reply',
-              n: segmentCounts.awaiting_reply,
-            },
-          ] as const
-        ).map((s) => {
-          const active = segment === s.key;
-          return (
-            <button
-              key={s.key}
-              type="button"
-              onClick={() => setSegment(s.key)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-                active
-                  ? 'border-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 text-white shadow-sm'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {s.label}
-              <span
-                className={`rounded-full px-1.5 py-0 text-[10px] font-semibold ${
-                  active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2">
+          {(
+            [
+              { key: 'all' as const, label: 'All', n: segmentCounts.all },
+              { key: 'hot' as const, label: 'Hot ≥80', n: segmentCounts.hot },
+              {
+                key: 'partner_pending' as const,
+                label: 'Partner pending',
+                n: segmentCounts.partner_pending,
+              },
+              { key: 'stale' as const, label: 'No contact 30d+', n: segmentCounts.stale },
+              {
+                key: 'awaiting_reply' as const,
+                label: 'Awaiting reply',
+                n: segmentCounts.awaiting_reply,
+              },
+            ] as const
+          ).map((s) => {
+            const active = segment === s.key;
+            return (
+              <button
+                key={s.key}
+                type="button"
+                onClick={() => setSegment(s.key)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                  active
+                    ? 'border-transparent bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {s.n}
-              </span>
-            </button>
-          );
-        })}
+                {s.label}
+                <span
+                  className={`rounded-full px-1.5 py-0 text-[10px] font-semibold ${
+                    active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {s.n}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {/* Cohort outreach — fires the bulk modal pre-loaded with the visible
+            cohort. Disabled when there's nothing emailable in the current
+            view (e.g. "Partner pending" segment is firm-only). */}
+        {visibleEmailableCount > 0 ? (
+          <button
+            type="button"
+            onClick={emailCohort}
+            title={
+              visibleEmailableCount > MAX_COHORT_SIZE
+                ? `${visibleEmailableCount} match — emailing top ${MAX_COHORT_SIZE} by current sort`
+                : `Email all ${visibleEmailableCount} visible investors`
+            }
+            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-orange-500 via-rose-500 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:-translate-y-px"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Email cohort{' '}
+            {visibleEmailableCount > MAX_COHORT_SIZE
+              ? `(top ${MAX_COHORT_SIZE} of ${visibleEmailableCount})`
+              : `(${visibleEmailableCount})`}
+          </button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">

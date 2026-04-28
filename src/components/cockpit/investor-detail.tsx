@@ -309,11 +309,21 @@ export function InvestorDetail({ investorId }: { investorId: string }) {
               </span>
             ) : null}
           </div>
-          <ul className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto text-xs">
-            {!activity || activity.interactions.length === 0 ? (
-              <li className="text-slate-500 italic">No interactions yet.</li>
-            ) : (
-              activity.interactions.slice(0, 30).map((it) => (
+          {!activity || activity.interactions.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-rose-200 bg-rose-50/40 px-4 py-10 text-center">
+              <Sparkles className="h-5 w-5 text-rose-500" />
+              <p className="text-sm font-medium text-slate-700">No interactions yet</p>
+              <p className="max-w-xs text-xs text-slate-500">
+                Once you send a first email, log a phone call, or {investor.firstName} signs the NDA
+                and asks Priya a question, every touch lands here.
+              </p>
+              <p className="mt-2 text-[11px] text-slate-400">
+                Use the AI composer on the left to draft the first email.
+              </p>
+            </div>
+          ) : (
+            <ul className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto text-xs">
+              {activity.interactions.slice(0, 30).map((it) => (
                 <li
                   key={it.id}
                   className="flex flex-col gap-0.5 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
@@ -325,9 +335,9 @@ export function InvestorDetail({ investorId }: { investorId: string }) {
                     {new Date(it.createdAt).toLocaleString()}
                   </span>
                 </li>
-              ))
-            )}
-          </ul>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 
