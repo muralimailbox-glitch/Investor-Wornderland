@@ -215,33 +215,41 @@ export const investors = pgTable(
     title: text('title').notNull(),
     decisionAuthority: text('decision_authority').notNull(),
     email: varchar('email', { length: 254 }).notNull(),
-    mobileE164: text('mobile_e164'),
     linkedinUrl: text('linkedin_url'),
-    twitterHandle: text('twitter_handle'),
+    /**
+     * Name of the person who can warm-intro the founder to this investor,
+     * or NULL. Free-text; not enumerated. High-value at Seed; intentionally
+     * kept despite 0% historical fill — start populating going forward.
+     */
     introPath: text('intro_path'),
     timezone: text('timezone').notNull(),
-    preferredMeetingHours: text('preferred_meeting_hours'),
-    priorCompany: text('prior_company'),
-    mutualConnections: text('mutual_connections').array(),
-    personalThesisNotes: text('personal_thesis_notes'),
-    photoUrl: text('photo_url'),
     city: text('city'),
     country: text('country'),
-    crunchbaseUrl: text('crunchbase_url'),
     tracxnUrl: text('tracxn_url'),
-    angellistUrl: text('angellist_url'),
     websiteUrl: text('website_url'),
     checkSizeMinUsd: bigint('check_size_min_usd', { mode: 'number' }),
     checkSizeMaxUsd: bigint('check_size_max_usd', { mode: 'number' }),
     sectorInterests: text('sector_interests').array(),
     stageInterests: text('stage_interests').array(),
+    /** Top portfolio companies as a JSON array of {company, sector, stage, date}. */
     pastInvestments: jsonb('past_investments'),
+    /** Partner background — neutral bio (LinkedIn-fillable later). */
     bioSummary: text('bio_summary'),
+    /**
+     * One-sentence reason this investor fits OotaOS. Generated during
+     * Tracxn enrichment; refresh-safe (separate from bio_summary so a
+     * Tracxn re-pull doesn't overwrite the partner's general bio).
+     */
+    fitRationale: text('fit_rationale'),
+    /**
+     * Derived score 0-100 from recency + sector density + stage match.
+     * Computed during enrichment, not a Tracxn-native field — do not
+     * "refresh from Tracxn" expecting it to come back.
+     */
     warmthScore: integer('warmth_score'),
     lastContactAt: timestamp('last_contact_at', { withTimezone: true }),
     nextReminderAt: timestamp('next_reminder_at', { withTimezone: true }),
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
-    interests: jsonb('interests'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

@@ -204,6 +204,63 @@ async function main() {
         "locked_until" timestamp with time zone
       )`,
     },
+    // 0015 — drop investor columns with 0% real-data fill + add fit_rationale
+    {
+      tag: '0015.drop_twitter_handle',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "twitter_handle"`,
+    },
+    {
+      tag: '0015.drop_crunchbase_url',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "crunchbase_url"`,
+    },
+    {
+      tag: '0015.drop_angellist_url',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "angellist_url"`,
+    },
+    {
+      tag: '0015.drop_photo_url',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "photo_url"`,
+    },
+    {
+      tag: '0015.drop_interests',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "interests"`,
+    },
+    {
+      tag: '0015.drop_mobile_e164',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "mobile_e164"`,
+    },
+    {
+      tag: '0015.drop_preferred_meeting_hours',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "preferred_meeting_hours"`,
+    },
+    {
+      tag: '0015.drop_mutual_connections',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "mutual_connections"`,
+    },
+    {
+      tag: '0015.drop_personal_thesis_notes',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "personal_thesis_notes"`,
+    },
+    {
+      tag: '0015.drop_prior_company',
+      sql: `ALTER TABLE "investors" DROP COLUMN IF EXISTS "prior_company"`,
+    },
+    {
+      tag: '0015.add_fit_rationale',
+      sql: `ALTER TABLE "investors" ADD COLUMN IF NOT EXISTS "fit_rationale" text`,
+    },
+    {
+      tag: '0015.comment_warmth_score',
+      sql: `COMMENT ON COLUMN "investors"."warmth_score" IS 'Derived score 0-100 from recency + sector density + stage match. Computed during enrichment, not a Tracxn-native field.'`,
+    },
+    {
+      tag: '0015.comment_bio_summary',
+      sql: `COMMENT ON COLUMN "investors"."bio_summary" IS 'Partner background bio (LinkedIn-fillable). Distinct from fit_rationale which carries OotaOS-specific fit context.'`,
+    },
+    {
+      tag: '0015.comment_fit_rationale',
+      sql: `COMMENT ON COLUMN "investors"."fit_rationale" IS 'One-sentence reason this investor fits OotaOS. Refreshed during Tracxn enrichment.'`,
+    },
   ];
 
   let repairOk = 0;

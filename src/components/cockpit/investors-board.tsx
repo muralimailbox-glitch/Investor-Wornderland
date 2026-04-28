@@ -41,7 +41,6 @@ type Investor = {
   lastName: string;
   title: string;
   email: string;
-  mobileE164?: string | null;
   decisionAuthority: string;
   timezone: string;
   updatedAt: string;
@@ -87,7 +86,6 @@ export function InvestorsBoard() {
     id: string;
     name: string;
     email: string;
-    mobileE164: string | null;
   } | null>(null);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -431,7 +429,6 @@ export function InvestorsBoard() {
                             id: row.investor!.id,
                             name: `${row.investor!.firstName} ${row.investor!.lastName}`.trim(),
                             email: row.investor!.email,
-                            mobileE164: row.investor!.mobileE164 ?? null,
                           })
                         }
                         className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-violet-700 transition hover:bg-violet-50"
@@ -535,7 +532,6 @@ export function InvestorsBoard() {
           investorId={inviteFor.id}
           investorName={inviteFor.name}
           investorEmail={inviteFor.email}
-          investorMobileE164={inviteFor.mobileE164}
           onClose={() => setInviteFor(null)}
         />
       ) : null}
@@ -618,28 +614,20 @@ type CreateForm = {
   title: string;
   decisionAuthority: string;
   email: string;
-  mobileE164: string;
-  photoUrl: string;
   timezone: string;
   city: string;
   country: string;
   linkedinUrl: string;
-  twitterHandle: string;
   websiteUrl: string;
-  crunchbaseUrl: string;
   tracxnUrl: string;
-  angellistUrl: string;
   checkSizeMinUsd: string;
   checkSizeMaxUsd: string;
   sectorInterests: string;
   stageInterests: string;
   warmthScore: string;
   introPath: string;
-  priorCompany: string;
-  preferredMeetingHours: string;
-  mutualConnections: string;
   bioSummary: string;
-  personalThesisNotes: string;
+  fitRationale: string;
 };
 
 const EMPTY_CREATE_FORM: CreateForm = {
@@ -650,28 +638,20 @@ const EMPTY_CREATE_FORM: CreateForm = {
   title: 'Partner',
   decisionAuthority: 'full',
   email: '',
-  mobileE164: '',
-  photoUrl: '',
   timezone: 'Asia/Kolkata',
   city: '',
   country: '',
   linkedinUrl: '',
-  twitterHandle: '',
   websiteUrl: '',
-  crunchbaseUrl: '',
   tracxnUrl: '',
-  angellistUrl: '',
   checkSizeMinUsd: '',
   checkSizeMaxUsd: '',
   sectorInterests: '',
   stageInterests: '',
   warmthScore: '',
   introPath: '',
-  priorCompany: '',
-  preferredMeetingHours: '',
-  mutualConnections: '',
   bioSummary: '',
-  personalThesisNotes: '',
+  fitRationale: '',
 };
 
 function buildCreatePayload(f: CreateForm): Record<string, unknown> {
@@ -700,27 +680,19 @@ function buildCreatePayload(f: CreateForm): Record<string, unknown> {
       .filter(Boolean);
     if (arr.length > 0) out[k] = arr;
   };
-  s('mobileE164');
-  s('photoUrl');
   s('city');
   s('country');
   s('linkedinUrl');
-  s('twitterHandle');
   s('websiteUrl');
-  s('crunchbaseUrl');
   s('tracxnUrl');
-  s('angellistUrl');
   n('checkSizeMinUsd');
   n('checkSizeMaxUsd');
   a('sectorInterests');
   a('stageInterests');
   n('warmthScore');
   s('introPath');
-  s('priorCompany');
-  s('preferredMeetingHours');
-  a('mutualConnections');
   s('bioSummary');
-  s('personalThesisNotes');
+  s('fitRationale');
   return out;
 }
 
@@ -855,16 +827,6 @@ function CreateInvestorModal({
                 required
               />
               <CreateField
-                label="Mobile (E.164)"
-                value={form.mobileE164}
-                onChange={(v) => set('mobileE164', v)}
-              />
-              <CreateField
-                label="Photo URL"
-                value={form.photoUrl}
-                onChange={(v) => set('photoUrl', v)}
-              />
-              <CreateField
                 label="Timezone"
                 value={form.timezone}
                 onChange={(v) => set('timezone', v)}
@@ -892,29 +854,14 @@ function CreateInvestorModal({
                 onChange={(v) => set('linkedinUrl', v)}
               />
               <CreateField
-                label="Twitter handle"
-                value={form.twitterHandle}
-                onChange={(v) => set('twitterHandle', v)}
-              />
-              <CreateField
                 label="Website"
                 value={form.websiteUrl}
                 onChange={(v) => set('websiteUrl', v)}
               />
               <CreateField
-                label="Crunchbase URL"
-                value={form.crunchbaseUrl}
-                onChange={(v) => set('crunchbaseUrl', v)}
-              />
-              <CreateField
                 label="Tracxn URL"
                 value={form.tracxnUrl}
                 onChange={(v) => set('tracxnUrl', v)}
-              />
-              <CreateField
-                label="AngelList URL"
-                value={form.angellistUrl}
-                onChange={(v) => set('angellistUrl', v)}
               />
             </div>
           </CreateGroup>
@@ -954,34 +901,19 @@ function CreateInvestorModal({
                 value={form.introPath}
                 onChange={(v) => set('introPath', v)}
               />
-              <CreateField
-                label="Prior company"
-                value={form.priorCompany}
-                onChange={(v) => set('priorCompany', v)}
-              />
-              <CreateField
-                label="Preferred meeting hours"
-                value={form.preferredMeetingHours}
-                onChange={(v) => set('preferredMeetingHours', v)}
-              />
-              <CreateField
-                label="Mutual connections (comma-sep)"
-                value={form.mutualConnections}
-                onChange={(v) => set('mutualConnections', v)}
-              />
             </div>
           </CreateGroup>
 
           <CreateGroup title="Notes">
             <CreateTextarea
-              label="Bio summary"
+              label="Bio summary (partner background)"
               value={form.bioSummary}
               onChange={(v) => set('bioSummary', v)}
             />
             <CreateTextarea
-              label="Personal thesis notes (private)"
-              value={form.personalThesisNotes}
-              onChange={(v) => set('personalThesisNotes', v)}
+              label="Fit rationale (why this investor fits OotaOS)"
+              value={form.fitRationale}
+              onChange={(v) => set('fitRationale', v)}
             />
           </CreateGroup>
 

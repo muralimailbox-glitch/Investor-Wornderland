@@ -29,21 +29,12 @@ const COLUMNS = [
   'title',
   'decision_authority',
   'email',
-  'mobile_e164',
   'linkedin_url',
-  'twitter_handle',
   'intro_path',
   'timezone',
-  'preferred_meeting_hours',
-  'prior_company',
-  'mutual_connections',
-  'personal_thesis_notes',
-  'photo_url',
   'city',
   'country',
-  'crunchbase_url',
   'tracxn_url',
-  'angellist_url',
   'website_url',
   'check_size_min_usd',
   'check_size_max_usd',
@@ -51,11 +42,11 @@ const COLUMNS = [
   'stage_interests',
   'past_investments',
   'bio_summary',
+  'fit_rationale',
   'warmth_score',
   'last_contact_at',
   'next_reminder_at',
   'email_verified_at',
-  'interests',
 ];
 
 // Test rows from the e2e suite use @example.com emails or Asha Investor names.
@@ -94,11 +85,11 @@ async function main() {
   for (const col of COLUMNS) {
     // Treat empty strings, empty arrays, and SQL NULL as "not filled".
     let filledRow;
-    if (col === 'mutual_connections' || col === 'sector_interests' || col === 'stage_interests') {
+    if (col === 'sector_interests' || col === 'stage_interests') {
       filledRow = await sql.unsafe(
         `SELECT count(*)::bigint AS count FROM investors WHERE ${REAL_INVESTOR_FILTER} AND "${col}" IS NOT NULL AND array_length("${col}", 1) > 0`,
       );
-    } else if (col === 'past_investments' || col === 'interests') {
+    } else if (col === 'past_investments') {
       filledRow = await sql.unsafe(
         `SELECT count(*)::bigint AS count FROM investors WHERE ${REAL_INVESTOR_FILTER} AND "${col}" IS NOT NULL AND "${col}"::text NOT IN ('null', '[]', '{}')`,
       );

@@ -11,28 +11,20 @@ type InvestorFull = {
   title: string;
   decisionAuthority: string;
   email: string;
-  mobileE164: string | null;
   linkedinUrl: string | null;
-  twitterHandle: string | null;
   timezone: string;
   introPath: string | null;
-  personalThesisNotes: string | null;
-  photoUrl: string | null;
   city: string | null;
   country: string | null;
-  crunchbaseUrl: string | null;
   tracxnUrl: string | null;
-  angellistUrl: string | null;
   websiteUrl: string | null;
   checkSizeMinUsd: number | null;
   checkSizeMaxUsd: number | null;
   sectorInterests: string[] | null;
   stageInterests: string[] | null;
   bioSummary: string | null;
+  fitRationale: string | null;
   warmthScore: number | null;
-  priorCompany: string | null;
-  preferredMeetingHours: string | null;
-  mutualConnections: string[] | null;
   sourceOfLead?: string | null;
   referrerName?: string | null;
 };
@@ -44,12 +36,11 @@ type Props = {
 };
 
 type Form = Record<
-  keyof Omit<InvestorFull, 'id' | 'sectorInterests' | 'stageInterests' | 'mutualConnections'>,
+  keyof Omit<InvestorFull, 'id' | 'sectorInterests' | 'stageInterests'>,
   string
 > & {
   sectorInterests: string;
   stageInterests: string;
-  mutualConnections: string;
 };
 
 const EMPTY_FORM: Form = {
@@ -58,28 +49,20 @@ const EMPTY_FORM: Form = {
   title: '',
   decisionAuthority: 'full',
   email: '',
-  mobileE164: '',
   linkedinUrl: '',
-  twitterHandle: '',
   timezone: '',
   introPath: '',
-  personalThesisNotes: '',
-  photoUrl: '',
   city: '',
   country: '',
-  crunchbaseUrl: '',
   tracxnUrl: '',
-  angellistUrl: '',
   websiteUrl: '',
   checkSizeMinUsd: '',
   checkSizeMaxUsd: '',
   sectorInterests: '',
   stageInterests: '',
   bioSummary: '',
+  fitRationale: '',
   warmthScore: '',
-  priorCompany: '',
-  preferredMeetingHours: '',
-  mutualConnections: '',
   sourceOfLead: '',
   referrerName: '',
 };
@@ -91,28 +74,20 @@ function fromInvestor(inv: InvestorFull): Form {
     title: inv.title,
     decisionAuthority: inv.decisionAuthority,
     email: inv.email,
-    mobileE164: inv.mobileE164 ?? '',
     linkedinUrl: inv.linkedinUrl ?? '',
-    twitterHandle: inv.twitterHandle ?? '',
     timezone: inv.timezone,
     introPath: inv.introPath ?? '',
-    personalThesisNotes: inv.personalThesisNotes ?? '',
-    photoUrl: inv.photoUrl ?? '',
     city: inv.city ?? '',
     country: inv.country ?? '',
-    crunchbaseUrl: inv.crunchbaseUrl ?? '',
     tracxnUrl: inv.tracxnUrl ?? '',
-    angellistUrl: inv.angellistUrl ?? '',
     websiteUrl: inv.websiteUrl ?? '',
     checkSizeMinUsd: inv.checkSizeMinUsd == null ? '' : String(inv.checkSizeMinUsd),
     checkSizeMaxUsd: inv.checkSizeMaxUsd == null ? '' : String(inv.checkSizeMaxUsd),
     sectorInterests: (inv.sectorInterests ?? []).join(', '),
     stageInterests: (inv.stageInterests ?? []).join(', '),
     bioSummary: inv.bioSummary ?? '',
+    fitRationale: inv.fitRationale ?? '',
     warmthScore: inv.warmthScore == null ? '' : String(inv.warmthScore),
-    priorCompany: inv.priorCompany ?? '',
-    preferredMeetingHours: inv.preferredMeetingHours ?? '',
-    mutualConnections: (inv.mutualConnections ?? []).join(', '),
     sourceOfLead: inv.sourceOfLead ?? '',
     referrerName: inv.referrerName ?? '',
   };
@@ -128,33 +103,22 @@ function toPatch(f: Form): Record<string, unknown> {
   patch.decisionAuthority = f.decisionAuthority.trim();
   patch.email = f.email.trim();
   patch.timezone = f.timezone.trim();
-  patch.mobileE164 = s(f.mobileE164);
   patch.linkedinUrl = s(f.linkedinUrl);
-  patch.twitterHandle = s(f.twitterHandle);
   patch.introPath = s(f.introPath);
-  patch.personalThesisNotes = s(f.personalThesisNotes);
-  patch.photoUrl = s(f.photoUrl);
   patch.city = s(f.city);
   patch.country = s(f.country);
-  patch.crunchbaseUrl = s(f.crunchbaseUrl);
   patch.tracxnUrl = s(f.tracxnUrl);
-  patch.angellistUrl = s(f.angellistUrl);
   patch.websiteUrl = s(f.websiteUrl);
   patch.checkSizeMinUsd = n(f.checkSizeMinUsd);
   patch.checkSizeMaxUsd = n(f.checkSizeMaxUsd);
   patch.warmthScore = n(f.warmthScore);
   patch.bioSummary = s(f.bioSummary);
+  patch.fitRationale = s(f.fitRationale);
   patch.sectorInterests = f.sectorInterests
     .split(',')
     .map((s2) => s2.trim())
     .filter(Boolean);
   patch.stageInterests = f.stageInterests
-    .split(',')
-    .map((s2) => s2.trim())
-    .filter(Boolean);
-  patch.priorCompany = s(f.priorCompany);
-  patch.preferredMeetingHours = s(f.preferredMeetingHours);
-  patch.mutualConnections = f.mutualConnections
     .split(',')
     .map((s2) => s2.trim())
     .filter(Boolean);
@@ -280,16 +244,6 @@ export function InvestorEditModal({ investorId, onClose, onSaved }: Props) {
                     onChange={(v) => setForm((f) => ({ ...f, email: v }))}
                   />
                   <F
-                    label="Mobile (E.164)"
-                    value={form.mobileE164}
-                    onChange={(v) => setForm((f) => ({ ...f, mobileE164: v }))}
-                  />
-                  <F
-                    label="Photo URL"
-                    value={form.photoUrl}
-                    onChange={(v) => setForm((f) => ({ ...f, photoUrl: v }))}
-                  />
-                  <F
                     label="Timezone"
                     value={form.timezone}
                     onChange={(v) => setForm((f) => ({ ...f, timezone: v }))}
@@ -320,29 +274,14 @@ export function InvestorEditModal({ investorId, onClose, onSaved }: Props) {
                     onChange={(v) => setForm((f) => ({ ...f, linkedinUrl: v }))}
                   />
                   <F
-                    label="Twitter handle"
-                    value={form.twitterHandle}
-                    onChange={(v) => setForm((f) => ({ ...f, twitterHandle: v }))}
-                  />
-                  <F
                     label="Website"
                     value={form.websiteUrl}
                     onChange={(v) => setForm((f) => ({ ...f, websiteUrl: v }))}
                   />
                   <F
-                    label="Crunchbase URL"
-                    value={form.crunchbaseUrl}
-                    onChange={(v) => setForm((f) => ({ ...f, crunchbaseUrl: v }))}
-                  />
-                  <F
                     label="Tracxn URL"
                     value={form.tracxnUrl}
                     onChange={(v) => setForm((f) => ({ ...f, tracxnUrl: v }))}
-                  />
-                  <F
-                    label="AngelList URL"
-                    value={form.angellistUrl}
-                    onChange={(v) => setForm((f) => ({ ...f, angellistUrl: v }))}
                   />
                 </div>
               </Group>
@@ -407,34 +346,19 @@ export function InvestorEditModal({ investorId, onClose, onSaved }: Props) {
                     value={form.referrerName}
                     onChange={(v) => setForm((f) => ({ ...f, referrerName: v }))}
                   />
-                  <F
-                    label="Prior company"
-                    value={form.priorCompany}
-                    onChange={(v) => setForm((f) => ({ ...f, priorCompany: v }))}
-                  />
-                  <F
-                    label="Preferred meeting hours"
-                    value={form.preferredMeetingHours}
-                    onChange={(v) => setForm((f) => ({ ...f, preferredMeetingHours: v }))}
-                  />
-                  <F
-                    label="Mutual connections (comma-sep)"
-                    value={form.mutualConnections}
-                    onChange={(v) => setForm((f) => ({ ...f, mutualConnections: v }))}
-                  />
                 </div>
               </Group>
 
               <Group title="Notes">
                 <TA
-                  label="Bio summary"
+                  label="Bio summary (partner background)"
                   value={form.bioSummary}
                   onChange={(v) => setForm((f) => ({ ...f, bioSummary: v }))}
                 />
                 <TA
-                  label="Personal thesis notes (private)"
-                  value={form.personalThesisNotes}
-                  onChange={(v) => setForm((f) => ({ ...f, personalThesisNotes: v }))}
+                  label="Fit rationale (why this investor fits OotaOS)"
+                  value={form.fitRationale}
+                  onChange={(v) => setForm((f) => ({ ...f, fitRationale: v }))}
                 />
               </Group>
 

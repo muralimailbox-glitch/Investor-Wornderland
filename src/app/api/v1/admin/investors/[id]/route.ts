@@ -30,32 +30,20 @@ const PatchBody = z.object({
   title: z.string().min(1).max(120).optional(),
   decisionAuthority: z.string().min(1).max(80).optional(),
   email: z.string().email().max(254).optional(),
-  mobileE164: z
-    .string()
-    .regex(/^\+?\d{6,15}$/)
-    .nullable()
-    .optional(),
   linkedinUrl: z.string().url().max(500).nullable().optional(),
-  twitterHandle: z.string().max(60).nullable().optional(),
   timezone: z.string().min(1).max(80).optional(),
   introPath: z.string().max(240).nullable().optional(),
-  personalThesisNotes: z.string().max(2000).nullable().optional(),
-  photoUrl: z.string().url().max(500).nullable().optional(),
   city: z.string().max(120).nullable().optional(),
   country: z.string().max(120).nullable().optional(),
-  crunchbaseUrl: z.string().url().max(500).nullable().optional(),
   tracxnUrl: z.string().url().max(500).nullable().optional(),
-  angellistUrl: z.string().url().max(500).nullable().optional(),
   websiteUrl: z.string().url().max(500).nullable().optional(),
   checkSizeMinUsd: z.number().int().nonnegative().nullable().optional(),
   checkSizeMaxUsd: z.number().int().nonnegative().nullable().optional(),
   sectorInterests: z.array(z.string().max(60)).max(30).nullable().optional(),
   stageInterests: z.array(z.string().max(40)).max(20).nullable().optional(),
   bioSummary: z.string().max(2000).nullable().optional(),
+  fitRationale: z.string().max(1000).nullable().optional(),
   warmthScore: z.number().int().min(0).max(100).nullable().optional(),
-  priorCompany: z.string().max(160).nullable().optional(),
-  preferredMeetingHours: z.string().max(120).nullable().optional(),
-  mutualConnections: z.array(z.string().max(160)).max(30).nullable().optional(),
   sourceOfLead: z.enum(LEAD_SOURCES).optional(),
   referrerName: z.string().max(160).nullable().optional(),
 });

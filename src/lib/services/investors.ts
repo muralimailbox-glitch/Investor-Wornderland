@@ -113,29 +113,20 @@ export type InvestorCreateInput = {
   title: string;
   decisionAuthority: string;
   email: string;
-  mobileE164?: string | undefined;
   timezone: string;
   introPath?: string | undefined;
-  personalThesisNotes?: string | undefined;
-  // Add-form parity with edit form — every editable column is settable on create too.
-  photoUrl?: string | undefined;
   city?: string | undefined;
   country?: string | undefined;
   linkedinUrl?: string | undefined;
-  twitterHandle?: string | undefined;
   websiteUrl?: string | undefined;
-  crunchbaseUrl?: string | undefined;
   tracxnUrl?: string | undefined;
-  angellistUrl?: string | undefined;
   checkSizeMinUsd?: number | undefined;
   checkSizeMaxUsd?: number | undefined;
   sectorInterests?: string[] | undefined;
   stageInterests?: string[] | undefined;
   bioSummary?: string | undefined;
+  fitRationale?: string | undefined;
   warmthScore?: number | undefined;
-  priorCompany?: string | undefined;
-  preferredMeetingHours?: string | undefined;
-  mutualConnections?: string[] | undefined;
 };
 
 export async function createInvestor(
@@ -172,27 +163,19 @@ export async function createInvestor(
     email: input.email,
     timezone: input.timezone,
   };
-  if (input.mobileE164) payload.mobileE164 = input.mobileE164;
   if (input.introPath) payload.introPath = input.introPath;
-  if (input.personalThesisNotes) payload.personalThesisNotes = input.personalThesisNotes;
-  if (input.photoUrl) payload.photoUrl = input.photoUrl;
   if (input.city) payload.city = input.city;
   if (input.country) payload.country = input.country;
   if (input.linkedinUrl) payload.linkedinUrl = input.linkedinUrl;
-  if (input.twitterHandle) payload.twitterHandle = input.twitterHandle;
   if (input.websiteUrl) payload.websiteUrl = input.websiteUrl;
-  if (input.crunchbaseUrl) payload.crunchbaseUrl = input.crunchbaseUrl;
   if (input.tracxnUrl) payload.tracxnUrl = input.tracxnUrl;
-  if (input.angellistUrl) payload.angellistUrl = input.angellistUrl;
   if (input.checkSizeMinUsd !== undefined) payload.checkSizeMinUsd = input.checkSizeMinUsd;
   if (input.checkSizeMaxUsd !== undefined) payload.checkSizeMaxUsd = input.checkSizeMaxUsd;
   if (input.sectorInterests) payload.sectorInterests = input.sectorInterests;
   if (input.stageInterests) payload.stageInterests = input.stageInterests;
   if (input.bioSummary) payload.bioSummary = input.bioSummary;
+  if (input.fitRationale) payload.fitRationale = input.fitRationale;
   if (input.warmthScore !== undefined) payload.warmthScore = input.warmthScore;
-  if (input.priorCompany) payload.priorCompany = input.priorCompany;
-  if (input.preferredMeetingHours) payload.preferredMeetingHours = input.preferredMeetingHours;
-  if (input.mutualConnections) payload.mutualConnections = input.mutualConnections;
 
   const investor = await investorsRepo.create(payload);
 
@@ -304,28 +287,20 @@ export type InvestorUpdateInput = {
   title?: string | undefined;
   decisionAuthority?: string | undefined;
   email?: string | undefined;
-  mobileE164?: string | null | undefined;
   linkedinUrl?: string | null | undefined;
-  twitterHandle?: string | null | undefined;
   timezone?: string | undefined;
   introPath?: string | null | undefined;
-  personalThesisNotes?: string | null | undefined;
-  photoUrl?: string | null | undefined;
   city?: string | null | undefined;
   country?: string | null | undefined;
-  crunchbaseUrl?: string | null | undefined;
   tracxnUrl?: string | null | undefined;
-  angellistUrl?: string | null | undefined;
   websiteUrl?: string | null | undefined;
   checkSizeMinUsd?: number | null | undefined;
   checkSizeMaxUsd?: number | null | undefined;
   sectorInterests?: string[] | null | undefined;
   stageInterests?: string[] | null | undefined;
   bioSummary?: string | null | undefined;
+  fitRationale?: string | null | undefined;
   warmthScore?: number | null | undefined;
-  priorCompany?: string | null | undefined;
-  preferredMeetingHours?: string | null | undefined;
-  mutualConnections?: string[] | null | undefined;
 };
 
 export async function updateInvestor(
@@ -345,28 +320,20 @@ export async function updateInvestor(
     'title',
     'decisionAuthority',
     'email',
-    'mobileE164',
     'linkedinUrl',
-    'twitterHandle',
     'timezone',
     'introPath',
-    'personalThesisNotes',
-    'photoUrl',
     'city',
     'country',
-    'crunchbaseUrl',
     'tracxnUrl',
-    'angellistUrl',
     'websiteUrl',
     'checkSizeMinUsd',
     'checkSizeMaxUsd',
     'sectorInterests',
     'stageInterests',
     'bioSummary',
+    'fitRationale',
     'warmthScore',
-    'priorCompany',
-    'preferredMeetingHours',
-    'mutualConnections',
   ] as const) {
     const next = patch[key];
     if (next !== undefined && next !== (existing as Record<string, unknown>)[key]) {
@@ -406,29 +373,20 @@ const CSV_HEADERS = [
   'title',
   'decision_authority',
   'email',
-  'mobile_e164',
   'timezone',
   'intro_path',
-  // Reconciled set — same superset as the edit form / bulk-import / export.
-  'photo_url',
   'city',
   'country',
   'linkedin_url',
-  'twitter_handle',
   'website_url',
-  'crunchbase_url',
   'tracxn_url',
-  'angellist_url',
   'check_size_min_usd',
   'check_size_max_usd',
   'sector_interests',
   'stage_interests',
   'warmth_score',
-  'prior_company',
-  'preferred_meeting_hours',
-  'mutual_connections',
   'bio_summary',
-  'personal_thesis_notes',
+  'fit_rationale',
 ] as const;
 
 type CsvRow = Partial<Record<(typeof CSV_HEADERS)[number], string>>;
@@ -529,17 +487,12 @@ export async function importInvestorsCsv(
         email: r.email,
         timezone: r.timezone ?? 'Asia/Kolkata',
       };
-      if (r.mobile_e164) insert.mobileE164 = r.mobile_e164;
       if (r.intro_path) insert.introPath = r.intro_path;
-      if (r.photo_url) insert.photoUrl = r.photo_url;
       if (r.city) insert.city = r.city;
       if (r.country) insert.country = r.country;
       if (r.linkedin_url) insert.linkedinUrl = r.linkedin_url;
-      if (r.twitter_handle) insert.twitterHandle = r.twitter_handle;
       if (r.website_url) insert.websiteUrl = r.website_url;
-      if (r.crunchbase_url) insert.crunchbaseUrl = r.crunchbase_url;
       if (r.tracxn_url) insert.tracxnUrl = r.tracxn_url;
-      if (r.angellist_url) insert.angellistUrl = r.angellist_url;
       if (r.check_size_min_usd && !Number.isNaN(Number(r.check_size_min_usd))) {
         insert.checkSizeMinUsd = Number(r.check_size_min_usd);
       }
@@ -563,17 +516,8 @@ export async function importInvestorsCsv(
       if (r.warmth_score && !Number.isNaN(Number(r.warmth_score))) {
         insert.warmthScore = Number(r.warmth_score);
       }
-      if (r.prior_company) insert.priorCompany = r.prior_company;
-      if (r.preferred_meeting_hours) insert.preferredMeetingHours = r.preferred_meeting_hours;
-      if (r.mutual_connections) {
-        const arr = r.mutual_connections
-          .split(/[,;|]/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (arr.length > 0) insert.mutualConnections = arr;
-      }
       if (r.bio_summary) insert.bioSummary = r.bio_summary;
-      if (r.personal_thesis_notes) insert.personalThesisNotes = r.personal_thesis_notes;
+      if (r.fit_rationale) insert.fitRationale = r.fit_rationale;
 
       const inv = await investorsRepo.create(insert);
       await ensureActiveLead(workspaceId, inv.id, actorUserId);

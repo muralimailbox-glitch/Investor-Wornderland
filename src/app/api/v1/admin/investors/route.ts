@@ -38,32 +38,20 @@ const CreateBody = z.object({
   title: z.string().min(1).max(120),
   decisionAuthority: z.string().min(1).max(80),
   email: z.string().email().max(254),
-  mobileE164: z
-    .string()
-    .regex(/^\+?\d{6,15}$/)
-    .optional(),
   timezone: z.string().min(1).max(80),
   introPath: z.string().max(240).optional(),
-  personalThesisNotes: z.string().max(2000).optional(),
-  // Mirror the edit form so the Add modal can capture the full investor profile.
-  photoUrl: z.string().url().max(500).optional(),
   city: z.string().max(120).optional(),
   country: z.string().max(120).optional(),
   linkedinUrl: z.string().url().max(500).optional(),
-  twitterHandle: z.string().max(60).optional(),
   websiteUrl: z.string().url().max(500).optional(),
-  crunchbaseUrl: z.string().url().max(500).optional(),
   tracxnUrl: z.string().url().max(500).optional(),
-  angellistUrl: z.string().url().max(500).optional(),
   checkSizeMinUsd: z.number().int().nonnegative().optional(),
   checkSizeMaxUsd: z.number().int().nonnegative().optional(),
   sectorInterests: z.array(z.string().max(60)).max(30).optional(),
   stageInterests: z.array(z.string().max(40)).max(20).optional(),
   bioSummary: z.string().max(2000).optional(),
+  fitRationale: z.string().max(1000).optional(),
   warmthScore: z.number().int().min(0).max(100).optional(),
-  priorCompany: z.string().max(160).optional(),
-  preferredMeetingHours: z.string().max(120).optional(),
-  mutualConnections: z.array(z.string().max(160)).max(30).optional(),
 });
 
 export const GET = handle(async (req) => {

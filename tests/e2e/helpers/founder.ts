@@ -106,3 +106,100 @@ export async function getCurrentDeal(api: APIRequestContext) {
   expect(res.ok()).toBeTruthy();
   return (await res.json()) as null | { id: string; roundLabel: string };
 }
+
+// ── Document helpers ────────────────────────────────────────────────────
+// Stubs so the documents-delivery spec on main typechecks. Real
+// implementations live on the test-task's stage-6 branch and will land
+// here when stage 6 merges.
+
+export type UploadDocumentInput = {
+  filename?: string;
+  mimeType?: string;
+  content?: Buffer;
+  kind?: string;
+  watermarkPolicy?: 'per_investor' | 'static' | 'none';
+  expiresInDays?: number;
+  minLeadStage?: string;
+  title?: string;
+};
+
+export async function uploadDocument(api: APIRequestContext, input: UploadDocumentInput = {}) {
+  const res = await api.post('/api/v1/admin/documents', {
+    multipart: {
+      kind: input.kind ?? 'pitch_deck',
+      title: input.title ?? 'E2E Test Doc',
+      watermarkPolicy: input.watermarkPolicy ?? 'per_investor',
+      ...(input.expiresInDays ? { expiresInDays: String(input.expiresInDays) } : {}),
+      ...(input.minLeadStage ? { minLeadStage: input.minLeadStage } : {}),
+      file: {
+        name: input.filename ?? 'doc.pdf',
+        mimeType: input.mimeType ?? 'application/pdf',
+        buffer: input.content ?? Buffer.from('%PDF-1.4\n% test\n'),
+      },
+    },
+  });
+  expect(res.ok()).toBeTruthy();
+  const body = (await res.json()) as { document: { id: string; originalFilename: string } };
+  return body.document;
+}
+
+export async function deleteDocument(api: APIRequestContext, documentId: string) {
+  const res = await api.post(`/api/v1/admin/documents/${documentId}/delete`, {
+    data: { confirm: true },
+  });
+  expect(res.ok()).toBeTruthy();
+  return res;
+}
+
+export async function replaceDocument(
+  api: APIRequestContext,
+  documentId: string,
+  input: { filename?: string; content?: Buffer; mimeType?: string },
+) {
+  const res = await api.post(`/api/v1/admin/documents/${documentId}/replace`, {
+    multipart: {
+      file: {
+        name: input.filename ?? 'replacement.pdf',
+        mimeType: input.mimeType ?? 'application/pdf',
+        buffer: input.content ?? Buffer.from('%PDF-1.4\n% replacement\n'),
+      },
+    },
+  });
+  expect(res.ok()).toBeTruthy();
+  return res;
+}
+
+export async function importInvestorsCsv(api: APIRequestContext, csvText: string) {
+  const res = await api.post('/api/v1/admin/investors/import', {
+    headers: { 'Content-Type': 'text/csv' },
+    data: csvText,
+  });
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()) as {
+    imported: number;
+    skipped: number;
+    errors: Array<{ row: number; reason: string }>;
+  };
+}
+
+export async function bulkImportInvestors(
+  api: APIRequestContext,
+  investors: Array<Record<string, unknown>>,
+) {
+  const res = await api.post('/api/v1/admin/investors/bulk-import', { data: { investors } });
+  expect(res.ok()).toBeTruthy();
+  return (await res.json()) as {
+    firmsCreated: number;
+    investorsCreated: number;
+    firmsUpdated: number;
+    investorsUpdated: number;
+  };
+}
+
+export async function revokeNda(api: APIRequestContext, ndaId: string) {
+  const res = await api.post(`/api/v1/admin/ndas/${ndaId}/revoke`, {
+    data: { reason: 'e2e revoke' },
+  });
+  expect(res.ok()).toBeTruthy();
+  return res;
+}

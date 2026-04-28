@@ -1,35 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Copy,
-  Download,
-  Loader2,
-  Mail,
-  MessageCircle,
-  ShieldOff,
-  Sparkles,
-  Trash2,
-  X,
-} from 'lucide-react';
+import { Copy, Download, Loader2, Mail, ShieldOff, Sparkles, Trash2, X } from 'lucide-react';
 
 type Props = {
   investorId: string;
   investorName: string;
   investorEmail: string;
-  investorMobileE164?: string | null;
   onClose: () => void;
 };
 
 type Issued = { url: string; expiresAt: string; investorEmail: string };
 
-export function InviteLinkModal({
-  investorId,
-  investorName,
-  investorEmail,
-  investorMobileE164,
-  onClose,
-}: Props) {
+export function InviteLinkModal({ investorId, investorName, investorEmail, onClose }: Props) {
   const [issued, setIssued] = useState<Issued | null>(null);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,14 +88,6 @@ export function InviteLinkModal({
     }
   }
 
-  function whatsappHref(): string | null {
-    if (!issued || !investorMobileE164) return null;
-    const text = encodeURIComponent(
-      `Hi ${investorName.split(' ')[0] ?? ''} — here's your private OotaOS investor lounge link: ${issued.url}\n\nSign the NDA once and the data room + founder calendar open immediately.`,
-    );
-    return `https://wa.me/${investorMobileE164.replace(/\D/g, '')}?text=${text}`;
-  }
-
   return (
     <div
       role="dialog"
@@ -175,29 +150,7 @@ export function InviteLinkModal({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {whatsappHref() ? (
-                  <a
-                    href={whatsappHref() ?? '#'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    Open in WhatsApp
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    title="No mobile on file"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-400"
-                  >
-                    <MessageCircle className="h-3.5 w-3.5" />
-                    No WhatsApp number
-                  </button>
-                )}
-
+              <div className="grid grid-cols-1 gap-2">
                 <button
                   type="button"
                   onClick={() => void sendEmail()}

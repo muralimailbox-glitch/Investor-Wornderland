@@ -1,7 +1,14 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 
 import { db } from '../../../src/lib/db/client';
-import { auditEvents, interactions, investors, leads, ndas } from '../../../src/lib/db/schema';
+import {
+  auditEvents,
+  firms,
+  interactions,
+  investors,
+  leads,
+  ndas,
+} from '../../../src/lib/db/schema';
 
 export async function getInvestorByEmail(email: string) {
   const rows = await db
@@ -64,4 +71,37 @@ export async function getLatestNdaForLead(leadId: string) {
     .orderBy(desc(ndas.signedAt))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Moves the rate_limits OTP row's expiry into the past so the next
+ * verifyOtp call treats it as expired. Safe to call when no OTP exists.
+ */
+export async function expireOtpForEmail(email: string): Promise<void> {
+  const normalized = email.toLowerCase();
+  await db.execute(
+    sql`UPDATE rate_limits SET refilled_at = now() - interval '1 minute' WHERE key LIKE ${`nda-otp:${normalized}|%`}`,
+  );
+}
+
+/** Moves a document's expiresAt into the past so it is treated as expired. */
+export async function setDocumentExpired(documentId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE documents SET expires_at = now() - interval '1 minute' WHERE id = ${documentId}`,
+  );
+}
+
+/** Deletes a rate_limits bucket row so the next request starts with a full token bucket. */
+export async function resetRateLimitKey(key: string): Promise<void> {
+  await db.execute(sql`DELETE FROM rate_limits WHERE key = ${key}`);
+}
+
+export async function getFirmById(firmId: string) {
+  const rows = await db.select().from(firms).where(eq(firms.id, firmId)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Overwrites a document's dealId — used to simulate a cross-deal access attempt. */
+export async function setDocumentDealId(documentId: string, dealId: string): Promise<void> {
+  await db.execute(sql`UPDATE documents SET deal_id = ${dealId} WHERE id = ${documentId}`);
 }
