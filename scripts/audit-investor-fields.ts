@@ -73,7 +73,7 @@ async function main() {
   const grandTotal = Number(grandTotalRow[0]!.count);
 
   const totalRow = await sql.unsafe<{ count: bigint }[]>(
-    `SELECT count(*)::bigint AS count FROM investors WHERE ${REAL_INVESTOR_FILTER} AND ${REAL_INVESTOR_FILTER}`,
+    `SELECT count(*)::bigint AS count FROM investors WHERE ${REAL_INVESTOR_FILTER}`,
   );
   const total = Number(totalRow[0]!.count);
   console.log(`Investors in DB: ${grandTotal}`);
