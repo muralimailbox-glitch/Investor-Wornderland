@@ -7,6 +7,10 @@ import { test as base, expect, type APIRequestContext, type Page } from '@playwr
 import { loginFounderApi, loginFounderPage } from './founder';
 import { randomEmail } from './utils';
 
+// Prod-DB pollution guard lives in playwright.config.ts — it fires before
+// any spec loads, including legacy specs that import @playwright/test
+// directly and don't go through this fixture module.
+
 type Fixtures = {
   founderApi: APIRequestContext;
   founderPage: Page;
