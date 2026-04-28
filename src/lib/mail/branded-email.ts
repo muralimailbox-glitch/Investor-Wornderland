@@ -19,7 +19,7 @@
  *
  *   await sendMail({ to: "...", subject: "...", html, text });
  */
-import { logoUrl, OOTAOS_BRAND, siteUrl } from '@/lib/mail/brand';
+import { logoUrl, MARKETING_SITE_URL, OOTAOS_BRAND, siteUrl } from '@/lib/mail/brand';
 
 export type BrandedEmailInput = {
   heading: string;
@@ -45,7 +45,9 @@ const PALETTE = {
   ink: OOTAOS_BRAND.ink,
   inkSoft: OOTAOS_BRAND.inkSoft,
   accentFrom: OOTAOS_BRAND.accentFrom,
+  accentVia: OOTAOS_BRAND.accentVia,
   accentTo: OOTAOS_BRAND.accentTo,
+  gradient: OOTAOS_BRAND.gradient,
   ctaBg: OOTAOS_BRAND.gradient,
 };
 
@@ -105,8 +107,21 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; background: ${PALETTE.bgCard}; border: 1px solid ${PALETTE.border}; border-radius: 24px; box-shadow: 0 20px 60px -30px rgba(234, 88, 12, 0.18); overflow: hidden;">
           <tr>
             <td style="padding: 28px 32px 0 32px;">
-              <a href="${SITE}" style="display: inline-block; text-decoration: none;">
-                <img src="${LOGO_URL}" alt="OotaOS" width="140" style="display: block; max-width: 140px; height: auto;"/>
+              <!-- Image-free brand mark: Gmail/Outlook proxy + ad-blockers
+                   were stripping the hot-linked PNG. CSS gradient on text
+                   renders in every modern client; bgcolor fallback covers
+                   the few that don't. Logo URL kept as fallback img tag
+                   below so corporate clients that whitelist the domain
+                   still get the full mark. -->
+              <a href="${MARKETING_SITE_URL}" style="display: inline-block; text-decoration: none;">
+                <table role="presentation" cellspacing="0" cellpadding="0" style="border-collapse: collapse;">
+                  <tr>
+                    <td bgcolor="${PALETTE.accentVia}" style="padding: 8px 14px; border-radius: 10px; background: ${PALETTE.gradient};">
+                      <span style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Helvetica, Arial, sans-serif; font-size: 18px; font-weight: 700; letter-spacing: 0.02em; color: #ffffff; text-decoration: none;">OotaOS</span>
+                    </td>
+                  </tr>
+                </table>
+                <img src="${LOGO_URL}" alt="" width="0" height="0" style="display: none; max-height: 0; max-width: 0; overflow: hidden;"/>
               </a>
             </td>
           </tr>
@@ -142,7 +157,7 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
             <td style="padding: 24px 32px 28px 32px;">
               <hr style="border: none; border-top: 1px solid ${PALETTE.border}; margin: 0 0 16px;"/>
               <p style="margin: 0 0 4px; font-size: 12px; color: ${PALETTE.inkSoft};">
-                <a href="${SITE}" style="color: ${PALETTE.inkSoft}; text-decoration: none; font-weight: 600;">OotaOS</a>
+                <a href="${MARKETING_SITE_URL}" style="color: ${PALETTE.inkSoft}; text-decoration: none; font-weight: 600;">OotaOS</a>
                 · Sydney, Australia · Restaurant operating system
               </p>
               <p style="margin: 0; font-size: 11px; color: ${PALETTE.inkSoft};">

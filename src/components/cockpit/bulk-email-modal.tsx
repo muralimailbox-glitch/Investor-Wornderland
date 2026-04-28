@@ -52,7 +52,7 @@ const TEMPLATE_OPTIONS = [
 
 const DEFAULT_BODY = `Hi {{firstName}},
 
-I'd love to share an update on OotaOS — we're a restaurant operating system raising $800K seed at $8M post. Your personalized link is below; ask Priya anything and the data room opens after a 60-second mutual NDA.
+I'd love to share an update on OotaOS — we're a restaurant operating system raising $800K seed at $8M post. Your personalized link is below; ask Olivia anything and the data room opens after a 60-second mutual NDA.
 
 {{investorLink}}
 

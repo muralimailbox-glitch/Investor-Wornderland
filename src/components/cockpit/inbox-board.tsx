@@ -229,12 +229,12 @@ function EmailDetail({ email }: { email: Email }) {
             onClick={generate}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-500/30 transition hover:-translate-y-px"
           >
-            <Sparkles className="h-4 w-4" /> Draft reply with Priya
+            <Sparkles className="h-4 w-4" /> Draft reply with Olivia
           </button>
         ) : null}
         {generating ? (
           <div className="flex items-center justify-center gap-2 rounded-2xl bg-violet-50 px-5 py-3 text-sm text-violet-700">
-            <Loader2 className="h-4 w-4 animate-spin" /> Priya is drafting…
+            <Loader2 className="h-4 w-4 animate-spin" /> Olivia is drafting…
           </div>
         ) : null}
         {draft ? (

@@ -39,7 +39,7 @@ export function DocPreviewClient({
         }),
       });
       if (!res.ok) throw new Error('failed');
-      setSent('Request sent. The founders will respond from info@ootaos.com within 24 hours.');
+      setSent('Request sent. The founder will respond from info@ootaos.com within 24 hours.');
       setMessage('');
       setOpenRequest(null);
     } catch {
@@ -109,7 +109,7 @@ export function DocPreviewClient({
           onClick={() => setOpenRequest('more_info')}
           className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-4 py-2 text-sm font-medium text-violet-700 transition hover:border-violet-400"
         >
-          <MessageSquare className="h-4 w-4" /> Ask the founders
+          <MessageSquare className="h-4 w-4" /> Ask the founder
         </button>
         <a href="/lounge" className="text-sm text-slate-500 hover:text-slate-700">
           ← Back to data room
@@ -124,10 +124,10 @@ export function DocPreviewClient({
             <h3 className="text-base font-semibold text-slate-900">
               {openRequest === 'original_document'
                 ? `Request the original ${filename}`
-                : 'Send a question to the founders'}
+                : 'Send a question to the founder'}
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              The founders will reply from info@ootaos.com within 24 hours.
+              The founder will reply from info@ootaos.com within 24 hours.
             </p>
             <textarea
               value={message}

@@ -126,7 +126,7 @@ export function KnowledgeEditor() {
         throw new Error(data?.title ?? `${res.status}`);
       }
       const result = (await res.json()) as { chunks: number };
-      setBanner(`Saved. Priya indexed ${result.chunks} chunks.`);
+      setBanner(`Saved. Olivia indexed ${result.chunks} chunks.`);
       setContent('');
       await load();
     } catch (e) {
@@ -139,7 +139,7 @@ export function KnowledgeEditor() {
   async function deleteSection(section: string, v: string) {
     if (
       !confirm(
-        `Delete the "${section}" v${v} section and its chunks? Priya will stop citing it immediately. This can't be undone.`,
+        `Delete the "${section}" v${v} section and its chunks? Olivia will stop citing it immediately. This can't be undone.`,
       )
     ) {
       return;
@@ -173,10 +173,10 @@ export function KnowledgeEditor() {
       <div className="flex flex-col gap-1">
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Knowledge</p>
         <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          What Priya can answer
+          What Olivia can answer
         </h1>
         <p className="text-[15px] text-slate-600">
-          Write in your own words. Priya grounds every investor answer in these sections.
+          Write in your own words. Olivia grounds every investor answer in these sections.
         </p>
       </div>
 
@@ -206,7 +206,7 @@ export function KnowledgeEditor() {
                     ? 'today'
                     : `${freshness.ageDays} day${freshness.ageDays === 1 ? '' : 's'} ago`
                 } (${new Date(freshness.lastIndexedAt).toLocaleString()})`
-              : 'Save any section below to seed Priya.'}
+              : 'Save any section below to seed Olivia.'}
           </span>
         </div>
       ) : null}

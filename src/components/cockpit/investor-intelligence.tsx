@@ -5,7 +5,7 @@
  * them, what documents they viewed, and the chronological full timeline.
  *
  * The founder uses this surface to:
- *   - audit AI relevance ("did Priya answer their cap-table question
+ *   - audit AI relevance ("did Olivia answer their cap-table question
  *     well?")
  *   - spot disinterest signals ("they viewed 3 docs and asked nothing
  *     for 2 weeks")
@@ -191,7 +191,7 @@ export function InvestorIntelligence({ activity }: { activity: InvestorActivity 
               Questions & AI answers
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Click any question to see what the investor asked and what Priya returned.
+              Click any question to see what the investor asked and what Olivia returned.
             </p>
           </div>
           <span className="text-[11px] text-slate-400">{questions.length} total</span>
@@ -199,7 +199,7 @@ export function InvestorIntelligence({ activity }: { activity: InvestorActivity 
         <ul className="mt-4 flex flex-col gap-2">
           {questions.length === 0 ? (
             <li className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-              No questions yet. The investor hasn&apos;t asked Priya anything.
+              No questions yet. The investor hasn&apos;t asked Olivia anything.
             </li>
           ) : (
             questions.map((q) => <QuestionRow key={q.id} interaction={q} />)
@@ -387,7 +387,7 @@ function QuestionRow({ interaction }: { interaction: Interaction }) {
       {open ? (
         <div className="border-t border-slate-200 bg-slate-50/40 px-4 py-3 text-xs">
           <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            What Priya returned
+            What Olivia returned
             {p.answerLength != null ? ` · ${p.answerLength} chars total` : ''}
             {p.model ? ` · ${p.model}` : ''}
           </p>

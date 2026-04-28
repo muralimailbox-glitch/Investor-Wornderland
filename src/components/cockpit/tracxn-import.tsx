@@ -271,7 +271,7 @@ function PasteTab(props: {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-600">
-        Copy a Tracxn firm or investor page, paste below, and Priya will extract the structured
+        Copy a Tracxn firm or investor page, paste below, and Olivia will extract the structured
         data. Nothing is saved until you hit <strong>Import</strong>.
       </p>
       <textarea
@@ -297,7 +297,7 @@ function PasteTab(props: {
             ) : (
               <Sparkles className="h-4 w-4" />
             )}
-            {parsing ? 'Parsing…' : 'Parse with Priya'}
+            {parsing ? 'Parsing…' : 'Parse with Olivia'}
           </button>
         </div>
       ) : (

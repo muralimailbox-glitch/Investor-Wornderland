@@ -35,11 +35,22 @@ export const POST = handle(async (req: Request) => {
     preFooter: 'For your security, OotaOS will never ask you to share this code.',
   });
 
-  await sendMail({
+  // Fire-and-forget so the HTTP response doesn't block on the SMTP round-trip.
+  // Zoho SMTP over TLS to a Mumbai endpoint can take 4–10s on cold connections;
+  // the investor sees a faster "code on the way" UI this way and the OTP is
+  // already issued in the database (issueOtp above) so any retry is safe.
+  // Failures are logged for observability — we don't expose SMTP errors to the
+  // caller because they leak transport details and would block the UX.
+  void sendMail({
     to: email,
     subject: `Your OotaOS verification code: ${code}`,
     text: branded.text,
     html: branded.html,
+  }).catch((err: unknown) => {
+    console.error('[otp:start] sendMail failed', {
+      to: email,
+      err: err instanceof Error ? err.message : String(err),
+    });
   });
 
   return Response.json({ sent: true });

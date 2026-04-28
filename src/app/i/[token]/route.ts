@@ -36,5 +36,8 @@ export const GET = handle(async (req: Request) => {
     maxAge: INVESTOR_LINK_TTL_DAYS * 24 * 60 * 60,
   });
 
-  return NextResponse.redirect(`${base}/`);
+  // AI-first landing: magic-link investors land on the concierge chat,
+  // not the marketing splash. WhatsApp + Sign-NDA controls live on /ask
+  // so they can chat, ping the founder, or sign — all from one screen.
+  return NextResponse.redirect(`${base}/ask`);
 });

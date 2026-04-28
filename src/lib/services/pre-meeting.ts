@@ -2,7 +2,7 @@
  * Pre-meeting brief. Runs hourly. For any meeting starting in 22-26 hours
  * that doesn't yet have a `meeting_prebrief_sent` note, sends a single
  * branded email to the founder summarising the investor: who they are,
- * the last 3 questions they asked Priya, deck pages they re-opened, and
+ * the last 3 questions they asked Olivia, deck pages they re-opened, and
  * any notes on file. Helps the founder walk in with context.
  */
 import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
@@ -70,7 +70,7 @@ export async function runPreMeetingBriefs(): Promise<PreMeetingResult> {
       .limit(1);
     const founderEmail = founder?.email ?? env.SMTP_FROM;
 
-    // Last 3 questions the investor asked Priya
+    // Last 3 questions the investor asked Olivia
     const recentQs = await db
       .select({ payload: interactions.payload })
       .from(interactions)

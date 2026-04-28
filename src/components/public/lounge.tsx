@@ -69,8 +69,8 @@ export function Lounge() {
       if (!res.ok) throw new Error('request failed');
       setRequestSent(
         requestOpen.kind === 'original_document'
-          ? `Request sent. The founders will respond from info@ootaos.com within 24 hours.`
-          : `Sent. The founders will respond shortly.`,
+          ? `Request sent. The founder will respond from info@ootaos.com within 24 hours.`
+          : `Sent. The founder will respond shortly.`,
       );
       setRequestMessage('');
       setRequestOpen(null);
@@ -167,7 +167,7 @@ export function Lounge() {
         <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">Data room</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {bundle.documents.length === 0 ? (
-            <p className="text-sm text-slate-500">The founders are preparing this week&apos;s refresh — check back shortly.</p>
+            <p className="text-sm text-slate-500">The founder is preparing this week&apos;s refresh — check back shortly.</p>
           ) : (
             bundle.documents.map((doc, i) => {
               if (doc.locked) {
@@ -291,8 +291,8 @@ export function Lounge() {
           Need something specific?
         </h2>
         <p className="mt-2 text-sm text-slate-600">
-          Ask Priya inline, request the original of any document, or send a free-text question
-          straight to the founders.
+          Ask Olivia inline, request the original of any document, or send a free-text question
+          straight to the founder.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
@@ -330,10 +330,10 @@ export function Lounge() {
             <h3 className="text-base font-semibold text-slate-900">
               {requestOpen.kind === 'original_document'
                 ? `Request the original ${requestOpen.filename ?? 'document'}`
-                : 'Send a question to the founders'}
+                : 'Send a question to the founder'}
             </h3>
             <p className="mt-1 text-xs text-slate-500">
-              The founders will reply from info@ootaos.com within 24 hours.
+              The founder will reply from info@ootaos.com within 24 hours.
             </p>
             <textarea
               value={requestMessage}

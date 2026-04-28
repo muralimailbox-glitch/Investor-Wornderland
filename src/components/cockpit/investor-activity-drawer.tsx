@@ -505,7 +505,7 @@ function labelForKind(kind: string, payload: Record<string, unknown>): string {
   }
   switch (kind) {
     case 'question_asked':
-      return 'Asked Priya a question';
+      return 'Asked Olivia a question';
     case 'email_verified':
       return 'Verified email';
     case 'email_sent':

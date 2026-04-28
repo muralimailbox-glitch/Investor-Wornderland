@@ -304,7 +304,7 @@ export function InvestorDetail({ investorId }: { investorId: string }) {
               Activity intelligence
             </p>
             <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">
-              What {investor.firstName} did, what Priya returned
+              What {investor.firstName} did, what Olivia returned
             </h2>
             <p className="mt-1 text-xs text-slate-500">
               Audit the conversation: every question, every AI answer, every document fetch. Use it

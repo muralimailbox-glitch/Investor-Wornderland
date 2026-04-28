@@ -1,5 +1,5 @@
 import { env } from '@/lib/env';
-import { OOTAOS_BRAND } from '@/lib/mail/brand';
+import { MARKETING_SITE_URL, OOTAOS_BRAND } from '@/lib/mail/brand';
 import { buildSignature, escapeHtml, type FounderSignatureInput } from '@/lib/mail/signature';
 
 export type TemplateVars = {
@@ -75,10 +75,13 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="vertical-align:middle;">
-                      <a href="${siteBase}" style="text-decoration:none;color:#fff;display:inline-flex;align-items:center;gap:10px;">
-                        <img src="${logoUrl}" alt="${escapeHtml(company)}" width="36" height="36" style="display:inline-block;width:36px;height:36px;border-radius:8px;background:#fff;padding:4px;vertical-align:middle;" />
-                        <span style="font-size:20px;font-weight:700;letter-spacing:0.02em;">${escapeHtml(company)}</span>
+                      <!-- Header brand-mark links to www.ootaos.com (the public
+                           product site). The investor-relations app
+                           (siteBase) lives in the footer for context. -->
+                      <a href="${MARKETING_SITE_URL}" style="text-decoration:none;color:#fff;display:inline-block;">
+                        <span style="font-size:22px;font-weight:800;letter-spacing:0.02em;color:#fff;">${escapeHtml(company)}</span>
                       </a>
+                      <img src="${logoUrl}" alt="" width="0" height="0" style="display:none;max-height:0;max-width:0;overflow:hidden;" />
                     </td>
                     <td align="right" style="vertical-align:middle;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.2em;opacity:0.85;">Investor Wonderland</td>
                   </tr>
@@ -99,6 +102,8 @@ function renderBaseLayout(body: TemplateBody, vars: TemplateVars): string {
               <td style="padding:20px 36px;background:${BRAND.page};border-top:1px solid ${BRAND.border};font-size:12px;color:${BRAND.muted};">
                 <p style="margin:0 0 6px 0;">${escapeHtml(physical)}</p>
                 <p style="margin:0;">
+                  <a href="${siteBase}" style="color:${BRAND.muted};text-decoration:underline;">investors.ootaos.com</a>
+                  &nbsp;·&nbsp;
                   <a href="${unsubscribe}" style="color:${BRAND.primary};text-decoration:none;">Unsubscribe</a>
                   &nbsp;·&nbsp;
                   Sent with care from ${escapeHtml(company)}.

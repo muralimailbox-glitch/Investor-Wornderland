@@ -222,8 +222,8 @@ export function InvestorGateModal({ mode, onClose, initialEmail, onVerified }: P
               </h2>
               <p className="text-sm leading-relaxed text-slate-600">
                 {emailUpdated
-                  ? "We've updated your email on file. Ask Priya anything — you'll get the deeper colour now."
-                  : "Ask Priya anything — you'll get the deeper colour now."}
+                  ? "We've updated your email on file. Ask Olivia anything — you'll get the deeper colour now."
+                  : "Ask Olivia anything — you'll get the deeper colour now."}
               </p>
               <button
                 type="button"

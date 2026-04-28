@@ -52,4 +52,4 @@ export function scrubInjection(input: string): ScrubResult {
 }
 
 export const REFUSAL_TEXT =
-  "I'm here to help you understand OotaOS and meet the founders. I can't do that, but I can book you a call with Priya and the team — want three times that work this week?";
+  "I'm here to help you understand OotaOS and meet the founders. I can't do that, but I can book you a call with Olivia and the team — want three times that work this week?";

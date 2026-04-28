@@ -42,7 +42,7 @@ export default async function NdaPage() {
             href="/ask"
             className="rounded-full border border-orange-200 bg-white/70 px-3.5 py-1.5 text-sm font-medium text-orange-700 backdrop-blur transition hover:-translate-y-px hover:border-orange-400 hover:bg-white"
           >
-            Ask Priya
+            Ask Olivia
           </Link>
         </div>
       </header>

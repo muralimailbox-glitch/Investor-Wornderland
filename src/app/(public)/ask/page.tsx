@@ -6,13 +6,14 @@ import { redirect } from 'next/navigation';
 import { AnimatedBackdrop } from '@/components/public/animated-backdrop';
 import { Concierge } from '@/components/public/concierge';
 import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
+import { WhatsappButton } from '@/components/public/whatsapp-button';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 
-export const metadata = { title: 'Ask Priya — OotaOS' };
+export const metadata = { title: 'Ask Olivia — OotaOS' };
 
 /**
  * Cookie-gated AI concierge. Anonymous visitors are bounced to the marketing
- * splash (rule #8). Cookie-validated investors get the deal-scoped Priya chat.
+ * splash (rule #8). Cookie-validated investors get the deal-scoped Olivia chat.
  */
 export default async function AskPage() {
   const jar = await cookies();
@@ -42,17 +43,23 @@ export default async function AskPage() {
             lastName={session.lastName}
             firmName={session.firmName}
           />
+          <WhatsappButton
+            message={`Hi Murali — investor question from ${session.firstName} ${session.lastName}${
+              session.firmName ? ` (${session.firmName})` : ''
+            }.`}
+            variant="pill"
+          />
           <Link
             href="/nda"
-            className="rounded-full border border-orange-200 bg-white/70 px-3.5 py-1.5 text-sm font-medium text-orange-800 backdrop-blur transition hover:bg-white"
+            className="rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-3.5 py-1.5 text-sm font-medium text-white shadow-md shadow-violet-500/30 transition hover:-translate-y-px"
           >
-            Sign NDA
+            Sign NDA → unlock data room
           </Link>
         </div>
       </header>
       <section className="mx-auto w-full max-w-3xl px-6 pb-16 pt-10">
         <h1 className="mb-2 text-3xl font-semibold tracking-tight text-slate-900">
-          Hi {session.firstName} — ask Priya anything.
+          Hi {session.firstName} — ask Olivia anything.
         </h1>
         <p className="mb-6 text-sm text-slate-600">
           Grounded in the OotaOS knowledge base. Sign the NDA to unlock the data room and founder

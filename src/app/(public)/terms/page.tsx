@@ -24,7 +24,7 @@ export default function TermsPage() {
         </p>
         <h2>Accuracy of AI answers</h2>
         <p>
-          Priya, our AI concierge, answers only from the founders&apos; own writing. We make every
+          Olivia, our AI concierge, answers only from the founders&apos; own writing. We make every
           effort to keep answers accurate. Final terms, numbers, and commitments are the written
           word of the founders in email — never the AI&apos;s paraphrase.
         </p>

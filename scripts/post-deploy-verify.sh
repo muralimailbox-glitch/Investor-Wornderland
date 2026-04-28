@@ -37,7 +37,7 @@ echo
 
 # 1. Root serves 200 with investor-lounge content (not founder login)
 check "GET / returns 200 and investor lounge" \
-  bash -c "curl -fsSL '$BASE/' | grep -q -E 'Investor Wonderland|Ask Priya|Investors don.+t read pitches'"
+  bash -c "curl -fsSL '$BASE/' | grep -q -E 'Investor Wonderland|Ask Olivia|Investors don.+t read pitches'"
 
 # 2. Logo asset is served
 check "GET /brand/oota-rect-tagline.png returns 200 image/png" \

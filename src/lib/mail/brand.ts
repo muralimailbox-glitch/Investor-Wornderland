@@ -44,3 +44,10 @@ export function logoUrl(): string {
 export function siteUrl(): string {
   return env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
 }
+
+/**
+ * The public-facing marketing website. The email header logo always points
+ * here (www.ootaos.com) so investors can browse the product story; the
+ * investor-relations app (siteUrl) shows up in the footer for context.
+ */
+export const MARKETING_SITE_URL = 'https://www.ootaos.com';

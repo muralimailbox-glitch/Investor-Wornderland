@@ -25,7 +25,7 @@ const SUGGESTED = [
   'What does OotaOS actually do?',
   'Why now — what changed in the last 18 months?',
   'How is this different from a chatbot?',
-  'Who are the founders?',
+  'Who are the founder?',
   'How much are you raising and on what terms?',
   'What does the data room contain?',
   'How do you make money?',
@@ -174,7 +174,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
       {turns.length === 0 ? (
         <div className="flex flex-col items-start gap-3">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-violet-700/80">
-            <Sparkles className="h-3.5 w-3.5" /> Ask the founders anything
+            <Sparkles className="h-3.5 w-3.5" /> Ask the founder anything
           </div>
           <div className="flex flex-wrap gap-2">
             {SUGGESTED.map((s) => (
@@ -294,7 +294,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
         className="relative"
       >
         <label htmlFor={fieldId} className="sr-only">
-          Ask Priya
+          Ask Olivia
         </label>
         <textarea
           id={fieldId}
@@ -307,7 +307,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
               submit(value);
             }
           }}
-          placeholder="Ask Priya anything about OotaOS…"
+          placeholder="Ask Olivia anything about OotaOS…"
           rows={2}
           className="w-full resize-none rounded-3xl border border-violet-200 bg-white/90 px-5 py-4 pr-14 text-[15px] text-slate-900 shadow-[0_1px_0_rgba(255,255,255,0.9)_inset,0_24px_50px_-32px_rgba(91,33,182,0.35)] outline-none backdrop-blur transition focus:border-violet-500 focus:ring-2 focus:ring-violet-300"
         />
@@ -330,7 +330,7 @@ export function Concierge({ autofocus = false }: { autofocus?: boolean }) {
 
 function TypingDots() {
   return (
-    <span aria-live="polite" aria-label="Priya is typing" className="inline-flex items-center gap-1">
+    <span aria-live="polite" aria-label="Olivia is typing" className="inline-flex items-center gap-1">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}

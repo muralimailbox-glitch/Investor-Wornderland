@@ -118,7 +118,7 @@ export function SettingsForm() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-violet-700">Settings</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">Your profile</h1>
         <p className="mt-1 text-[15px] text-slate-600">
-          How investors see you, how Priya signs emails, and how we reach you.
+          How investors see you, how Olivia signs emails, and how we reach you.
         </p>
       </div>
 

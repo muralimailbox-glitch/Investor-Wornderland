@@ -135,7 +135,7 @@ export function Dashboard({ user, deal, leadCount, byStage }: Props) {
         <QuickLink
           href="/cockpit/knowledge"
           title="Knowledge"
-          description="What Priya can answer — in your own words"
+          description="What Olivia can answer — in your own words"
         />
         <QuickLink
           href="/cockpit/inbox"
