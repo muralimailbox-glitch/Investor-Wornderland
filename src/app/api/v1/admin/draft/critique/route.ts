@@ -29,6 +29,7 @@ import { z } from 'zod';
 import { CapExceededError, checkCap } from '@/lib/ai/cap';
 import { getModel, runMessage, type AiMessageParam } from '@/lib/ai/client';
 import { loadPrompt } from '@/lib/ai/prompts';
+import { formatVoiceBlock, getFounderVoiceSamples } from '@/lib/ai/voice';
 import { handle } from '@/lib/api/handle';
 import { requireAuth } from '@/lib/auth/guard';
 import { db } from '@/lib/db/client';
@@ -225,6 +226,11 @@ export const POST = handle(async (req) => {
       await checkCap(user.workspaceId);
       const prompt = loadPrompt('drafter');
       const model = getModel('drafter');
+      // Voice samples — gives the editor a reference for what "the
+      // founder's tone" actually sounds like, so tone_shift flags fire
+      // when the draft drifts away from past sent emails.
+      const voiceSamples = await getFounderVoiceSamples(user.workspaceId, 2);
+      const voiceBlock = formatVoiceBlock(voiceSamples);
       const sys = [
         'You are a critical editor for outbound founder→investor emails.',
         'Read the draft, identify up to 3 concrete issues. NO REWRITE.',
@@ -232,8 +238,12 @@ export const POST = handle(async (req) => {
         'kind ∈ tone_shift | kb_drift | no_portfolio_reference | filler | no_personalization | too_long.',
         'severity ∈ info | warn | error.',
         'message: <140 chars, actionable, present-tense.',
+        'For tone_shift: compare the draft against the founder voice samples.',
+        'Flag drifts in cadence, formality, or vocabulary that would feel off-brand.',
         'Output STRICT JSON: {"issues": [...]}.',
         'If the draft is genuinely good, return {"issues": []}.',
+        '',
+        voiceBlock || '## FOUNDER VOICE SAMPLES\n(no past sent emails on file)',
       ].join('\n');
       const investorLine = firstName
         ? `Recipient: ${firstName}${firmName ? ` at ${firmName}` : ''}${

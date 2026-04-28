@@ -32,6 +32,7 @@ import { CapExceededError, checkCap } from '@/lib/ai/cap';
 import { getModel, runMessage, type AiMessageParam } from '@/lib/ai/client';
 import { loadPrompt } from '@/lib/ai/prompts';
 import { formatContextBlock, retrieve, type RetrievedChunk } from '@/lib/ai/retrieve';
+import { formatVoiceBlock, getFounderVoiceSamples } from '@/lib/ai/voice';
 import { ApiError, handle } from '@/lib/api/handle';
 import { audit } from '@/lib/audit';
 import { requireAuth } from '@/lib/auth/guard';
@@ -84,6 +85,7 @@ type DraftOutput = {
     fitRationaleAvailable: boolean;
     warmthScore: number | null;
     kbChunks: number;
+    voiceSamples: number;
   };
   tone?: string;
   intent?: string;
@@ -291,6 +293,12 @@ export const POST = handle(async (req) => {
   }
   const kbBlock = chunks.length > 0 ? formatContextBlock(chunks) : '[no retrieved context]';
 
+  // Voice samples — last 3 substantive sent emails. Spliced into every
+  // draft below so the model mimics the founder's actual cadence rather
+  // than producing generic LLM prose.
+  const voiceSamples = await getFounderVoiceSamples(user.workspaceId, 3);
+  const voiceBlock = formatVoiceBlock(voiceSamples);
+
   const drafts: DraftOutput[] = [];
   for (const r of rows) {
     const itList = interactionsByLead.get(r.leadId) ?? [];
@@ -346,6 +354,9 @@ export const POST = handle(async (req) => {
       '## OOTAOS KNOWLEDGE BASE',
       kbBlock,
       '',
+      voiceBlock ||
+        '## FOUNDER VOICE SAMPLES\n(no past sent emails on file yet — use neutral founder voice)',
+      '',
       '## FOUNDER SIGNATURE (do NOT include verbatim — system appends it)',
       signatureBlock,
       '',
@@ -385,6 +396,7 @@ export const POST = handle(async (req) => {
           fitRationaleAvailable: Boolean(r.fitRationale),
           warmthScore: r.warmthScore,
           kbChunks: chunks.length,
+          voiceSamples: voiceSamples.length,
         },
       });
       continue;
@@ -411,6 +423,7 @@ export const POST = handle(async (req) => {
         fitRationaleAvailable: Boolean(r.fitRationale),
         warmthScore: r.warmthScore,
         kbChunks: chunks.length,
+        voiceSamples: voiceSamples.length,
       },
       ...(parsed?.tone ? { tone: parsed.tone } : {}),
       ...(parsed?.intent ? { intent: parsed.intent } : {}),

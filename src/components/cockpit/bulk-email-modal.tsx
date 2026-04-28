@@ -29,6 +29,7 @@ type ComposeDraft = {
     fitRationaleAvailable: boolean;
     warmthScore: number | null;
     kbChunks: number;
+    voiceSamples: number;
   };
 };
 
@@ -329,7 +330,8 @@ export function BulkEmailModal({ recipients, onClose, onSent }: Props) {
                   sectors ·{' '}
                   <span className="font-semibold">{aiProvenance.portfolioCompaniesKnown}</span>{' '}
                   portfolio companies ·{' '}
-                  <span className="font-semibold">{aiProvenance.kbChunks}</span> KB chunks
+                  <span className="font-semibold">{aiProvenance.kbChunks}</span> KB chunks ·{' '}
+                  <span className="font-semibold">{aiProvenance.voiceSamples}</span> voice samples
                   {aiProvenance.fitRationaleAvailable ? ' · fit rationale ✓' : ''}
                   {aiProvenance.warmthScore != null ? ` · warmth ${aiProvenance.warmthScore}` : ''}
                 </p>
