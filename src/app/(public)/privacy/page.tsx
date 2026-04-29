@@ -12,8 +12,8 @@ export default function PrivacyPage() {
       <p className="mt-2 text-sm text-slate-500">Effective 1 February 2026</p>
       <div className="prose prose-slate mt-6 max-w-none text-[15px] leading-relaxed text-slate-700">
         <p>
-          OotaOS is operated by the founding team of OotaOS Technologies based in Sydney, Australia.
-          This page explains what we collect, why, and how long we keep it.
+          OotaOS is operated by the founding team of OotaOS Technologies based in Bangalore,
+          Karnataka. This page explains what we collect, why, and how long we keep it.
         </p>
         <h2>What we collect</h2>
         <ul>
@@ -34,8 +34,8 @@ export default function PrivacyPage() {
         </p>
         <h2>Your rights</h2>
         <p>
-          Email <a href="mailto:info@ootaos.com">info@ootaos.com</a> to request export or deletion
-          of your records. We respond within 7 days.
+          Email <a href="mailto:info@ootaos.com">info@ootaos.com</a> to request deletion of your
+          records. We respond within 7 days.
         </p>
       </div>
     </main>

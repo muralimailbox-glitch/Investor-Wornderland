@@ -11,6 +11,7 @@ import { leadsRepo } from '@/lib/db/repos/leads';
 import { ndasRepo } from '@/lib/db/repos/ndas';
 import { firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 // Single source of truth lives in mutual-nda-text.ts; sealed PDFs and inline
@@ -137,6 +138,7 @@ export async function initiateNda(email: string): Promise<{ sent: true }> {
     ],
     preFooter:
       'If you did not request this, you can safely ignore this email — the code expires automatically.',
+    signature: INVESTOR_SIGNOFF,
   });
   await sendMail({
     to: email,

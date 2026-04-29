@@ -10,6 +10,7 @@ import { documentsRepo } from '@/lib/db/repos/documents';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -101,6 +102,7 @@ export const POST = handle(async (req) => {
         },
       ],
       preFooter: 'You can reply to this email any time — it lands directly with the founders.',
+      signature: INVESTOR_SIGNOFF,
     });
     await sendMail({
       to: session.email,

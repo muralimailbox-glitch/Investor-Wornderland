@@ -10,6 +10,7 @@ import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { meetingsRepo } from '@/lib/db/repos/meetings';
 import { firms, investors, leads, users } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { checkAvailability, FOUNDER_TZ } from '@/lib/time/availability';
@@ -285,14 +286,15 @@ export async function bookMeeting(input: BookMeetingInput): Promise<BookMeetingR
         },
       ],
       preFooter: MEET_DISCLAIMER,
+      signature: INVESTOR_SIGNOFF,
     });
 
     await sendMail({
       to: session.email,
       subject:
         created.length === 1
-          ? 'Your OotaOS meeting is booked'
-          : `${created.length} OotaOS slots reserved`,
+          ? 'Your meeting with the OotaOS founder, Krish has been booked.'
+          : `${created.length} meetings with the OotaOS founder, Krish have been booked.`,
       text: investorEmail.text,
       html: investorEmail.html,
     });
@@ -482,7 +484,7 @@ export async function rescheduleMeeting(input: {
           ? `Hi ${r.investorFirstName} — apologies for the move. The new time is below, and you have our full attention for it; investor conversations are the priority Krish's week is built around.`
           : `Confirmed — we've moved your slot. You have our full attention for the new time.`) +
         (input.reason ? `\n\nReason: ${input.reason}` : '') +
-        `\n\nA fresh Google Meet link is below as a placeholder. Krish is on IST (+5:30) and happy to use whichever calendar tool you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
+        `\n\nA fresh Google Meet link is below as a placeholder. Krish is on IST (+5:30) and happy to use whichever meeting app you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
       facts: [
         ['Was', oldLocal],
         ['Now', `${newLocal} (${shortTz(investorTimezone)})`],
@@ -493,11 +495,11 @@ export async function rescheduleMeeting(input: {
         { label: 'Open the data room', href: `${env.NEXT_PUBLIC_SITE_URL}/lounge` },
         { label: 'Start the Google Meet', href: newMeetLink },
       ],
-      preFooter: MEET_DISCLAIMER,
+      signature: INVESTOR_SIGNOFF,
     });
     await sendMail({
       to: r.investorEmail,
-      subject: 'Your OotaOS meeting moved',
+      subject: 'Your meeting with the OotaOS founder Krish has been updated.',
       text: investorEmail.text,
       html: investorEmail.html,
     });
@@ -612,10 +614,11 @@ export async function cancelMeeting(input: {
         `Reply to this email or pick a new time at the link below — we'll prioritise the rebook.`,
       cta: [{ label: 'Pick a new time', href: `${env.NEXT_PUBLIC_SITE_URL}/lounge` }],
       preFooter: 'We send a fresh Google Meet link with every booking.',
+      signature: INVESTOR_SIGNOFF,
     });
     await sendMail({
       to: r.investorEmail,
-      subject: 'Your OotaOS meeting was cancelled',
+      subject: 'Your meeting with the OotaOS founder, Krish has been Cancelled.',
       text: investorEmail.text,
       html: investorEmail.html,
     });

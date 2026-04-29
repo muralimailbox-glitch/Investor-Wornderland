@@ -9,6 +9,7 @@
  * the shared shell could go unnoticed.
  */
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { buildSignature } from '@/lib/mail/signature';
 import { renderTemplate } from '@/lib/mail/templates/base';
@@ -52,6 +53,7 @@ export function getEmailSamples(): EmailSample[] {
       body: `Enter this code to unlock deeper details about the round. It expires in 10 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
       facts: [['Code', '847291']],
       preFooter: 'For your security, OotaOS will never ask you to share this code.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'otp-verification',
@@ -69,6 +71,7 @@ export function getEmailSamples(): EmailSample[] {
       cta: [{ label: 'Open the lounge', href: `${SITE}/i/sample-token` }],
       preFooter:
         'Link expires in 30 days; reply to this email if you need a fresh one. Investor calls are the priority Krish builds his week around.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'invite-link',
@@ -95,11 +98,12 @@ export function getEmailSamples(): EmailSample[] {
       ],
       preFooter:
         'You are our highest priority — Krish (IST, +5:30) is happy to adapt to whichever calendar tool you usually use. The Google Meet link is only a placeholder; reply with your own invite for the same slot and that becomes the source of truth.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'meeting-booked-investor',
       label: 'Meeting booked — investor',
-      subject: `Your OotaOS meeting is booked`,
+      subject: 'Your meeting with the OotaOS founder, Krish has been booked.',
       ...r,
     });
   }
@@ -136,7 +140,7 @@ export function getEmailSamples(): EmailSample[] {
   {
     const r = renderBrandedEmail({
       heading: 'Your OotaOS meeting was moved',
-      body: `Hi ${SAMPLE_INVESTOR.firstName} — apologies for the move. The new time is below, and you have our full attention for it; investor conversations are the priority Krish's week is built around.\n\nA fresh Google Meet link is below as a placeholder. Krish is on IST (+5:30) and happy to use whichever calendar tool you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
+      body: `Hi ${SAMPLE_INVESTOR.firstName} — apologies for the move. The new time is below, and you have our full attention for it; investor conversations are the priority Krish's week is built around.\n\nA fresh Google Meet link is below as a placeholder. Krish is on IST (+5:30) and happy to use whichever meeting app you prefer — reply to this email with your own invite for the same slot and we'll treat that as the working meeting.`,
       facts: [
         ['Was', 'Wed 6 May 2026 · 4:00 PM AEST'],
         ['Now', 'Thu 7 May 2026 · 5:30 PM AEST'],
@@ -147,13 +151,12 @@ export function getEmailSamples(): EmailSample[] {
         { label: 'Open the data room', href: `${SITE}/lounge` },
         { label: 'Start the Google Meet', href: 'https://meet.google.com/xyz-zzzz-zzz' },
       ],
-      preFooter:
-        'You are our highest priority — Krish (IST, +5:30) is happy to adapt to whichever calendar tool you usually use.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'meeting-moved-investor',
       label: 'Meeting moved — investor',
-      subject: 'Your OotaOS meeting moved',
+      subject: 'Your meeting with the OotaOS founder Krish has been updated.',
       ...r,
     });
   }
@@ -165,11 +168,12 @@ export function getEmailSamples(): EmailSample[] {
       body: `Hi ${SAMPLE_INVESTOR.firstName} — we had to cancel the slot we'd booked for Wed 6 May 2026 · 4:00 PM AEST.\n\nReason: Founder schedule conflict.\n\nReply to this email or pick a new time at the link below — we'll prioritise the rebook.`,
       cta: [{ label: 'Pick a new time', href: `${SITE}/lounge` }],
       preFooter: 'We send a fresh Google Meet link with every booking.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'meeting-cancelled-investor',
       label: 'Meeting cancelled — investor',
-      subject: 'Your OotaOS meeting was cancelled',
+      subject: 'Your meeting with the OotaOS founder, Krish has been Cancelled.',
       ...r,
     });
   }
@@ -181,6 +185,7 @@ export function getEmailSamples(): EmailSample[] {
       body: `Hi ${SAMPLE_INVESTOR.firstName} — enter this code on the NDA page to confirm your email and unlock the signing flow. The code expires in 10 minutes.`,
       facts: [['Code', '519284']],
       preFooter: 'For your security, OotaOS will never ask you to share this code.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'nda-otp',
@@ -224,6 +229,7 @@ export function getEmailSamples(): EmailSample[] {
       ],
       preFooter:
         'You can also reach the founder on WhatsApp +61 412 766 366 for time-sensitive asks.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'lounge-request-ack',
@@ -293,6 +299,7 @@ export function getEmailSamples(): EmailSample[] {
         { label: 'Open the data room', href: `${SITE}/lounge` },
         { label: 'WhatsApp Krish', href: 'https://wa.me/61412766366' },
       ],
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'post-meeting-followup',
@@ -353,6 +360,7 @@ export function getEmailSamples(): EmailSample[] {
       cta: [{ label: 'Refresh my link', href: `${SITE}/i/sample-fresh-token` }],
       preFooter:
         'If the button does not work, reply to this email and Krish will send you a fresh link directly.',
+      signature: INVESTOR_SIGNOFF,
     });
     samples.push({
       id: 'link-expiry-warning',

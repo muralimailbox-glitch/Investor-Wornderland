@@ -10,6 +10,7 @@ import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { firms, interactions, investors, leads, meetings } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 
@@ -91,6 +92,7 @@ export async function runPostMeetingFollowups(): Promise<PostMeetingResult> {
           { label: 'Pick another time', href: `${env.NEXT_PUBLIC_SITE_URL}/lounge#calendar` },
         ],
         preFooter: 'You can reply to this email any time — it lands directly with the founders.',
+        signature: INVESTOR_SIGNOFF,
       });
       await sendMail({
         to: c.investorEmail,

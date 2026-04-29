@@ -35,11 +35,12 @@ export const OOTAOS_BRAND = {
 } as const;
 
 /**
- * Filename of the canonical OotaOS logo asset (rectangular logo with
- * tagline "Powering Restaurants to Win"). Its 3:1 ratio fits the email
- * header band and the tagline reinforces product context for investors.
+ * Filename of the canonical OotaOS logo asset. We use the dark-background
+ * variant because it sits on a slate header band (see branded-email.ts);
+ * the rectangle-with-tagline logo's light-grey wordmark gradient was
+ * unreadable on a pure-white card.
  */
-export const LOGO_FILE = 'oota-rect-tagline.png';
+export const LOGO_FILE = 'oota-dark.png';
 
 /**
  * Content-ID for the inline logo attachment. The HTML shell references
@@ -73,3 +74,14 @@ export function siteUrl(): string {
  * investor-relations app (siteUrl) shows up in the footer for context.
  */
 export const MARKETING_SITE_URL = 'https://www.ootaos.com';
+
+/**
+ * Sign-off block appended to every investor-facing email. Founder/EA-bound
+ * notifications skip this — they're internal context, not correspondence.
+ * The HTML mirrors body paragraph styling from branded-email.ts so the
+ * sign-off blends with the body rather than reading as a separate widget.
+ */
+export const INVESTOR_SIGNOFF = {
+  html: `<p style="margin: 16px 0 0; font-size: 15px; line-height: 1.65; color: ${OOTAOS_BRAND.ink};">Regards,<br/>Krish</p>`,
+  text: 'Regards,\nKrish',
+} as const;

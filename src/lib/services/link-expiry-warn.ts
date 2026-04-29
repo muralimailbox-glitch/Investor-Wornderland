@@ -12,6 +12,7 @@ import { db } from '@/lib/db/client';
 import { interactionsRepo } from '@/lib/db/repos/interactions';
 import { auditEvents, firms, interactions, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 
@@ -124,6 +125,7 @@ export async function runLinkExpiryWarnings(): Promise<LinkExpiryWarnResult> {
         body: `Heads up — the private link we sent you ~12 days ago is approaching its 14-day expiry. Use the new link below and it stays good for another two weeks.\n\nNothing else changes — your NDA, the data room, the founder calendar, all unchanged.`,
         cta: [{ label: 'Open the lounge', href: url }],
         preFooter: `Old link expires in ~48 hours. Reply to this email any time if you want a different cadence.`,
+        signature: INVESTOR_SIGNOFF,
       });
       await sendMail({
         to: inv.investor.email,

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { ApiError, handle } from '@/lib/api/handle';
 import { INVESTOR_COOKIE, verifyInvestorLink } from '@/lib/auth/investor-link';
 import { issueOtp } from '@/lib/auth/otp';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -33,6 +34,7 @@ export const POST = handle(async (req: Request) => {
     body: `Enter this code to unlock deeper details about the round. It expires in 10 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
     facts: [['Code', code]],
     preFooter: 'For your security, OotaOS will never ask you to share this code.',
+    signature: INVESTOR_SIGNOFF,
   });
 
   // Fire-and-forget so the HTTP response doesn't block on the SMTP round-trip.

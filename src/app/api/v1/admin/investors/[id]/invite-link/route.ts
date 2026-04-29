@@ -8,6 +8,7 @@ import { signInvestorLink } from '@/lib/auth/investor-link';
 import { db } from '@/lib/db/client';
 import { firms, investors, leads } from '@/lib/db/schema';
 import { env } from '@/lib/env';
+import { INVESTOR_SIGNOFF } from '@/lib/mail/brand';
 import { renderBrandedEmail } from '@/lib/mail/branded-email';
 import { sendMail } from '@/lib/mail/smtp';
 import { rateLimit } from '@/lib/security/rate-limit';
@@ -78,6 +79,7 @@ export const POST = handle(async (req) => {
         body: intro,
         cta: [{ label: 'Open the lounge', href: url }],
         preFooter: `This link expires on ${link.expiresAt.toUTCString()}. If you need a fresh one any time, just reply to this email.`,
+        signature: INVESTOR_SIGNOFF,
       });
       await sendMail({
         to: row.investor.email,
