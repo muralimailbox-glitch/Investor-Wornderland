@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import {
   Briefcase,
   CalendarClock,
   FileText,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -34,6 +35,11 @@ const NAV = [
   { href: '/cockpit/pipeline', label: 'Pipeline', icon: Waypoints, group: 'main' as const },
   { href: '/cockpit/inbox', label: 'Communications', icon: Mail, group: 'main' as const },
   { href: '/cockpit/bulk-emails', label: 'Bulk Emails', icon: Megaphone, group: 'main' as const },
+  // Feedback inbox surfaces investor comments + new-doc requests against
+  // the data room. The shell polls /unread-count and renders a red dot
+  // + badge here so the founder sees fresh feedback without opening the
+  // page; clicking the row clears the dot once items are acknowledged.
+  { href: '/cockpit/feedback', label: 'Feedback', icon: Inbox, group: 'main' as const },
   { href: '/cockpit/drafts', label: 'Drafts & Outbox', icon: FileText, group: 'main' as const },
   { href: '/cockpit/documents', label: 'Diligence Room', icon: FileText, group: 'main' as const },
   { href: '/cockpit/meetings', label: 'Meetings', icon: CalendarClock, group: 'main' as const },
@@ -48,6 +54,35 @@ export function CockpitShell({ email, children }: { email: string | null; childr
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [feedbackUnread, setFeedbackUnread] = useState<number>(0);
+
+  // Poll the unread feedback count every 60s. Cheap COUNT(*) on a small
+  // indexed table; the badge stays current without WebSocket plumbing.
+  // Refetch is also triggered when the route changes so navigating back
+  // from the feedback page picks up freshly-acknowledged rows.
+  useEffect(() => {
+    let alive = true;
+    function pull() {
+      fetch('/api/v1/admin/document-feedback/unread-count', { credentials: 'include' })
+        .then(async (r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return (await r.json()) as { count: number };
+        })
+        .then((j) => {
+          if (alive) setFeedbackUnread(j.count ?? 0);
+        })
+        .catch(() => {
+          // Badge is best-effort; failures stay silent.
+        });
+    }
+    const tick = setTimeout(pull, 0);
+    const interval = setInterval(pull, 60_000);
+    return () => {
+      alive = false;
+      clearTimeout(tick);
+      clearInterval(interval);
+    };
+  }, [pathname]);
 
   async function signOut() {
     await fetch('/api/v1/admin/auth/logout', { method: 'POST' }).catch(() => null);
@@ -89,6 +124,8 @@ export function CockpitShell({ email, children }: { email: string | null; childr
             const active =
               pathname === item.href ||
               (item.href !== '/cockpit' && pathname?.startsWith(item.href));
+            const badge =
+              item.href === '/cockpit/feedback' && feedbackUnread > 0 ? feedbackUnread : null;
             return (
               <Link
                 key={item.href}
@@ -102,7 +139,12 @@ export function CockpitShell({ email, children }: { email: string | null; childr
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {badge !== null ? (
+                  <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-semibold text-white">
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

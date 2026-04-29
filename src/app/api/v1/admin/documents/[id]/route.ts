@@ -31,6 +31,24 @@ const PatchBody = z.object({
     .optional(),
   watermarkPolicy: z.enum(['per_investor', 'static', 'none']).optional(),
   expiresInDays: z.number().int().positive().max(365).nullable().optional(),
+  // Pipeline gating — null clears the gate (visible after NDA), any enum
+  // value enforces the stage minimum at fetch time. Mirrors POST behaviour
+  // so the founder can re-stage a document after upload without re-uploading.
+  minLeadStage: z
+    .enum([
+      'prospect',
+      'contacted',
+      'engaged',
+      'nda_pending',
+      'nda_signed',
+      'meeting_scheduled',
+      'diligence',
+      'term_sheet',
+      'funded',
+      'closed_lost',
+    ])
+    .nullable()
+    .optional(),
 });
 
 const IdSchema = z.string().uuid();
@@ -60,6 +78,9 @@ export const PATCH = handle(async (req) => {
       patch.expiresInDays === null
         ? null
         : new Date(Date.now() + patch.expiresInDays * 24 * 60 * 60 * 1000);
+  }
+  if (patch.minLeadStage !== undefined) {
+    (update as { minLeadStage?: typeof patch.minLeadStage }).minLeadStage = patch.minLeadStage;
   }
 
   const row = await documentsRepo.update(user.workspaceId, id, update);

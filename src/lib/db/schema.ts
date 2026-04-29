@@ -62,6 +62,19 @@ export const interactionKindEnum = pgEnum('interaction_kind', [
   'email_verified',
 ]);
 
+/**
+ * Kinds of investor feedback captured against documents in the data room.
+ *   - `feedback`     — comments on an existing document
+ *   - `request_new`  — investor asking for a document we don't have yet
+ *
+ * Stored separately from generic `interactions` so the founder can triage a
+ * dedicated feedback inbox without sifting page_view / document_viewed noise.
+ */
+export const documentFeedbackKindEnum = pgEnum('document_feedback_kind', [
+  'feedback',
+  'request_new',
+]);
+
 export const documentKindEnum = pgEnum('document_kind', [
   'pitch_deck',
   'financial_model',
@@ -420,6 +433,40 @@ export const shareLinks = pgTable(
   },
   (t) => ({
     tokenUnique: uniqueIndex('share_links_token_idx').on(t.token),
+  }),
+);
+
+// ── Document Feedback ────────────────────────────────────────────────────
+// Investor-submitted feedback against the data room. Two flavours:
+//   - `feedback`    — kind=feedback, documentId required, rating optional
+//   - `request_new` — kind=request_new, documentId NULL, requestedTitle filled
+// `acknowledgedAt` lets the founder mark an entry as triaged so the cockpit
+// alert badge only shows the unread count.
+export const documentFeedback = pgTable(
+  'document_feedback',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    workspaceId: uuid('workspace_id')
+      .notNull()
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
+    leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+    documentId: uuid('document_id').references(() => documents.id, { onDelete: 'set null' }),
+    kind: documentFeedbackKindEnum('kind').notNull(),
+    /** 1–5 stars; only meaningful for kind=feedback. NULL when not provided. */
+    rating: integer('rating'),
+    /** Free-form message — required for both kinds. */
+    message: text('message').notNull(),
+    /** Title the investor wants — only meaningful for kind=request_new. */
+    requestedTitle: text('requested_title'),
+    /** Email of the submitting investor (cached for fast inbox listing). */
+    submittedByEmail: varchar('submitted_by_email', { length: 254 }).notNull(),
+    acknowledgedAt: timestamp('acknowledged_at', { withTimezone: true }),
+    acknowledgedBy: uuid('acknowledged_by').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    workspaceIdx: index('document_feedback_workspace_idx').on(t.workspaceId, t.createdAt),
+    documentIdx: index('document_feedback_document_idx').on(t.documentId),
   }),
 );
 

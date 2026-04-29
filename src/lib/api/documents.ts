@@ -82,6 +82,8 @@ export async function patchDocument(
     kind?: DocumentKind;
     watermarkPolicy?: WatermarkPolicy;
     expiresInDays?: number | null;
+    /** Pipeline stage gate. `null` clears the gate (visible after NDA). */
+    minLeadStage?: LeadStage | null;
   },
 ): Promise<DocumentRow> {
   const res = await fetch(`/api/v1/admin/documents/${id}`, {

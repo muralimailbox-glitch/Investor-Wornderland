@@ -261,6 +261,40 @@ async function main() {
       tag: '0015.comment_fit_rationale',
       sql: `COMMENT ON COLUMN "investors"."fit_rationale" IS 'One-sentence reason this investor fits OotaOS. Refreshed during Tracxn enrichment.'`,
     },
+    // 0016 — document feedback (investor → founder feedback or new-doc requests)
+    // CREATE TYPE has no IF NOT EXISTS clause, so wrap the create in a DO block
+    // that catches duplicate_object. Idempotent on every container boot.
+    {
+      tag: '0016.document_feedback_kind_enum',
+      sql: `DO $$ BEGIN
+              CREATE TYPE "public"."document_feedback_kind" AS ENUM ('feedback', 'request_new');
+            EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    },
+    {
+      tag: '0016.document_feedback_table',
+      sql: `CREATE TABLE IF NOT EXISTS "document_feedback" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        "workspace_id" uuid NOT NULL,
+        "lead_id" uuid,
+        "document_id" uuid,
+        "kind" "document_feedback_kind" NOT NULL,
+        "rating" integer,
+        "message" text NOT NULL,
+        "requested_title" text,
+        "submitted_by_email" varchar(254) NOT NULL,
+        "acknowledged_at" timestamp with time zone,
+        "acknowledged_by" uuid,
+        "created_at" timestamp with time zone NOT NULL DEFAULT now()
+      )`,
+    },
+    {
+      tag: '0016.document_feedback_workspace_idx',
+      sql: `CREATE INDEX IF NOT EXISTS "document_feedback_workspace_idx" ON "document_feedback" ("workspace_id", "created_at")`,
+    },
+    {
+      tag: '0016.document_feedback_document_idx',
+      sql: `CREATE INDEX IF NOT EXISTS "document_feedback_document_idx" ON "document_feedback" ("document_id")`,
+    },
   ];
 
   let repairOk = 0;

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
+import { FilePlus2, FileText, Loader2, MessageSquare, Send, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { InvestorIdentityPill } from '@/components/public/investor-identity-pill';
@@ -52,6 +52,41 @@ export function Lounge() {
   const [requestMessage, setRequestMessage] = useState('');
   const [requestSending, setRequestSending] = useState(false);
   const [requestSent, setRequestSent] = useState<string | null>(null);
+  // Standalone "request a new document" flow — distinct from the per-doc
+  // request modal because no documentId exists yet. The investor names the
+  // document they wish we had and writes a short reason; the founder
+  // triages it alongside other feedback in the cockpit inbox.
+  const [requestNewOpen, setRequestNewOpen] = useState(false);
+  const [requestNewTitle, setRequestNewTitle] = useState('');
+  const [requestNewMessage, setRequestNewMessage] = useState('');
+  const [requestNewSending, setRequestNewSending] = useState(false);
+  const [requestNewSent, setRequestNewSent] = useState<string | null>(null);
+
+  async function submitRequestNew() {
+    if (!requestNewTitle.trim() || !requestNewMessage.trim()) return;
+    setRequestNewSending(true);
+    setRequestNewSent(null);
+    try {
+      const res = await fetch('/api/v1/lounge/document-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'request_new',
+          requestedTitle: requestNewTitle.trim(),
+          message: requestNewMessage.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error('failed');
+      setRequestNewSent('Request sent. The founder will respond within 24 hours.');
+      setRequestNewTitle('');
+      setRequestNewMessage('');
+      setRequestNewOpen(false);
+    } catch {
+      setRequestNewSent('Could not send — try again or email info@ootaos.com.');
+    } finally {
+      setRequestNewSending(false);
+    }
+  }
 
   async function submitRequest() {
     if (!requestOpen) return;
@@ -164,7 +199,21 @@ export function Lounge() {
       </motion.div>
 
       <section>
-        <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">Data room</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-700">
+            Data room
+          </h2>
+          <button
+            type="button"
+            onClick={() => setRequestNewOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-medium text-violet-700 transition hover:border-violet-400 hover:bg-violet-50"
+          >
+            <FilePlus2 className="h-3.5 w-3.5" /> Request a new document
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Pre-legal-review previews — the canonical documents will be re-issued after legal sign-off.
+        </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           {bundle.documents.length === 0 ? (
             <p className="text-sm text-slate-500">The founder is preparing this week&apos;s refresh — check back shortly.</p>
@@ -365,6 +414,68 @@ export function Lounge() {
               >
                 {requestSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 Send
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {requestNewOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-lg rounded-3xl border border-violet-100 bg-white p-6 shadow-2xl">
+            <h3 className="text-base font-semibold text-slate-900">Request a new document</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Tell the founder what you wish was in the data room. They&apos;ll respond within 24
+              hours about whether it can be shared now or needs more legal review first.
+            </p>
+            <label className="mt-4 flex flex-col gap-1 text-xs text-slate-600">
+              Document title
+              <input
+                value={requestNewTitle}
+                onChange={(e) => setRequestNewTitle(e.target.value)}
+                placeholder="e.g. Q1-2026 cohort retention split"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/40"
+              />
+            </label>
+            <label className="mt-3 flex flex-col gap-1 text-xs text-slate-600">
+              Why you need it
+              <textarea
+                value={requestNewMessage}
+                onChange={(e) => setRequestNewMessage(e.target.value)}
+                placeholder="A sentence or two — what question would this document answer?"
+                rows={4}
+                className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-900 outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-500/40"
+              />
+            </label>
+            {requestNewSent ? (
+              <p className="mt-3 text-xs text-emerald-700">{requestNewSent}</p>
+            ) : null}
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestNewOpen(false);
+                  setRequestNewTitle('');
+                  setRequestNewMessage('');
+                }}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitRequestNew()}
+                disabled={
+                  requestNewSending || !requestNewTitle.trim() || !requestNewMessage.trim()
+                }
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 py-2 text-sm font-medium text-white shadow-md shadow-violet-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {requestNewSending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FilePlus2 className="h-4 w-4" />
+                )}
+                Send request
               </button>
             </div>
           </div>

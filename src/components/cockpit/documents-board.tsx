@@ -30,13 +30,22 @@ const WATERMARK_OPTIONS: Array<{ value: WatermarkPolicy; label: string }> = [
   { value: 'none', label: 'No watermark' },
 ];
 
+// Full pipeline coverage. Earlier stages (prospect, contacted) gate
+// pre-NDA materials a founder may want public-but-pipeline-tracked;
+// later stages (funded, closed_lost) gate post-deal artefacts. Order
+// matches the stageEnum so the dropdown reads as a pipeline timeline.
 const STAGE_GATE_OPTIONS: Array<{ value: LeadStage | ''; label: string }> = [
   { value: '', label: 'No gate — visible after NDA (default)' },
+  { value: 'prospect', label: 'Prospect or later (pre-contact materials)' },
+  { value: 'contacted', label: 'Contacted or later' },
   { value: 'engaged', label: 'Engaged or later' },
+  { value: 'nda_pending', label: 'NDA pending or later' },
   { value: 'nda_signed', label: 'NDA signed (most cap tables, term sheets)' },
   { value: 'meeting_scheduled', label: 'After meeting scheduled' },
   { value: 'diligence', label: 'In diligence or later' },
   { value: 'term_sheet', label: 'Term sheet or later' },
+  { value: 'funded', label: 'Funded only (post-close docs)' },
+  { value: 'closed_lost', label: 'Closed lost only (rare)' },
 ];
 
 function formatBytes(n: number): string {
