@@ -35,16 +35,31 @@ export const OOTAOS_BRAND = {
 } as const;
 
 /**
- * Absolute URL to the canonical OotaOS logo asset for emails. Uses the
- * rectangular logo with tagline ("Powering Restaurants to Win") because
- * its 3:1 aspect ratio sits naturally in the email header band — the
- * square light-background variant looked oversized and the wordmark
- * alone (oota-rect.png) lacks the product context investors get on the
- * marketing site.
+ * Filename of the canonical OotaOS logo asset (rectangular logo with
+ * tagline "Powering Restaurants to Win"). Its 3:1 ratio fits the email
+ * header band and the tagline reinforces product context for investors.
+ */
+export const LOGO_FILE = 'oota-rect-tagline.png';
+
+/**
+ * Content-ID for the inline logo attachment. The HTML shell references
+ * this via `cid:ootaos-logo` instead of a remote URL so the logo renders
+ * even in clients that block external images by default (Tracxn, some
+ * Outlook configurations, Gmail's "ask before displaying" mode).
+ */
+export const LOGO_CID = 'ootaos-logo';
+
+/** `cid:` reference suitable for the `<img src>` attribute. */
+export const LOGO_SRC = `cid:${LOGO_CID}`;
+
+/**
+ * Absolute URL to the canonical OotaOS logo asset. Retained for non-email
+ * surfaces (e.g. shareable previews) where a remote URL is appropriate.
+ * Email rendering uses the inline CID reference above.
  */
 export function logoUrl(): string {
   const siteBase = env.NEXT_PUBLIC_SITE_URL.replace(/\/+$/, '');
-  return `${siteBase}/brand/oota-rect-tagline.png`;
+  return `${siteBase}/brand/${LOGO_FILE}`;
 }
 
 /** Absolute URL to the public marketing site (clickable from the header). */

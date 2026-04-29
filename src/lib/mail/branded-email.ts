@@ -19,7 +19,7 @@
  *
  *   await sendMail({ to: "...", subject: "...", html, text });
  */
-import { logoUrl, MARKETING_SITE_URL, OOTAOS_BRAND, siteUrl } from '@/lib/mail/brand';
+import { LOGO_SRC, MARKETING_SITE_URL, OOTAOS_BRAND, siteUrl } from '@/lib/mail/brand';
 
 export type BrandedEmailInput = {
   heading: string;
@@ -66,7 +66,6 @@ export type BrandedEmailInput = {
 };
 
 const SITE = siteUrl();
-const LOGO_URL = logoUrl();
 
 // Local alias so the existing render code reads cleanly. Single source of
 // truth lives in @/lib/mail/brand.
@@ -139,14 +138,17 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
         <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; background: ${PALETTE.bgCard}; border: 1px solid ${PALETTE.border}; border-radius: 24px; box-shadow: 0 20px 60px -30px rgba(234, 88, 12, 0.18); overflow: hidden;">
           <tr>
             <td style="padding: 28px 32px 0 32px;">
-              <!-- Real OotaOS rectangle-with-tagline logo. The image is
-                   served from investors.ootaos.com/brand/ which Gmail's
-                   image proxy caches once per recipient; alt text is the
-                   wordmark so clients that block images still see "OotaOS".
-                   The header link points at the public marketing site
+              <!-- OotaOS rectangle-with-tagline logo, embedded as a CID
+                   inline attachment (see sendMail in @/lib/mail/smtp).
+                   Inline embedding means the logo renders without the
+                   recipient having to click "Display external images" —
+                   important for clients like Tracxn that block remote
+                   images by default. Alt text falls back to the wordmark
+                   for the rare client that ignores inline parts too. The
+                   header link points at the public marketing site
                    (www.ootaos.com), not the investor app. -->
               <a href="${MARKETING_SITE_URL}" style="display: inline-block; text-decoration: none;">
-                <img src="${LOGO_URL}" alt="OotaOS — Powering Restaurants to Win" width="220" style="display: block; max-width: 220px; height: auto; border: 0; outline: none; text-decoration: none;"/>
+                <img src="${LOGO_SRC}" alt="OotaOS — Powering Restaurants to Win" width="220" style="display: block; max-width: 220px; height: auto; border: 0; outline: none; text-decoration: none;"/>
               </a>
             </td>
           </tr>
