@@ -148,13 +148,13 @@ export function renderBrandedEmail(input: BrandedEmailInput): { html: string; te
                    header link points at the public marketing site
                    (www.ootaos.com), not the investor app. -->
               <a href="${MARKETING_SITE_URL}" style="display: inline-block; text-decoration: none;">
-                <img src="${LOGO_SRC}" alt="OotaOS — Powering Restaurants to Win" width="220" style="display: block; max-width: 220px; height: auto; border: 0; outline: none; text-decoration: none;"/>
+                <img src="${LOGO_SRC}" alt="OotaOS — Powering Restaurants to Win" width="132" style="display: block; max-width: 132px; height: auto; border: 0; outline: none; text-decoration: none;"/>
               </a>
             </td>
           </tr>
           <tr>
             <td style="padding: 12px 32px 0 32px;">
-              <div style="height: 4px; width: 64px; background: linear-gradient(90deg, ${PALETTE.accentFrom}, ${PALETTE.accentTo}); border-radius: 99px;"></div>
+              <div style="height: 4px; width: 132px; background: linear-gradient(90deg, ${PALETTE.accentFrom}, ${PALETTE.accentTo}); border-radius: 99px;"></div>
               <h1 style="margin: 16px 0 16px; font-size: 22px; line-height: 1.25; color: ${PALETTE.ink}; letter-spacing: -0.01em;">${escapeHtml(input.heading)}</h1>
             </td>
           </tr>
